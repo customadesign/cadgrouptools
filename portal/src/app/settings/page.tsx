@@ -1,0 +1,585 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  Card,
+  Form,
+  Input,
+  Button,
+  Select,
+  Switch,
+  Tabs,
+  Avatar,
+  Upload,
+  message,
+  Row,
+  Col,
+  Typography,
+  Divider,
+  Space,
+  Alert,
+  Badge,
+  List,
+  Tag,
+  Modal,
+  TimePicker,
+  Radio,
+} from 'antd';
+import {
+  UserOutlined,
+  MailOutlined,
+  LockOutlined,
+  BellOutlined,
+  SafetyOutlined,
+  SettingOutlined,
+  CameraOutlined,
+  SaveOutlined,
+  ExclamationCircleOutlined,
+  CheckCircleOutlined,
+  GlobalOutlined,
+  SunOutlined,
+  MoonOutlined,
+  DesktopOutlined,
+  MobileOutlined,
+  KeyOutlined,
+  TeamOutlined,
+  CalendarOutlined,
+  DollarOutlined,
+  DownloadOutlined,
+} from '@ant-design/icons';
+import { useSession } from 'next-auth/react';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import PageHeader from '@/components/common/PageHeader';
+import dayjs from 'dayjs';
+
+const { Title, Text, Paragraph } = Typography;
+const { TabPane } = Tabs;
+const { Option } = Select;
+
+export default function SettingsPage() {
+  const { data: session } = useSession();
+  const [form] = Form.useForm();
+  const [passwordForm] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+
+  const handleProfileUpdate = async (values: any) => {
+    setLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      message.success('Profile updated successfully');
+    } catch (error) {
+      message.error('Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (values: any) => {
+    setLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      message.success('Password changed successfully');
+      passwordForm.resetFields();
+    } catch (error) {
+      message.error('Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnable2FA = () => {
+    Modal.confirm({
+      title: 'Enable Two-Factor Authentication',
+      icon: <SafetyOutlined />,
+      content: 'This will add an extra layer of security to your account. You will need an authenticator app to complete the setup.',
+      onOk: () => {
+        setTwoFactorEnabled(true);
+        message.success('Two-factor authentication enabled');
+      },
+    });
+  };
+
+  const activityLog = [
+    {
+      id: 1,
+      action: 'Login from new device',
+      device: 'Chrome on MacOS',
+      location: 'Manila, Philippines',
+      time: '2 hours ago',
+      ip: '192.168.1.1',
+    },
+    {
+      id: 2,
+      action: 'Password changed',
+      device: 'Safari on iPhone',
+      location: 'Manila, Philippines',
+      time: '3 days ago',
+      ip: '192.168.1.2',
+    },
+    {
+      id: 3,
+      action: 'Profile updated',
+      device: 'Chrome on Windows',
+      location: 'Quezon City, Philippines',
+      time: '1 week ago',
+      ip: '192.168.1.3',
+    },
+  ];
+
+  const connectedApps = [
+    {
+      id: 1,
+      name: 'Google Workspace',
+      description: 'Access to Google Drive and Calendar',
+      connected: true,
+      icon: '🔗',
+    },
+    {
+      id: 2,
+      name: 'Slack',
+      description: 'Team communication and notifications',
+      connected: true,
+      icon: '💬',
+    },
+    {
+      id: 3,
+      name: 'Dropbox',
+      description: 'File storage and sharing',
+      connected: false,
+      icon: '📦',
+    },
+  ];
+
+  return (
+    <DashboardLayout
+      breadcrumbs={[
+        { title: 'Settings' },
+      ]}
+    >
+      <PageHeader
+        title="Settings"
+        subtitle="Manage your account settings and preferences"
+      />
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={6}>
+          <Card>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <Badge
+                count={<CameraOutlined style={{ fontSize: 20, color: '#fff' }} />}
+                offset={[-10, 80]}
+                style={{ backgroundColor: '#1677ff', cursor: 'pointer' }}
+              >
+                <Avatar
+                  size={100}
+                  icon={<UserOutlined />}
+                  style={{ backgroundColor: '#1677ff' }}
+                />
+              </Badge>
+              <Title level={4} style={{ marginTop: 16, marginBottom: 0 }}>
+                {session?.user?.name || 'User Name'}
+              </Title>
+              <Text type="secondary">{session?.user?.email}</Text>
+              <br />
+              <Tag color="blue" style={{ marginTop: 8 }}>
+                {session?.user?.role?.toUpperCase() || 'ADMIN'}
+              </Tag>
+            </div>
+
+            <Divider />
+
+            <List
+              size="small"
+              dataSource={[
+                { icon: <CalendarOutlined />, label: 'Member Since', value: 'Jan 2024' },
+                { icon: <TeamOutlined />, label: 'Department', value: 'Management' },
+                { icon: <GlobalOutlined />, label: 'Timezone', value: 'Asia/Manila' },
+                { icon: <DollarOutlined />, label: 'Plan', value: 'Premium' },
+              ]}
+              renderItem={item => (
+                <List.Item>
+                  <Space>
+                    {item.icon}
+                    <Text type="secondary">{item.label}:</Text>
+                    <Text strong>{item.value}</Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={18}>
+          <Card>
+            <Tabs activeKey={activeTab} onChange={setActiveTab}>
+              <TabPane
+                tab={
+                  <span>
+                    <UserOutlined />
+                    Profile
+                  </span>
+                }
+                key="profile"
+              >
+                <Form
+                  form={form}
+                  layout="vertical"
+                  onFinish={handleProfileUpdate}
+                  initialValues={{
+                    name: session?.user?.name,
+                    email: session?.user?.email,
+                    phone: '+63 917 123 4567',
+                    company: 'CADGroup Management',
+                    department: 'Management',
+                    jobTitle: 'Administrator',
+                    bio: 'System administrator for CADGroup Tools Portal',
+                  }}
+                >
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="name"
+                        label="Full Name"
+                        rules={[{ required: true, message: 'Please enter your name' }]}
+                      >
+                        <Input prefix={<UserOutlined />} placeholder="Full Name" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="email"
+                        label="Email Address"
+                        rules={[
+                          { required: true, message: 'Please enter your email' },
+                          { type: 'email', message: 'Please enter a valid email' },
+                        ]}
+                      >
+                        <Input prefix={<MailOutlined />} placeholder="Email" disabled />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item name="phone" label="Phone Number">
+                        <Input placeholder="Phone Number" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item name="company" label="Company">
+                        <Input placeholder="Company Name" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item name="department" label="Department">
+                        <Select placeholder="Select Department">
+                          <Option value="Management">Management</Option>
+                          <Option value="Sales">Sales</Option>
+                          <Option value="Marketing">Marketing</Option>
+                          <Option value="Engineering">Engineering</Option>
+                          <Option value="Support">Support</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item name="jobTitle" label="Job Title">
+                        <Input placeholder="Job Title" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Form.Item name="bio" label="Bio">
+                    <Input.TextArea rows={4} placeholder="Tell us about yourself" />
+                  </Form.Item>
+
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />}>
+                      Save Changes
+                    </Button>
+                  </Form.Item>
+                </Form>
+              </TabPane>
+
+              <TabPane
+                tab={
+                  <span>
+                    <LockOutlined />
+                    Security
+                  </span>
+                }
+                key="security"
+              >
+                <Title level={5}>Change Password</Title>
+                <Form
+                  form={passwordForm}
+                  layout="vertical"
+                  onFinish={handlePasswordChange}
+                  style={{ maxWidth: 500 }}
+                >
+                  <Form.Item
+                    name="currentPassword"
+                    label="Current Password"
+                    rules={[{ required: true, message: 'Please enter your current password' }]}
+                  >
+                    <Input.Password prefix={<LockOutlined />} placeholder="Current Password" />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="newPassword"
+                    label="New Password"
+                    rules={[
+                      { required: true, message: 'Please enter a new password' },
+                      { min: 8, message: 'Password must be at least 8 characters' },
+                    ]}
+                  >
+                    <Input.Password prefix={<LockOutlined />} placeholder="New Password" />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="confirmPassword"
+                    label="Confirm New Password"
+                    dependencies={['newPassword']}
+                    rules={[
+                      { required: true, message: 'Please confirm your password' },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (!value || getFieldValue('newPassword') === value) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('Passwords do not match'));
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input.Password prefix={<LockOutlined />} placeholder="Confirm Password" />
+                  </Form.Item>
+
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" loading={loading} icon={<KeyOutlined />}>
+                      Change Password
+                    </Button>
+                  </Form.Item>
+                </Form>
+
+                <Divider />
+
+                <Title level={5}>Two-Factor Authentication</Title>
+                <Alert
+                  message="Enhanced Security"
+                  description="Two-factor authentication adds an extra layer of security to your account."
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+                <Space>
+                  <Switch
+                    checked={twoFactorEnabled}
+                    onChange={handleEnable2FA}
+                    checkedChildren="Enabled"
+                    unCheckedChildren="Disabled"
+                  />
+                  <Text>{twoFactorEnabled ? 'Two-factor authentication is enabled' : 'Enable two-factor authentication'}</Text>
+                </Space>
+
+                <Divider />
+
+                <Title level={5}>Recent Activity</Title>
+                <List
+                  dataSource={activityLog}
+                  renderItem={item => (
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                        title={item.action}
+                        description={
+                          <Space direction="vertical" size={0}>
+                            <Text type="secondary">{item.device}</Text>
+                            <Text type="secondary">{item.location} • {item.ip}</Text>
+                          </Space>
+                        }
+                      />
+                      <Text type="secondary">{item.time}</Text>
+                    </List.Item>
+                  )}
+                />
+              </TabPane>
+
+              <TabPane
+                tab={
+                  <span>
+                    <BellOutlined />
+                    Notifications
+                  </span>
+                }
+                key="notifications"
+              >
+                <Title level={5}>Email Notifications</Title>
+                <List
+                  dataSource={[
+                    { key: 'proposals', label: 'New proposal submissions', enabled: true },
+                    { key: 'clients', label: 'New client registrations', enabled: true },
+                    { key: 'transactions', label: 'Transaction updates', enabled: false },
+                    { key: 'reports', label: 'Weekly reports', enabled: true },
+                    { key: 'security', label: 'Security alerts', enabled: true },
+                  ]}
+                  renderItem={item => (
+                    <List.Item
+                      actions={[
+                        <Switch
+                          defaultChecked={item.enabled}
+                          onChange={(checked) => message.info(`${item.label}: ${checked ? 'Enabled' : 'Disabled'}`)}
+                        />,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={item.label}
+                        avatar={<MailOutlined />}
+                      />
+                    </List.Item>
+                  )}
+                />
+
+                <Divider />
+
+                <Title level={5}>Push Notifications</Title>
+                <Alert
+                  message="Browser Notifications"
+                  description="Get real-time notifications in your browser when important events occur."
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+                <Space>
+                  <Switch
+                    checked={pushNotifications}
+                    onChange={setPushNotifications}
+                    checkedChildren="Enabled"
+                    unCheckedChildren="Disabled"
+                  />
+                  <Text>{pushNotifications ? 'Push notifications are enabled' : 'Enable push notifications'}</Text>
+                </Space>
+
+                <Divider />
+
+                <Title level={5}>Notification Schedule</Title>
+                <Form layout="vertical" style={{ maxWidth: 400 }}>
+                  <Form.Item label="Quiet Hours">
+                    <TimePicker.RangePicker
+                      format="HH:mm"
+                      defaultValue={[dayjs('22:00', 'HH:mm'), dayjs('08:00', 'HH:mm')]}
+                    />
+                  </Form.Item>
+                  <Form.Item label="Summary Frequency">
+                    <Radio.Group defaultValue="daily">
+                      <Radio value="realtime">Real-time</Radio>
+                      <Radio value="hourly">Hourly</Radio>
+                      <Radio value="daily">Daily</Radio>
+                      <Radio value="weekly">Weekly</Radio>
+                    </Radio.Group>
+                  </Form.Item>
+                </Form>
+              </TabPane>
+
+              <TabPane
+                tab={
+                  <span>
+                    <SettingOutlined />
+                    Preferences
+                  </span>
+                }
+                key="preferences"
+              >
+                <Title level={5}>Appearance</Title>
+                <Form layout="vertical">
+                  <Form.Item label="Theme">
+                    <Radio.Group value={darkMode ? 'dark' : 'light'} onChange={(e) => setDarkMode(e.target.value === 'dark')}>
+                      <Radio.Button value="light">
+                        <SunOutlined /> Light
+                      </Radio.Button>
+                      <Radio.Button value="dark">
+                        <MoonOutlined /> Dark
+                      </Radio.Button>
+                      <Radio.Button value="auto">
+                        <DesktopOutlined /> System
+                      </Radio.Button>
+                    </Radio.Group>
+                  </Form.Item>
+
+                  <Form.Item label="Language">
+                    <Select defaultValue="en" style={{ width: 200 }}>
+                      <Option value="en">English</Option>
+                      <Option value="es">Spanish</Option>
+                      <Option value="fr">French</Option>
+                      <Option value="de">German</Option>
+                      <Option value="zh">Chinese</Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item label="Date Format">
+                    <Select defaultValue="MM/DD/YYYY" style={{ width: 200 }}>
+                      <Option value="MM/DD/YYYY">MM/DD/YYYY</Option>
+                      <Option value="DD/MM/YYYY">DD/MM/YYYY</Option>
+                      <Option value="YYYY-MM-DD">YYYY-MM-DD</Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item label="Time Zone">
+                    <Select defaultValue="Asia/Manila" style={{ width: 200 }}>
+                      <Option value="Asia/Manila">Asia/Manila (GMT+8)</Option>
+                      <Option value="America/New_York">America/New York (EST)</Option>
+                      <Option value="Europe/London">Europe/London (GMT)</Option>
+                      <Option value="Asia/Tokyo">Asia/Tokyo (JST)</Option>
+                    </Select>
+                  </Form.Item>
+                </Form>
+
+                <Divider />
+
+                <Title level={5}>Connected Apps</Title>
+                <List
+                  dataSource={connectedApps}
+                  renderItem={item => (
+                    <List.Item
+                      actions={[
+                        item.connected ? (
+                          <Button danger size="small">Disconnect</Button>
+                        ) : (
+                          <Button type="primary" size="small">Connect</Button>
+                        ),
+                      ]}
+                    >
+                      <List.Item.Meta
+                        avatar={<span style={{ fontSize: 24 }}>{item.icon}</span>}
+                        title={item.name}
+                        description={item.description}
+                      />
+                      {item.connected && <Tag color="green">Connected</Tag>}
+                    </List.Item>
+                  )}
+                />
+
+                <Divider />
+
+                <Title level={5}>Data & Privacy</Title>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Button icon={<DownloadOutlined />}>Download My Data</Button>
+                  <Button danger icon={<ExclamationCircleOutlined />}>Delete Account</Button>
+                </Space>
+              </TabPane>
+            </Tabs>
+          </Card>
+        </Col>
+      </Row>
+    </DashboardLayout>
+  );
+}
