@@ -48,6 +48,7 @@ import {
   CodeOutlined,
   CalendarOutlined,
   InfoCircleOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -869,7 +870,7 @@ export default function CreateProposalPage() {
         borderRadius: 8,
         marginTop: 24 
       }}>
-        <Title level={5}>What's Next?</Title>
+        <Title level={5}>What&apos;s Next?</Title>
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
           <Text>
             <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />

@@ -64,6 +64,7 @@ import {
   SyncOutlined,
   WarningOutlined,
   InfoCircleOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layouts/DashboardLayout';

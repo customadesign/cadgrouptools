@@ -488,7 +488,7 @@ export default function AccountingPage() {
           <Col>
             <RangePicker
               value={dateRange}
-              onChange={(dates) => dates && setDateRange([dates[0], dates[1]])}
+              onChange={(dates) => dates && setDateRange([dates[0]!, dates[1]!])}
               format="MMM DD, YYYY"
             />
           </Col>
