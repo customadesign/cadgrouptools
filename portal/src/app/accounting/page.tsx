@@ -1,0 +1,739 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Button,
+  Space,
+  Table,
+  Tag,
+  Progress,
+  Select,
+  DatePicker,
+  Typography,
+  Alert,
+  Badge,
+  Tooltip,
+  Segmented,
+  Empty,
+  List,
+  Avatar,
+} from 'antd';
+import {
+  DollarOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  UploadOutlined,
+  FileTextOutlined,
+  BankOutlined,
+  CalendarOutlined,
+  PieChartOutlined,
+  LineChartOutlined,
+  BarChartOutlined,
+  WalletOutlined,
+  CreditCardOutlined,
+  ShoppingCartOutlined,
+  HomeOutlined,
+  CarOutlined,
+  CoffeeOutlined,
+  ShopOutlined,
+  TeamOutlined,
+  FilterOutlined,
+  DownloadOutlined,
+  SyncOutlined,
+  InfoCircleOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import PageHeader from '@/components/common/PageHeader';
+import dayjs from 'dayjs';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title as ChartTitle,
+  Tooltip as ChartTooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line, Pie, Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  ChartTitle,
+  ChartTooltip,
+  Legend,
+  Filler
+);
+
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
+
+interface Transaction {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  amount: number;
+  type: 'income' | 'expense';
+  status: 'completed' | 'pending' | 'failed';
+  account: string;
+  vendor?: string;
+}
+
+interface CategoryData {
+  name: string;
+  amount: number;
+  percentage: number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+export default function AccountingPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().startOf('month'),
+    dayjs().endOf('month'),
+  ]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [dateRange]);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      // Mock data for development
+      const mockTransactions: Transaction[] = [
+        {
+          id: '1',
+          date: '2024-01-15',
+          description: 'Client Payment - Tech Corp',
+          category: 'Income',
+          amount: 15000,
+          type: 'income',
+          status: 'completed',
+          account: 'Business Checking',
+          vendor: 'Tech Corp Solutions',
+        },
+        {
+          id: '2',
+          date: '2024-01-14',
+          description: 'AWS Services',
+          category: 'Technology',
+          amount: 2500,
+          type: 'expense',
+          status: 'completed',
+          account: 'Business Credit Card',
+          vendor: 'Amazon Web Services',
+        },
+        {
+          id: '3',
+          date: '2024-01-13',
+          description: 'Office Rent',
+          category: 'Rent',
+          amount: 3500,
+          type: 'expense',
+          status: 'completed',
+          account: 'Business Checking',
+          vendor: 'Property Management LLC',
+        },
+        {
+          id: '4',
+          date: '2024-01-12',
+          description: 'Client Payment - Innovate IO',
+          category: 'Income',
+          amount: 8500,
+          type: 'income',
+          status: 'completed',
+          account: 'Business Checking',
+          vendor: 'Innovate IO',
+        },
+        {
+          id: '5',
+          date: '2024-01-10',
+          description: 'Team Lunch',
+          category: 'Meals',
+          amount: 250,
+          type: 'expense',
+          status: 'completed',
+          account: 'Business Credit Card',
+          vendor: 'Local Restaurant',
+        },
+      ];
+      
+      setTimeout(() => {
+        setTransactions(mockTransactions);
+        setLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+      setLoading(false);
+    }
+  };
+
+  // Calculate statistics
+  const totalIncome = transactions
+    .filter(t => t.type === 'income' && t.status === 'completed')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  const totalExpenses = transactions
+    .filter(t => t.type === 'expense' && t.status === 'completed')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  const netIncome = totalIncome - totalExpenses;
+  const profitMargin = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
+
+  // Category breakdown
+  const categoryBreakdown: CategoryData[] = [
+    {
+      name: 'Technology',
+      amount: 2500,
+      percentage: 28,
+      icon: <ShopOutlined />,
+      color: '#1677ff',
+    },
+    {
+      name: 'Rent',
+      amount: 3500,
+      percentage: 39,
+      icon: <HomeOutlined />,
+      color: '#52c41a',
+    },
+    {
+      name: 'Meals',
+      amount: 250,
+      percentage: 3,
+      icon: <CoffeeOutlined />,
+      color: '#fa8c16',
+    },
+    {
+      name: 'Transport',
+      amount: 450,
+      percentage: 5,
+      icon: <CarOutlined />,
+      color: '#eb2f96',
+    },
+    {
+      name: 'Utilities',
+      amount: 800,
+      percentage: 9,
+      icon: <BankOutlined />,
+      color: '#722ed1',
+    },
+    {
+      name: 'Other',
+      amount: 1500,
+      percentage: 16,
+      icon: <WalletOutlined />,
+      color: '#8c8c8c',
+    },
+  ];
+
+  // Chart data
+  const cashFlowData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    datasets: [
+      {
+        label: 'Income',
+        data: [45000, 52000, 48000, 61000, 58000, 65000],
+        borderColor: '#52c41a',
+        backgroundColor: 'rgba(82, 196, 26, 0.1)',
+        fill: true,
+        tension: 0.4,
+      },
+      {
+        label: 'Expenses',
+        data: [32000, 28000, 35000, 30000, 33000, 31000],
+        borderColor: '#ff4d4f',
+        backgroundColor: 'rgba(255, 77, 79, 0.1)',
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  };
+
+  const cashFlowOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            return `${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+          },
+        },
+      },
+    },
+    scales: {
+      y: {
+        ticks: {
+          callback: (value: any) => `$${value / 1000}k`,
+        },
+      },
+    },
+  };
+
+  const categoryPieData = {
+    labels: categoryBreakdown.map(c => c.name),
+    datasets: [
+      {
+        data: categoryBreakdown.map(c => c.amount),
+        backgroundColor: categoryBreakdown.map(c => c.color),
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const categoryPieOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right' as const,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const percentage = ((value / totalExpenses) * 100).toFixed(1);
+            return `${label}: $${value.toLocaleString()} (${percentage}%)`;
+          },
+        },
+      },
+    },
+  };
+
+  const monthlyComparisonData = {
+    labels: ['Income', 'Expenses', 'Net'],
+    datasets: [
+      {
+        label: 'This Month',
+        data: [65000, 31000, 34000],
+        backgroundColor: '#1677ff',
+      },
+      {
+        label: 'Last Month',
+        data: [58000, 33000, 25000],
+        backgroundColor: '#a0d4ff',
+      },
+    ],
+  };
+
+  const monthlyComparisonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            return `${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+          },
+        },
+      },
+    },
+    scales: {
+      y: {
+        ticks: {
+          callback: (value: any) => `$${value / 1000}k`,
+        },
+      },
+    },
+  };
+
+  const columns = [
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      width: 100,
+      render: (date: string) => dayjs(date).format('MMM DD'),
+      sorter: (a: Transaction, b: Transaction) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+    },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      width: 120,
+      render: (category: string) => (
+        <Tag color="blue">{category}</Tag>
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 120,
+      align: 'right' as const,
+      render: (amount: number, record: Transaction) => (
+        <Text
+          strong
+          style={{
+            color: record.type === 'income' ? '#52c41a' : '#ff4d4f',
+          }}
+        >
+          {record.type === 'income' ? '+' : '-'}${amount.toLocaleString()}
+        </Text>
+      ),
+      sorter: (a: Transaction, b: Transaction) => a.amount - b.amount,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => {
+        const colors: Record<string, string> = {
+          completed: 'green',
+          pending: 'orange',
+          failed: 'red',
+        };
+        return <Tag color={colors[status]}>{status.toUpperCase()}</Tag>;
+      },
+    },
+    {
+      title: 'Account',
+      dataIndex: 'account',
+      key: 'account',
+      width: 150,
+      render: (account: string) => (
+        <Space>
+          <BankOutlined />
+          <Text>{account}</Text>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <DashboardLayout
+      breadcrumbs={[
+        { title: 'Accounting' },
+      ]}
+    >
+      <PageHeader
+        title="Accounting Overview"
+        subtitle="Monitor your financial health and cash flow"
+        extra={
+          <Space>
+            <Button icon={<SyncOutlined />} onClick={fetchTransactions}>
+              Refresh
+            </Button>
+            <Button icon={<DownloadOutlined />}>
+              Export Report
+            </Button>
+            <Button
+              type="primary"
+              icon={<UploadOutlined />}
+              onClick={() => router.push('/accounting/upload')}
+            >
+              Upload Statement
+            </Button>
+          </Space>
+        }
+      />
+
+      {/* Period Selector */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16} align="middle">
+          <Col flex="auto">
+            <Segmented
+              value={selectedPeriod}
+              onChange={setSelectedPeriod}
+              options={[
+                { label: 'Today', value: 'today' },
+                { label: 'Week', value: 'week' },
+                { label: 'Month', value: 'month' },
+                { label: 'Quarter', value: 'quarter' },
+                { label: 'Year', value: 'year' },
+                { label: 'Custom', value: 'custom' },
+              ]}
+            />
+          </Col>
+          <Col>
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => dates && setDateRange([dates[0], dates[1]])}
+              format="MMM DD, YYYY"
+            />
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Key Metrics */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Income"
+              value={totalIncome}
+              precision={2}
+              valueStyle={{ color: '#52c41a' }}
+              prefix={<DollarOutlined />}
+              suffix={
+                <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                  <ArrowUpOutlined /> 12%
+                </span>
+              }
+            />
+            <Progress
+              percent={75}
+              strokeColor="#52c41a"
+              showInfo={false}
+              style={{ marginTop: 8 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Expenses"
+              value={totalExpenses}
+              precision={2}
+              valueStyle={{ color: '#ff4d4f' }}
+              prefix={<DollarOutlined />}
+              suffix={
+                <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                  <ArrowDownOutlined /> 5%
+                </span>
+              }
+            />
+            <Progress
+              percent={45}
+              strokeColor="#ff4d4f"
+              showInfo={false}
+              style={{ marginTop: 8 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Net Income"
+              value={netIncome}
+              precision={2}
+              valueStyle={{ color: netIncome >= 0 ? '#1677ff' : '#ff4d4f' }}
+              prefix={<DollarOutlined />}
+            />
+            <Progress
+              percent={Math.abs(profitMargin)}
+              strokeColor={netIncome >= 0 ? '#1677ff' : '#ff4d4f'}
+              showInfo={false}
+              style={{ marginTop: 8 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Profit Margin"
+              value={profitMargin}
+              precision={1}
+              valueStyle={{ color: profitMargin >= 30 ? '#52c41a' : '#fa8c16' }}
+              suffix="%"
+              prefix={profitMargin >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+            />
+            <Progress
+              percent={Math.abs(profitMargin)}
+              strokeColor={profitMargin >= 30 ? '#52c41a' : '#fa8c16'}
+              showInfo={false}
+              style={{ marginTop: 8 }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Charts Section */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={16}>
+          <Card
+            title="Cash Flow Trend"
+            extra={
+              <Select defaultValue="6months" style={{ width: 120 }}>
+                <Select.Option value="3months">3 Months</Select.Option>
+                <Select.Option value="6months">6 Months</Select.Option>
+                <Select.Option value="1year">1 Year</Select.Option>
+              </Select>
+            }
+          >
+            <div style={{ height: 350 }}>
+              <Line data={cashFlowData} options={cashFlowOptions} />
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card title="Expense Categories">
+            <div style={{ height: 350 }}>
+              <Pie data={categoryPieData} options={categoryPieOptions} />
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Monthly Comparison and Category Breakdown */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Monthly Comparison">
+            <div style={{ height: 300 }}>
+              <Bar data={monthlyComparisonData} options={monthlyComparisonOptions} />
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Category Breakdown"
+            extra={
+              <Button type="link" onClick={() => router.push('/accounting/transactions')}>
+                View All
+              </Button>
+            }
+          >
+            <List
+              dataSource={categoryBreakdown}
+              renderItem={item => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar
+                        style={{ backgroundColor: item.color }}
+                        icon={item.icon}
+                      />
+                    }
+                    title={item.name}
+                    description={`${item.percentage}% of total expenses`}
+                  />
+                  <Text strong style={{ fontSize: 16 }}>
+                    ${item.amount.toLocaleString()}
+                  </Text>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Recent Transactions */}
+      <Card
+        title="Recent Transactions"
+        extra={
+          <Space>
+            <Button icon={<FilterOutlined />}>Filter</Button>
+            <Button
+              type="link"
+              onClick={() => router.push('/accounting/transactions')}
+            >
+              View All
+            </Button>
+          </Space>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={transactions}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+          scroll={{ x: 800 }}
+        />
+      </Card>
+
+      {/* Account Balances */}
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col xs={24} md={8}>
+          <Card>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <BankOutlined style={{ fontSize: 24, color: '#1677ff' }} />
+                <Text strong>Business Checking</Text>
+              </Space>
+              <Title level={3} style={{ margin: '8px 0' }}>
+                $125,450.00
+              </Title>
+              <Text type="secondary">Last updated: 2 hours ago</Text>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <CreditCardOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+                <Text strong>Business Credit Card</Text>
+              </Space>
+              <Title level={3} style={{ margin: '8px 0' }}>
+                $8,250.00
+              </Title>
+              <Text type="secondary">Available credit: $41,750</Text>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <WalletOutlined style={{ fontSize: 24, color: '#fa8c16' }} />
+                <Text strong>Savings Account</Text>
+              </Space>
+              <Title level={3} style={{ margin: '8px 0' }}>
+                $85,000.00
+              </Title>
+              <Text type="secondary">APY: 4.5%</Text>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Alerts */}
+      <div style={{ marginTop: 24 }}>
+        <Alert
+          message="Tax Payment Reminder"
+          description="Quarterly estimated tax payment of $12,500 is due on January 15, 2024."
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          action={
+            <Button size="small" type="primary">
+              Schedule Payment
+            </Button>
+          }
+          closable
+        />
+      </div>
+    </DashboardLayout>
+  );
+}
