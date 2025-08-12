@@ -115,6 +115,9 @@ function SignInForm() {
         </Form>
 
           <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <a href="/auth/forgot-password" style={{ color: '#1677ff', display: 'block', marginBottom: 8 }}>
+              Forgot your password?
+            </a>
             <a href="/auth/register" style={{ color: '#1677ff' }}>
               Don't have an account? Register
             </a>
