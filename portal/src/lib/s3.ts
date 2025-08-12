@@ -6,12 +6,11 @@ const SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const ENDPOINT = process.env.S3_ENDPOINT; // optional for S3-compatible
 export const BUCKET = process.env.S3_BUCKET_NAME as string | undefined;
 
-if (!REGION) throw new Error('Missing S3_REGION');
-if (!ACCESS_KEY_ID) throw new Error('Missing S3_ACCESS_KEY_ID');
-if (!SECRET_ACCESS_KEY) throw new Error('Missing S3_SECRET_ACCESS_KEY');
-if (!BUCKET) throw new Error('Missing S3_BUCKET_NAME');
-
 export function getS3Client(): S3Client {
+  if (!REGION) throw new Error('Missing S3_REGION');
+  if (!ACCESS_KEY_ID) throw new Error('Missing S3_ACCESS_KEY_ID');
+  if (!SECRET_ACCESS_KEY) throw new Error('Missing S3_SECRET_ACCESS_KEY');
+  if (!BUCKET) throw new Error('Missing S3_BUCKET_NAME');
   return new S3Client({
     region: REGION,
     endpoint: ENDPOINT,
