@@ -1,0 +1,14 @@
+# Task ID: 7
+# Title: Proposal Editor: Dual-Pane HTML + Live Preview
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Implement split editor with HTML code on left and live preview on right.
+# Details:
+- Use Monaco for code editing with HTML syntax highlighting
+- Live preview iframe with DOMPurify/CSP sandbox
+- Resizable split (default 50/50), template insertion, undo/redo
+- Save drafts to DB; auto-save and versioning
+
+# Test Strategy:
+

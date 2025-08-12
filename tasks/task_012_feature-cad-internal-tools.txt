@@ -1,0 +1,14 @@
+# Task ID: 12
+# Title: Security & Audit Logging
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Harden security and add audit trails.
+# Details:
+- Field encryption for sensitive data
+- Least-privilege IAM for S3/OCR
+- Audit logs for uploads, OCR runs, proposal sends
+- Secrets management and logging hygiene
+
+# Test Strategy:
+

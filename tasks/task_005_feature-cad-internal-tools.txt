@@ -1,0 +1,13 @@
+# Task ID: 5
+# Title: Accounting Dashboards and CSV Export
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Build cashflow dashboards with filters and export.
+# Details:
+- Charts: inflow vs outflow (12–24 mo), running balance, top vendors, recurring charges
+- Filters: date range, account, amount range, category
+- Export CSV for transactions; optional chart image/PDF export
+
+# Test Strategy:
+

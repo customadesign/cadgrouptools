@@ -1,0 +1,159 @@
+CADGroup Internal Tools Platform (tools.cadgroupmgt.com)
+
+1. Overview & Goals
+- Build a secure, password-protected internal tools portal at tools.cadgroupmgt.com
+- Phase 1 delivers two tools:
+  - Accounting Tool with OCR-based bank statement ingestion and historical cashflow reporting
+  - Proposal Generation Tool with research, SEO overview, pricing, and exportable proposals
+- Priorities: security, data accuracy, ease of use, auditability, and exportability
+
+2. Scope (Phase 1 MVP)
+- Tenant: CADGroup (single-tenant for now, multi-tenant ready)
+- Roles: Admin, Staff (Admin can manage users, settings, integrations)
+- Authentication: Email + password, session-based auth, optional 2FA (future)
+- Authorization: Role-based access control per tool
+- Hosting: Subdomain tools.cadgroupmgt.com over HTTPS
+- Observability: Basic logs (app + OCR pipeline), error reporting, health checks
+
+Non-Goals (Phase 1)
+- Complex BI platform (we provide focused dashboards and CSV export)
+- Advanced budgeting/forecasting (later)
+- Payment processing (N/A)
+
+3. Architecture (Recommended)
+- Frontend: Next.js 14 (App Router, TypeScript), Tailwind, shadcn/ui
+- Auth: NextAuth (credentials provider), bcrypt for password hashing, JWT session or DB sessions
+- Backend: Next.js API routes (or a small Node/Nest API if preferred), background jobs with BullMQ + Redis
+- Database: MongoDB Atlas (Mongoose ODM). Collections for users, files, statements, transactions, proposals, clients
+- Storage: S3-compatible bucket for file uploads (bank statements, screenshots, attachments)
+- OCR: AWS Textract (default) or Google Document AI (pluggable via provider adapter). Fallback: Tesseract for PDFs/images
+- Research: CrewAI pipeline service (Node/Python microservice) with HTTP webhook from portal
+- SEO Overview: Two modes
+  - Direct SEMrush API integration (configurable)
+  - OR Make.com webhook handoff to fetch SEMrush metrics and post back (preferred if avoiding direct API in code)
+- Address Autocomplete: Google Places API
+- CI/CD: GitHub Actions, preview deploys, prod deploy
+ - Email: SendGrid (transactional emails)
+
+4. Security & Compliance
+- HTTPS everywhere, secure cookies, CSRF protection
+- Strong password policy and rate limiting on auth
+- PII handling: encrypt sensitive fields at rest where appropriate
+- Least-privilege IAM for storage/OCR providers
+- Audit trails: who uploaded what and when, proposal generation logs
+
+5. Tool #1 — Accounting Tool with Dashboards
+5.1 User Flow
+- Staff uploads monthly bank statements (PDFs; later CSV support)
+- System queues OCR job → extracts transactions → normalizes into DB
+- Staff reviews transactions (optional vendor tagging/categories)
+- Dashboards show historical cashflow and trends; export CSV
+
+5.2 Upload Requirements
+- Accepted: PDF (multi-page), optionally images (PNG/JPG)
+- Size: up to 25 MB per file (configurable)
+- Multiple uploads per month; deduplicate by file hash + statement date range
+- Show processing status: uploaded → queued → processing → extracted → needs review → completed
+
+5.3 OCR & Normalization
+- Extract per-transaction fields: date, description, amount, debit/credit flag, balance (if present), check number (if present)
+- Support common US bank formats; design with provider adapters (normalize to canonical schema)
+- Handle multi-line descriptions and split/join logic where required
+- Confidence scoring from OCR; flag low-confidence items for manual review
+- Idempotency: re-processing same file does not duplicate transactions
+
+5.4 Data Model (initial)
+- account(id, name, bank_name, currency, created_at)
+- statement(id, account_id, month, year, source_file_id, pages, ocr_provider, status, created_at)
+- transaction(id, statement_id, txn_date, description, amount, direction, check_no, balance, category, confidence, created_at)
+- file(id, bucket_key, original_name, mime_type, size_bytes, sha256, uploaded_by, created_at)
+
+5.5 Dashboards & Reports (MVP)
+- Cash inflow vs outflow by month (last 12–24 months)
+- Running balance over time
+- Top vendors/payees (by spend)
+- Recurring charges detection (simple pattern matching)
+- Category breakdown (if categories assigned)
+- Filters: date range, account, amount range, category
+- Export: CSV for transactions; PNG/PDF for charts (optional)
+
+5.6 Admin Controls
+- Manage accounts (link statements to specific accounts)
+- Set OCR provider keys
+- Download original files; re-run OCR; mark reviewed
+
+6. Tool #2 — Proposal Generation Tool
+6.1 Intake Form Fields
+- organization (text)
+- website (URL)
+- industry/category (select or free text)
+- address (Google Places Autocomplete) → city, state, country, postal code (captured)
+- business email (email), business phone (tel)
+- uploads: required screenshot of current site; up to two additional uploads (JPG/PNG/PDF, max 10 MB each)
+- rates: Murphy Consulting hourly rate (editable), Client hourly rate (editable)
+- services multi-select: websites; landing pages & funnels; design work; website hosting; content; social media; Facebook ads; Google ads; development hours; Google My Business; custom work
+
+6.2 Research Pipeline
+- Trigger CrewAI workflow with provided org/website/industry
+- Crawl/light audit of website (availability, core pages, basic tech stack where possible)
+- Market context snapshot (industry description, key trends)
+- SEO overview:
+  - Default: Direct SEMrush API call (overview metrics)
+  - Alternative: Make.com webhook to fetch SEMrush metrics and post back (switchable in settings)
+- Competitive baseline (top keywords/domains if available through chosen pipeline)
+- Output structured JSON stored with proposal draft
+
+6.3 Proposal Generation & Output
+- Generate a proposal draft with:
+  - Current state summary (site, SEO snapshot, issues/opportunities)
+  - Recommendations (based on selected services)
+  - Estimated scope, timeline blocks, and pricing using selected rates
+  - Clear deliverables and assumptions
+- Allow human edits in a dual-pane editor: left pane HTML code editor (Monaco), right pane live preview; resizable split (default 50/50)
+- Export as PDF; store versioned proposals
+- Send directly from portal: email the proposal via SendGrid (HTML body + optional PDF attachment), log sent status; optional expiring share link
+
+6.4 Data Model (initial)
+- client(id, organization, website, industry, address fields, email, phone, created_at)
+- proposal(id, client_id, status, selected_services[], murphy_rate, client_rate, research_json, draft_html, finalized_pdf_key, created_at)
+
+6.5 Admin Controls
+- Configure CrewAI endpoint
+ - Configure SEMrush: direct API vs Make.com webhook mode
+ - Configure SendGrid (API key, sender domain) and sender identity
+- Manage proposal templates (section blocks, pricing templates)
+
+7. Acceptance Criteria (Phase 1)
+- Portal login works; role-based access hides tools appropriately
+- Accounting: upload a PDF statement → transactions extracted → appear in dashboard with correct totals (±1% tolerance due to OCR variance) and CSV export
+- Proposal tool: submit form with required fields → research runs → draft proposal generated → editable → PDF export
+ - Proposal editor shows split code/preview and renders correctly; proposals can be sent to clients via SendGrid
+- All secrets stored securely; logs contain no sensitive data
+
+8. Milestones & Rough Order
+- M1: Project setup, auth, RBAC, database, storage, CI/CD
+- M2: Accounting ingestion pipeline (upload → OCR → normalize → review)
+- M3: Accounting dashboards and CSV export
+- M4: Proposal intake + file uploads + Google Places
+- M5: CrewAI integration + SEO overview (configurable path: direct API or Make.com)
+- M6: Draft generation, editor, PDF export
+- M7: Admin settings, polish, security review, go-live
+
+9. Risks & Mitigations
+- OCR accuracy: start with a high-quality provider (Textract/DocAI). Provide review workflow and re-run
+- Bank format variance: adapter pattern and iterative rules per bank as encountered
+- Research variability: cache research results per client; allow manual overrides
+- Privacy: minimal PII collection; encrypt sensitive fields; strict IAM for storage/OCR
+
+10. KPIs (MVP)
+- Time from upload to extracted transactions (p50/p95)
+- % transactions requiring manual review
+- Dashboard usage: monthly active staff users
+- Proposal generation time to first draft
+- Proposal acceptance rate (post-MVP)
+
+11. Implementation Notes
+- Keep provider adapters clean to swap OCR or SEO paths without code churn
+- Prefer server-side file ingestion (signed upload URLs) with background processing
+- Use Mongoose models; use migrate-mongo (or similar) for schema migrations; seed initial admin user
+- Add feature flags: ocr_provider, seo_integration_mode (direct|make.com)

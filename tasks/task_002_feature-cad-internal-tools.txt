@@ -1,0 +1,18 @@
+# Task ID: 2
+# Title: Define Mongoose Schemas for Core Entities
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Create collections and schemas for users, files, statements, transactions, proposals, and clients.
+# Details:
+- Users: email, password hash (bcrypt), role, lastLogin
+- Files: bucketKey, originalName, mimeType, size, sha256, uploadedBy
+- Statements: accountRef, month, year, sourceFileRef, pages, ocrProvider, status
+- Transactions: statementRef, date, description, amount, direction, checkNo, balance, category, confidence
+- Clients: organization, website, industry, address fields, email, phone
+- Proposals: clientRef, status, selectedServices, rates, researchJson, htmlDraft, pdfKey
+- Indexes: email unique, date indexes, compound indexes for statement-month/year
+- Field-level encryption where appropriate
+
+# Test Strategy:
+

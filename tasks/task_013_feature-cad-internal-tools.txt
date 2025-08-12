@@ -1,0 +1,14 @@
+# Task ID: 13
+# Title: Deployment & DNS (tools.cadgroupmgt.com)
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Set up CI/CD and production environment with subdomain.
+# Details:
+- GitHub Actions workflow for build/test/deploy
+- Configure environment variables in prod
+- DNS/SSL for tools.cadgroupmgt.com
+- Monitoring/alerts
+
+# Test Strategy:
+

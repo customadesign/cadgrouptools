@@ -1,0 +1,14 @@
+# Task ID: 3
+# Title: Implement File Uploads to S3
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Enable secure uploads for statements and proposal assets to S3-compatible storage.
+# Details:
+- Generate pre-signed URLs server-side
+- Validate file types and sizes (statements: PDF/JPG/PNG; proposals: images)
+- Store file metadata in Files collection
+- Wire uploads to background processing for OCR where needed
+
+# Test Strategy:
+

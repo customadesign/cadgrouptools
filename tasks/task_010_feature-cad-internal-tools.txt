@@ -1,0 +1,14 @@
+# Task ID: 10
+# Title: Admin Settings UI
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Manage provider settings and feature flags.
+# Details:
+- SEMrush API key and mode (direct vs Make.com)
+- Email provider selection and credentials
+- OCR provider selection (Textract default)
+- Feature flags and health checks
+
+# Test Strategy:
+

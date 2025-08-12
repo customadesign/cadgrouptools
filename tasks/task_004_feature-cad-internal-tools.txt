@@ -1,0 +1,16 @@
+# Task ID: 4
+# Title: OCR Ingestion Pipeline (AWS Textract)
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Process uploaded bank statements with Textract and normalize transactions.
+# Details:
+- Queue job on upload (BullMQ/Redis)
+- Call Textract; parse line items; extract date/desc/amount/debit-credit/balance/check
+- Normalize to canonical schema; handle multi-line descriptions
+- Confidence scoring; flag low-confidence for review
+- Idempotency by file hash + statement range
+- Status flow: uploaded → queued → processing → extracted → needs review → completed
+
+# Test Strategy:
+

@@ -1,0 +1,14 @@
+# Task ID: 9
+# Title: Proposal Email Sending from Portal
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Send proposals directly to clients with HTML body and optional PDF attachment.
+# Details:
+- Integrate email provider (SES/Postmark configurable)
+- Compose email from stored HTML; attach latest PDF if selected
+- Track send logs (to, subject, timestamp, status, error)
+- Optional expiring share link generation
+
+# Test Strategy:
+

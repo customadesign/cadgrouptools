@@ -1,0 +1,13 @@
+# Task ID: 11
+# Title: Auth & RBAC
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Implement credential-based auth and role-based access controls.
+# Details:
+- NextAuth credentials provider with bcrypt hashing
+- Roles: Admin, Staff; gate tools by role
+- Secure cookies, CSRF protection, rate limiting
+
+# Test Strategy:
+

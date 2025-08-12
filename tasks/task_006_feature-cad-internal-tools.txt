@@ -1,0 +1,14 @@
+# Task ID: 6
+# Title: SEMrush Integration (Option A – Direct API)
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Fetch SEO overview metrics directly from SEMrush and store in research JSON.
+# Details:
+- Settings UI for API key and domain
+- Server-side fetch of domain overview metrics with error handling/rate limits
+- Persist results to proposal.researchJson and display in proposal draft
+- Toggle to switch to Make.com path if needed
+
+# Test Strategy:
+

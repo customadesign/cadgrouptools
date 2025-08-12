@@ -1,0 +1,20 @@
+
+> @cadgroupmgt/tools-portal@0.1.0 dev
+> next dev --turbopack -p 3030
+
+   ▲ Next.js 15.4.6 (Turbopack)
+   - Local:        http://localhost:3030
+   - Network:      http://192.168.50.60:3030
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1009ms
+ ○ Compiling /api/health/db ...
+ ✓ Compiled /api/health/db in 675ms
+ GET /api/health/db 200 in 4575ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1297ms
+ GET / 200 in 1470ms
+ ✓ Compiled /favicon.ico in 237ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 478ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 264ms

@@ -1,0 +1,15 @@
+# Task ID: 1
+# Title: Configure MongoDB and Mongoose
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Set up MongoDB Atlas, environment configuration, and Mongoose connection with health checks.
+# Details:
+- Provision Atlas project and cluster
+- Add .env variables (MONGODB_URI, DB_NAME)
+- Implement reusable Mongoose connection helper with retry/backoff
+- Create connection health endpoint
+- Add basic indexes and backup/restore notes
+
+# Test Strategy:
+
