@@ -15,6 +15,7 @@
     "@auth/mongodb-adapter": "^3.10.0",
     "@aws-sdk/client-s3": "^3.864.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
+    "@lottiefiles/dotlottie-react": "^0.14.4",
     "@monaco-editor/react": "^4.7.0",
     "antd": "^5.27.0",
     "axios": "^1.11.0",

@@ -3,8 +3,9 @@
 import { signIn } from 'next-auth/react';
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Form, Input, Button, Card, Alert, Typography, Spin } from 'antd';
+import { Form, Input, Button, Card, Alert, Typography, Spin, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 const { Title } = Typography;
 
@@ -47,11 +48,22 @@ function SignInForm() {
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     }}>
-      <Card style={{ width: 400, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2}>CADGroup Tools Portal</Title>
-          <p style={{ color: '#666' }}>Sign in to your account</p>
-        </div>
+      <Row gutter={32} align="middle" style={{ width: '100%', maxWidth: 1000 }}>
+        <Col xs={0} md={12}>
+          <div style={{ width: '100%', height: 400 }}>
+            <DotLottieReact
+              src="https://lottie.host/fcbdc283-b587-4121-9559-d00108d5b5f3/i4iQt5jVEf.lottie"
+              loop
+              autoplay
+            />
+          </div>
+        </Col>
+        <Col xs={24} md={12}>
+          <Card style={{ width: '100%', maxWidth: 400, margin: '0 auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <Title level={2}>CADGroup Tools Portal</Title>
+              <p style={{ color: '#666' }}>Sign in to your account</p>
+            </div>
 
         {error && (
           <Alert
@@ -105,12 +117,14 @@ function SignInForm() {
           </Form.Item>
         </Form>
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <a href="/auth/register" style={{ color: '#1677ff' }}>
-            Don't have an account? Register
-          </a>
-        </div>
-      </Card>
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <a href="/auth/register" style={{ color: '#1677ff' }}>
+                Don't have an account? Register
+              </a>
+            </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 }
