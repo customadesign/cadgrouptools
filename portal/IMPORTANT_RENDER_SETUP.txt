@@ -1,0 +1,41 @@
+CRITICAL: Environment Variables for Render Deployment
+======================================================
+
+You MUST set these environment variables in Render for authentication to work:
+
+1. NEXTAUTH_SECRET
+   - Generate a new secure secret with: openssl rand -base64 32
+   - Or use: K8x3J9mNp2QrL5vT7wY1aB6cD4eF0gH8iS3kR9nM2oP5qU7tV1xW4yZ6aB8cD0eF2g
+
+2. NEXTAUTH_URL
+   - Must be exactly: https://cadgrouptools.onrender.com
+   - No trailing slash!
+
+3. MONGODB_URI
+   - Already set (verify it's there)
+
+4. S3 Variables (already set, verify they exist):
+   - S3_REGION
+   - S3_BUCKET_NAME
+   - S3_ACCESS_KEY_ID
+   - S3_SECRET_ACCESS_KEY
+
+HOW TO ADD IN RENDER:
+1. Go to https://dashboard.render.com
+2. Select your service "cadgrouptools"
+3. Click "Environment" tab
+4. Add/Update each variable
+5. Click "Save Changes"
+6. Service will auto-redeploy
+
+VERIFY DEPLOYMENT:
+After deployment completes:
+1. Go to https://cadgrouptools.onrender.com
+2. Login with:
+   - Email: hpmurphy@icloud.com
+   - Password: B5tccpbx
+
+If login still fails, check:
+- Browser console for errors
+- Render logs for server errors
+- All environment variables are set correctly
