@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { connectToDatabase } from '@/lib/db';
-import { User } from '@/models/User';
+import dbConnect from '@/lib/mongodb';
+import User from '@/models/User';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, role } = await request.json();
+    const { name, email, password, role } = await request.json();
 
     // Validation
-    if (!email || !password) {
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Name, email and password are required' },
         { status: 400 }
       );
     }
@@ -25,15 +25,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Password strength validation
-    if (password.length < 8) {
+    if (password.length < 6) {
       return NextResponse.json(
-        { error: 'Password must be at least 8 characters long' },
+        { error: 'Password must be at least 6 characters long' },
         { status: 400 }
       );
     }
 
     // Connect to database
-    await connectToDatabase();
+    await dbConnect();
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -45,24 +45,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
     const user = await User.create({
+      name,
       email: email.toLowerCase(),
-      passwordHash,
+      password: hashedPassword,
       role: role || 'staff',
+      isActive: true,
     });
 
     // Return user data (without password)
     return NextResponse.json({
+      message: 'User created successfully',
       user: {
-        id: user._id,
+        id: user._id.toString(),
+        name: user.name,
         email: user.email,
         role: user.role,
-        createdAt: user.createdAt,
       },
-    });
+    }, { status: 201 });
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
