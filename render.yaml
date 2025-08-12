@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: cad-tools-portal
+    env: node
+    rootDir: portal
+    plan: starter
+    region: oregon
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: MONGODB_URI
+      - key: DB_NAME
+      - key: SENDGRID_API_KEY
+      - key: SENDGRID_FROM_EMAIL
+      - key: SENDGRID_FROM_NAME
+        value: CADGroup Tools Portal
+      - key: SEMRUSH_API_KEY
+      - key: GOOGLE_API_KEY
+
