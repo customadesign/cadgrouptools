@@ -1,8 +1,8 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { connectToDatabase } from '@/lib/db';
-import { User } from '@/models/User';
+import dbConnect from '@/lib/mongodb';
+import User from '@/models/User';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,14 +17,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email and password are required');
         }
 
-        await connectToDatabase();
+        await dbConnect();
 
         const user = await User.findOne({ email: credentials.email.toLowerCase() });
         if (!user) {
           throw new Error('Invalid credentials');
         }
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash);
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
         if (!isPasswordValid) {
           throw new Error('Invalid credentials');
         }
@@ -36,6 +36,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user._id.toString(),
           email: user.email,
+          name: user.name,
           role: user.role,
         };
       }
@@ -47,6 +48,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        token.name = user.name;
         token.role = user.role;
         token.iat = Date.now() / 1000; // Issued at timestamp
         token.exp = Date.now() / 1000 + (24 * 60 * 60); // Expires in 24 hours
@@ -60,6 +62,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
+        session.user.name = token.name as string;
         session.user.role = token.role as string;
       }
       
