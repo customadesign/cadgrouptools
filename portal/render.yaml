@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: cadgroup-tools-portal
+    runtime: node
+    plan: free # Change to 'starter' or higher for production
+    buildCommand: npm ci && npm run build
+    startCommand: node .next/standalone/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false # Set in Render dashboard
+      - key: DB_NAME
+        value: cadtools
+      - key: NEXTAUTH_URL
+        sync: false # Set to your Render URL
+      - key: NEXTAUTH_SECRET
+        generateValue: true # Render will generate a secure secret
+      - key: SENDGRID_API_KEY
+        sync: false # Optional - set in dashboard if needed
+      - key: SENDGRID_FROM_EMAIL
+        sync: false # Optional
+      - key: SENDGRID_FROM_NAME
+        value: CADGroup Tools Portal
+      - key: SEMRUSH_API_KEY
+        sync: false # Optional
+      - key: GOOGLE_API_KEY
+        sync: false # Optional
+      # S3 Configuration (Optional)
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false

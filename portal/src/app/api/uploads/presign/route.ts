@@ -12,6 +12,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const client = getS3Client();
+    if (!client) {
+      return NextResponse.json({ error: 'S3 is not configured' }, { status: 503 });
+    }
     const command = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType });
     const url = await getSignedUrl(client, command, { expiresIn: 60 * 5 });
     return NextResponse.json({ url });
