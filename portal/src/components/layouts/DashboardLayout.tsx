@@ -16,6 +16,7 @@ import {
   theme,
   ConfigProvider,
   Switch,
+  Drawer,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -32,6 +33,7 @@ import {
   SunOutlined,
   PlusOutlined,
   HomeOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -49,6 +51,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
   const [collapsed, setCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [mobileDrawerVisible, setMobileDrawerVisible] = useState(false);
   const { token } = theme.useToken();
 
   useEffect(() => {
@@ -59,8 +62,10 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Only auto-collapse on desktop
+      if (!mobile && window.innerWidth < 1024) {
         setCollapsed(true);
       }
     };
@@ -75,6 +80,11 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
       setDarkMode(true);
     }
   }, []);
+
+  // Close mobile drawer when route changes
+  useEffect(() => {
+    setMobileDrawerVisible(false);
+  }, [pathname]);
 
   const handleThemeChange = (checked: boolean) => {
     setDarkMode(checked);
@@ -229,6 +239,49 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
     ...breadcrumbs,
   ];
 
+  const sidebarContent = (
+    <>
+      <div style={{
+        height: 64,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottom: `1px solid ${darkMode ? '#303030' : '#f0f0f0'}`,
+        position: 'relative',
+      }}>
+        <h2 style={{
+          color: '#fff',
+          margin: 0,
+          fontSize: collapsed && !isMobile ? 16 : 20,
+          fontWeight: 600,
+          transition: 'all 0.3s',
+        }}>
+          {collapsed && !isMobile ? 'CAD' : 'CADGroup'}
+        </h2>
+        {isMobile && (
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            onClick={() => setMobileDrawerVisible(false)}
+            style={{
+              position: 'absolute',
+              right: 16,
+              color: '#fff',
+            }}
+          />
+        )}
+      </div>
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={getSelectedKeys()}
+        defaultOpenKeys={getOpenKeys()}
+        items={menuItems}
+        style={{ borderRight: 0 }}
+      />
+    </>
+  );
+
   return (
     <ConfigProvider
       theme={{
@@ -241,56 +294,53 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
       }}
     >
       <Layout style={{ minHeight: '100vh' }}>
-        <Sider
-          trigger={null}
-          collapsible
-          collapsed={collapsed}
-          breakpoint="md"
-          onBreakpoint={(broken) => {
-            setCollapsed(broken);
-          }}
-          style={{
-            overflow: 'auto',
-            height: '100vh',
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            zIndex: 100,
-            boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
-          }}
-        >
-          <div style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderBottom: `1px solid ${darkMode ? '#303030' : '#f0f0f0'}`,
-          }}>
-            <h2 style={{
-              color: '#fff',
-              margin: 0,
-              fontSize: collapsed ? 16 : 20,
-              fontWeight: 600,
-              transition: 'all 0.3s',
-            }}>
-              {collapsed ? 'CAD' : 'CADGroup'}
-            </h2>
-          </div>
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={getSelectedKeys()}
-            defaultOpenKeys={getOpenKeys()}
-            items={menuItems}
-            style={{ borderRight: 0 }}
-          />
-        </Sider>
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <Sider
+            trigger={null}
+            collapsible
+            collapsed={collapsed}
+            breakpoint="lg"
+            onBreakpoint={(broken) => {
+              setCollapsed(broken);
+            }}
+            style={{
+              overflow: 'auto',
+              height: '100vh',
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              zIndex: 100,
+              boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
+            }}
+          >
+            {sidebarContent}
+          </Sider>
+        )}
         
-        <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
+        {/* Mobile Drawer */}
+        {isMobile && (
+          <Drawer
+            placement="left"
+            closable={false}
+            onClose={() => setMobileDrawerVisible(false)}
+            open={mobileDrawerVisible}
+            width={280}
+            bodyStyle={{ padding: 0, background: '#001529' }}
+            style={{ padding: 0 }}
+          >
+            {sidebarContent}
+          </Drawer>
+        )}
+        
+        <Layout style={{ 
+          marginLeft: isMobile ? 0 : (collapsed ? 80 : 200), 
+          transition: 'all 0.2s' 
+        }}>
           <Header
             style={{
-              padding: 0,
+              padding: isMobile ? '0 16px' : '0 24px',
               background: darkMode ? token.colorBgContainer : '#fff',
               display: 'flex',
               alignItems: 'center',
@@ -299,54 +349,70 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
               position: 'sticky',
               top: 0,
               zIndex: 99,
+              height: 64,
             }}
           >
-            <Space style={{ marginLeft: 24 }}>
+            <Space>
               <Button
                 type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setCollapsed(!collapsed)}
+                icon={collapsed || isMobile ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => {
+                  if (isMobile) {
+                    setMobileDrawerVisible(true);
+                  } else {
+                    setCollapsed(!collapsed);
+                  }
+                }}
                 style={{
                   fontSize: '16px',
-                  width: 64,
-                  height: 64,
+                  width: isMobile ? 40 : 64,
+                  height: isMobile ? 40 : 64,
                 }}
               />
             </Space>
 
-            <Space style={{ marginRight: 24 }} size="middle">
-              <Switch
-                checkedChildren={<MoonOutlined />}
-                unCheckedChildren={<SunOutlined />}
-                checked={darkMode}
-                onChange={handleThemeChange}
-              />
+            <Space size={isMobile ? 'small' : 'middle'}>
+              {!isMobile && (
+                <Switch
+                  checkedChildren={<MoonOutlined />}
+                  unCheckedChildren={<SunOutlined />}
+                  checked={darkMode}
+                  onChange={handleThemeChange}
+                />
+              )}
               
               <Badge count={5} size="small">
                 <Button
                   type="text"
                   shape="circle"
-                  icon={<BellOutlined style={{ fontSize: 18 }} />}
+                  icon={<BellOutlined style={{ fontSize: isMobile ? 16 : 18 }} />}
+                  style={{ width: isMobile ? 36 : 40, height: isMobile ? 36 : 40 }}
                 />
               </Badge>
 
-              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                <Space style={{ cursor: 'pointer' }}>
+              <Dropdown 
+                menu={{ items: userMenuItems }} 
+                placement="bottomRight"
+                trigger={['click']}
+              >
+                <Space style={{ cursor: 'pointer' }} size={4}>
                   <Avatar
                     style={{
                       backgroundColor: token.colorPrimary,
                       verticalAlign: 'middle',
                     }}
-                    size="default"
+                    size={isMobile ? 'small' : 'default'}
                   >
                     {session.user?.email?.[0]?.toUpperCase() || 'U'}
                   </Avatar>
-                  <span style={{ 
-                    fontWeight: 500,
-                    display: isMobile ? 'none' : 'inline',
-                  }}>
-                    {session.user?.email?.split('@')[0]}
-                  </span>
+                  {!isMobile && (
+                    <span style={{ 
+                      fontWeight: 500,
+                      fontSize: 14,
+                    }}>
+                      {session.user?.email?.split('@')[0]}
+                    </span>
+                  )}
                 </Space>
               </Dropdown>
             </Space>
@@ -354,11 +420,11 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
 
           <Content
             style={{
-              margin: 24,
+              margin: isMobile ? '12px' : '24px',
               minHeight: 280,
             }}
           >
-            {breadcrumbs.length > 0 && (
+            {breadcrumbs.length > 0 && !isMobile && (
               <Breadcrumb
                 items={breadcrumbItems}
                 style={{ marginBottom: 16 }}
@@ -368,7 +434,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
               style={{
                 background: darkMode ? token.colorBgContainer : '#fff',
                 borderRadius: 8,
-                padding: 24,
+                padding: isMobile ? '12px' : '24px',
                 minHeight: '100%',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
               }}

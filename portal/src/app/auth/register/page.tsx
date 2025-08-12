@@ -69,136 +69,220 @@ function RegisterForm() {
 
   return (
     <div style={{ 
-      minHeight: '100vh', 
+      minHeight: '100vh',
+      minHeight: '100dvh', // Dynamic viewport height for mobile browsers
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px'
     }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 300, height: 300, margin: '0 auto -50px auto' }}>
+      <div style={{ 
+        textAlign: 'center',
+        width: '100%',
+        maxWidth: '450px'
+      }}>
+        {/* Responsive Lottie Animation */}
+        <div style={{ 
+          width: '100%',
+          maxWidth: '250px',
+          height: 'auto',
+          aspectRatio: '1',
+          margin: '0 auto',
+          marginBottom: '-30px',
+          '@media (max-width: 480px)': {
+            maxWidth: '200px',
+            marginBottom: '-20px'
+          }
+        }}>
           <DotLottieReact
             src="https://lottie.host/fcbdc283-b587-4121-9559-d00108d5b5f3/i4iQt5jVEf.lottie"
             loop
             autoplay
+            style={{ width: '100%', height: '100%' }}
           />
         </div>
-        <Card style={{ width: 450, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <Title level={2}>Create Account</Title>
-            <p style={{ color: '#666' }}>Register for CADGroup Tools Portal</p>
+        
+        <Card style={{ 
+          width: '100%',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          borderRadius: '12px'
+        }}>
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '24px',
+            padding: '0 10px'
+          }}>
+            <Title level={2} style={{
+              fontSize: 'clamp(24px, 5vw, 32px)',
+              marginBottom: '8px'
+            }}>
+              Create Account
+            </Title>
+            <p style={{ 
+              color: '#666',
+              fontSize: 'clamp(14px, 3vw, 16px)',
+              margin: 0
+            }}>
+              Register for CADGroup Tools Portal
+            </p>
           </div>
 
-        {error && (
-          <Alert
-            message={error}
-            type="error"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        {success && (
-          <Alert
-            message="Registration successful! Redirecting..."
-            type="success"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        <Form
-          name="register"
-          onFinish={onFinish}
-          autoComplete="off"
-          layout="vertical"
-          size="large"
-        >
-          <Form.Item
-            name="name"
-            rules={[
-              { required: true, message: 'Please input your name!' },
-              { min: 2, message: 'Name must be at least 2 characters!' }
-            ]}
-          >
-            <Input 
-              prefix={<UserOutlined />} 
-              placeholder="Full Name" 
+          {error && (
+            <Alert
+              message={error}
+              type="error"
+              showIcon
+              style={{ marginBottom: 16 }}
             />
-          </Form.Item>
+          )}
 
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: 'Please input your email!' },
-              { type: 'email', message: 'Please enter a valid email!' }
-            ]}
-          >
-            <Input 
-              prefix={<MailOutlined />} 
-              placeholder="Email" 
-              type="email"
+          {success && (
+            <Alert
+              message="Registration successful! Redirecting..."
+              type="success"
+              showIcon
+              style={{ marginBottom: 16 }}
             />
-          </Form.Item>
+          )}
 
-          <Form.Item
-            name="password"
-            rules={[
-              { required: true, message: 'Please input your password!' },
-              { min: 6, message: 'Password must be at least 6 characters!' }
-            ]}
+          <Form
+            name="register"
+            onFinish={onFinish}
+            autoComplete="off"
+            layout="vertical"
+            size="large"
+            style={{ textAlign: 'left' }}
           >
-            <Input.Password 
-              prefix={<LockOutlined />} 
-              placeholder="Password"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="confirmPassword"
-            dependencies={['password']}
-            rules={[
-              { required: true, message: 'Please confirm your password!' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('password') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('Passwords do not match!'));
-                },
-              }),
-            ]}
-          >
-            <Input.Password 
-              prefix={<LockOutlined />} 
-              placeholder="Confirm Password"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="role"
-            rules={[{ required: true, message: 'Please select a role!' }]}
-          >
-            <Select placeholder="Select Role">
-              <Option value="staff">Staff</Option>
-              <Option value="admin">Admin</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={loading}
-              block
+            <Form.Item
+              name="name"
+              rules={[
+                { required: true, message: 'Please input your name!' },
+                { min: 2, message: 'Name must be at least 2 characters!' }
+              ]}
             >
-              Register
-            </Button>
-          </Form.Item>
-        </Form>
+              <Input 
+                prefix={<UserOutlined />} 
+                placeholder="Full Name"
+                style={{ 
+                  minHeight: '44px',
+                  fontSize: '16px' // Prevents zoom on iOS
+                }}
+                autoComplete="name"
+              />
+            </Form.Item>
 
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <a href="/auth/signin" style={{ color: '#1677ff' }}>
+            <Form.Item
+              name="email"
+              rules={[
+                { required: true, message: 'Please input your email!' },
+                { type: 'email', message: 'Please enter a valid email!' }
+              ]}
+            >
+              <Input 
+                prefix={<MailOutlined />} 
+                placeholder="Email" 
+                type="email"
+                style={{ 
+                  minHeight: '44px',
+                  fontSize: '16px'
+                }}
+                autoComplete="email"
+                inputMode="email"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              rules={[
+                { required: true, message: 'Please input your password!' },
+                { min: 6, message: 'Password must be at least 6 characters!' }
+              ]}
+            >
+              <Input.Password 
+                prefix={<LockOutlined />} 
+                placeholder="Password"
+                style={{ 
+                  minHeight: '44px',
+                  fontSize: '16px'
+                }}
+                autoComplete="new-password"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="confirmPassword"
+              dependencies={['password']}
+              rules={[
+                { required: true, message: 'Please confirm your password!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Passwords do not match!'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password 
+                prefix={<LockOutlined />} 
+                placeholder="Confirm Password"
+                style={{ 
+                  minHeight: '44px',
+                  fontSize: '16px'
+                }}
+                autoComplete="new-password"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="role"
+              rules={[{ required: true, message: 'Please select a role!' }]}
+            >
+              <Select 
+                placeholder="Select Role"
+                style={{ 
+                  minHeight: '44px',
+                  fontSize: '16px'
+                }}
+              >
+                <Option value="staff">Staff</Option>
+                <Option value="admin">Admin</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: '16px' }}>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={loading}
+                block
+                style={{ 
+                  minHeight: '44px',
+                  fontSize: '16px',
+                  fontWeight: '500'
+                }}
+              >
+                Register
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <div style={{ 
+            textAlign: 'center', 
+            marginTop: '16px',
+            fontSize: 'clamp(14px, 3vw, 16px)'
+          }}>
+            <a 
+              href="/auth/signin" 
+              style={{ 
+                color: '#1677ff',
+                textDecoration: 'none',
+                padding: '10px',
+                display: 'inline-block'
+              }}
+            >
               Already have an account? Sign In
             </a>
           </div>
@@ -212,7 +296,8 @@ export default function RegisterPage() {
   return (
     <Suspense fallback={
       <div style={{ 
-        minHeight: '100vh', 
+        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
