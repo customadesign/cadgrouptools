@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { Form, Input, Button, Card, Alert, Typography, Select, Spin, Row, Col } from 'antd';
+import { Form, Input, Button, Card, Alert, Typography, Select, Spin } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { signIn } from 'next-auth/react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
@@ -75,22 +75,19 @@ function RegisterForm() {
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     }}>
-      <Row gutter={32} align="middle" style={{ width: '100%', maxWidth: 1000 }}>
-        <Col xs={0} md={12}>
-          <div style={{ width: '100%', height: 400 }}>
-            <DotLottieReact
-              src="https://lottie.host/fcbdc283-b587-4121-9559-d00108d5b5f3/i4iQt5jVEf.lottie"
-              loop
-              autoplay
-            />
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 300, height: 300, margin: '0 auto -50px auto' }}>
+          <DotLottieReact
+            src="https://lottie.host/fcbdc283-b587-4121-9559-d00108d5b5f3/i4iQt5jVEf.lottie"
+            loop
+            autoplay
+          />
+        </div>
+        <Card style={{ width: 450, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Title level={2}>Create Account</Title>
+            <p style={{ color: '#666' }}>Register for CADGroup Tools Portal</p>
           </div>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card style={{ width: '100%', maxWidth: 450, margin: '0 auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <Title level={2}>Create Account</Title>
-              <p style={{ color: '#666' }}>Register for CADGroup Tools Portal</p>
-            </div>
 
         {error && (
           <Alert
@@ -200,14 +197,13 @@ function RegisterForm() {
           </Form.Item>
         </Form>
 
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <a href="/auth/signin" style={{ color: '#1677ff' }}>
-                Already have an account? Sign In
-              </a>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <a href="/auth/signin" style={{ color: '#1677ff' }}>
+              Already have an account? Sign In
+            </a>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
