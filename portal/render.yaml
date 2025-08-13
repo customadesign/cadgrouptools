@@ -39,3 +39,5 @@ services:
         sync: false
       - key: S3_ENDPOINT
         sync: false
+      - key: S3_PUBLIC_READ
+        value: "true"

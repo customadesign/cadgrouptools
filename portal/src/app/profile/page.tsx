@@ -184,8 +184,15 @@ export default function ProfilePage() {
         });
         const { url, error } = await presign.json();
         if (error) throw new Error(error);
-        await fetch(url, { method: 'PUT', headers: { 'Content-Type': ct }, body: file as File });
+        const putRes = await fetch(url, { method: 'PUT', headers: { 'Content-Type': ct }, body: file as File });
+        if (!putRes.ok) throw new Error('Upload failed');
         const avatarUrl = url.split('?')[0];
+        // Persist avatar immediately
+        await fetch('/api/auth/me', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatar: avatarUrl }),
+        });
         setProfileData((p) => ({ ...p, avatar: avatarUrl }));
         onSuccess && onSuccess({}, new XMLHttpRequest());
       } catch (e) {
