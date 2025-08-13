@@ -42,7 +42,6 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { BUCKET } from '@/lib/s3';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -186,7 +185,6 @@ export default function ProfilePage() {
         const { url, error } = await presign.json();
         if (error) throw new Error(error);
         await fetch(url, { method: 'PUT', headers: { 'Content-Type': ct }, body: file as File });
-        const publicUrl = BUCKET ? `${process.env.NEXT_PUBLIC_S3_PUBLIC_BASE ?? ''}` : '';
         const avatarUrl = url.split('?')[0];
         setProfileData((p) => ({ ...p, avatar: avatarUrl }));
         onSuccess && onSuccess({}, new XMLHttpRequest());

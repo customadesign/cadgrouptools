@@ -4,6 +4,7 @@ import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 
+// Route handlers must live in a parallel segment to avoid clashing with page.tsx
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'admin') {
