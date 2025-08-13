@@ -182,9 +182,11 @@ export default function ProfilePage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, contentType: ct }),
         });
-        const { url, error } = await presign.json();
+        const { url, headers: s3Headers, error } = await presign.json();
         if (error) throw new Error(error);
-        const putRes = await fetch(url, { method: 'PUT', headers: { 'Content-Type': ct }, body: file as File });
+        const uploadHeaders: Record<string, string> = { 'Content-Type': ct };
+        if (s3Headers && s3Headers['x-amz-acl']) uploadHeaders['x-amz-acl'] = s3Headers['x-amz-acl'];
+        const putRes = await fetch(url, { method: 'PUT', headers: uploadHeaders, body: file as File });
         if (!putRes.ok) throw new Error('Upload failed');
         const avatarUrl = url.split('?')[0];
         // Persist avatar immediately

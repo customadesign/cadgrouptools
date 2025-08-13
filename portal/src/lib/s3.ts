@@ -29,9 +29,9 @@ export function buildPublicUrl(key: string): string {
   if (ENDPOINT) {
     const base = ENDPOINT.replace(/\/$/, '');
     // path-style assumed when custom endpoint provided
-    return `${base}/${BUCKET}/${key}`;
+    return `${base}/${BUCKET}/${encodeURIComponent(key)}`;
   }
-  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodeURIComponent(key)}`;
 }
 
 

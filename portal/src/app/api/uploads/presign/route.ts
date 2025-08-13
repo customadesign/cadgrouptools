@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'key and contentType required' }, { status: 400 });
   }
 
+  // Enforce simple, safe keys
+  if (key.includes('..') || key.startsWith('/') || key.includes('\\')) {
+    return NextResponse.json({ error: 'invalid key' }, { status: 400 });
+  }
+
   try {
     const client = getS3Client();
     if (!client) {
@@ -28,7 +33,11 @@ export async function POST(req: NextRequest) {
       ACL: process.env.S3_PUBLIC_READ === 'true' ? 'public-read' : undefined,
     } as any);
     const url = await getSignedUrl(client, command, { expiresIn: 60 * 5 });
-    return NextResponse.json({ url });
+    const headers: Record<string, string> = {};
+    if (process.env.S3_PUBLIC_READ === 'true') {
+      headers['x-amz-acl'] = 'public-read';
+    }
+    return NextResponse.json({ url, headers });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
