@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
   Layout,
   Menu,
@@ -49,7 +50,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [mobileDrawerVisible, setMobileDrawerVisible] = useState(false);
   const { token } = theme.useToken();
@@ -74,22 +75,12 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-    }
-  }, []);
 
   // Close mobile drawer when route changes
   useEffect(() => {
     setMobileDrawerVisible(false);
   }, [pathname]);
 
-  const handleThemeChange = (checked: boolean) => {
-    setDarkMode(checked);
-    localStorage.setItem('theme', checked ? 'dark' : 'light');
-  };
 
   if (status === 'loading') {
     return (
@@ -98,7 +89,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: darkMode ? '#000' : '#f5f5f5',
+        background: isDarkMode ? '#000' : '#f5f5f5',
       }}>
         <Spin size="large" />
       </div>
@@ -246,7 +237,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottom: `1px solid ${darkMode ? '#303030' : '#f0f0f0'}`,
+        borderBottom: `1px solid ${isDarkMode ? '#303030' : '#f0f0f0'}`,
         position: 'relative',
       }}>
         <h2 style={{
@@ -283,17 +274,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
   );
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        token: {
-          colorPrimary: '#1677ff',
-          borderRadius: 8,
-          fontSize: 14,
-        },
-      }}
-    >
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout style={{ minHeight: '100vh', background: isDarkMode ? '#141414' : '#f0f0f0' }}>
         {/* Desktop Sidebar */}
         {!isMobile && (
           <Sider
@@ -341,7 +322,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
           <Header
             style={{
               padding: isMobile ? '0 16px' : '0 24px',
-              background: darkMode ? token.colorBgContainer : '#fff',
+              background: isDarkMode ? '#1f1f1f' : '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -372,14 +353,13 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
             </Space>
 
             <Space size={isMobile ? 'small' : 'middle'}>
-              {!isMobile && (
-                <Switch
-                  checkedChildren={<MoonOutlined />}
-                  unCheckedChildren={<SunOutlined />}
-                  checked={darkMode}
-                  onChange={handleThemeChange}
-                />
-              )}
+              <Switch
+                checkedChildren={<MoonOutlined />}
+                unCheckedChildren={<SunOutlined />}
+                checked={isDarkMode}
+                onChange={toggleTheme}
+                size={isMobile ? 'small' : 'default'}
+              />
               
               <Badge count={5} size="small">
                 <Button
@@ -432,7 +412,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
             )}
             <div
               style={{
-                background: darkMode ? token.colorBgContainer : '#fff',
+                background: isDarkMode ? '#1f1f1f' : '#fff',
                 borderRadius: 8,
                 padding: isMobile ? '12px' : '24px',
                 minHeight: '100%',
@@ -444,6 +424,5 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
           </Content>
         </Layout>
       </Layout>
-    </ConfigProvider>
   );
 }

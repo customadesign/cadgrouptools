@@ -27,6 +27,7 @@ import {
   DatePicker,
   ConfigProvider,
   theme,
+  Empty,
 } from 'antd';
 import {
   UserOutlined,
@@ -162,9 +163,29 @@ export default function CreateProposalPage() {
 
   const fetchClients = async () => {
     try {
-      const response = await fetch('/api/clients');
+      const response = await fetch('/api/clients?limit=100');
       const data = await response.json();
-      setClients(data);
+      
+      // Map the clients from the API response
+      const mappedClients = data.clients?.map((client: any) => ({
+        _id: client._id,
+        name: client.organization,
+        email: client.email || '',
+        company: client.organization,
+        phone: client.phone,
+        address: client.address,
+      })) || [];
+      
+      // If no clients from API, use mock data
+      if (mappedClients.length === 0) {
+        setClients([
+          { _id: '1', name: 'John Smith', email: 'john@techcorp.com', company: 'Tech Corp Solutions' },
+          { _id: '2', name: 'Sarah Johnson', email: 'sarah@innovate.io', company: 'Innovate IO' },
+          { _id: '3', name: 'Michael Chen', email: 'michael@global.com', company: 'Global Ventures Ltd' },
+        ]);
+      } else {
+        setClients(mappedClients);
+      }
     } catch (error) {
       console.error('Failed to fetch clients:', error);
       // Mock data for development
@@ -347,6 +368,16 @@ export default function CreateProposalPage() {
                 value: client._id,
                 label: `${client.name} - ${client.company}`,
               }))}
+              notFoundContent={
+                clients.length === 0 ? (
+                  <Spin size="small" />
+                ) : (
+                  <Empty 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE} 
+                    description="No clients found" 
+                  />
+                )
+              }
             />
           </Form.Item>
         )}

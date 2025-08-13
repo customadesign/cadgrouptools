@@ -122,3 +122,4 @@ declare module 'next-auth/jwt' {
     role: string;
   }
 }
+}
