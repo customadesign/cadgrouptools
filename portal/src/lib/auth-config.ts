@@ -97,29 +97,3 @@ export const authOptions: NextAuthOptions = {
   debug: true, // Enable debug to see what's happening
   useSecureCookies: process.env.NODE_ENV === 'production',
 };
-
-// Type declarations for NextAuth
-declare module 'next-auth' {
-  interface User {
-    id: string;
-    email: string;
-    role: string;
-  }
-  
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      role: string;
-    }
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id: string;
-    email: string;
-    role: string;
-  }
-}
-}
