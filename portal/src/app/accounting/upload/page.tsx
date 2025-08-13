@@ -544,9 +544,11 @@ export default function BankStatementUploadPage() {
             rules={[{ required: true, message: 'Please select a bank account' }]}
           >
             <Select placeholder="Select account" size="large">
-              <Option value="Business Checking">Business Checking - Chase</Option>
-              <Option value="Business Credit Card">Business Credit Card - AmEx</Option>
-              <Option value="Savings Account">Savings Account - Wells Fargo</Option>
+              <Option value="Murphy Web Services - Bank Ozk 8979">Murphy Web Services - Bank Ozk 8979</Option>
+              <Option value="E Systems Management - Bank Ozk 3633">E Systems Management - Bank Ozk 3633</Option>
+              <Option value="MNM Secretarial Services Inc - Bank Ozk 5883">MNM Secretarial Services Inc - Bank Ozk 5883</Option>
+              <Option value="Murphy Web Services - Bluevine 4281">Murphy Web Services - Bluevine 4281</Option>
+              <Option value="E Systems Management - Bluevine 4005">E Systems Management - Bluevine 4005</Option>
             </Select>
           </Form.Item>
           
