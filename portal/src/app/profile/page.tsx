@@ -42,6 +42,7 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
+import { BUCKET } from '@/lib/s3';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -126,9 +127,14 @@ export default function ProfilePage() {
   const handleSave = async (values: any) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setProfileData({ ...profileData, ...values });
+      const res = await fetch('/api/auth/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...profileData, ...values }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      const data = await res.json();
+      setProfileData({ ...profileData, ...data.user });
       message.success('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
@@ -167,9 +173,26 @@ export default function ProfilePage() {
       }
       return isJpgOrPng && isLt2M;
     },
-    onChange: (info) => {
-      if (info.file.status === 'done') {
-        message.success('Avatar uploaded successfully');
+    customRequest: async ({ file, onSuccess, onError }) => {
+      try {
+        const ext = (file as File).name.split('.').pop();
+        const key = `avatars/${session?.user?.id}-${Date.now()}.${ext}`;
+        const ct = (file as File).type || 'image/jpeg';
+        const presign = await fetch('/api/uploads/presign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, contentType: ct }),
+        });
+        const { url, error } = await presign.json();
+        if (error) throw new Error(error);
+        await fetch(url, { method: 'PUT', headers: { 'Content-Type': ct }, body: file as File });
+        const publicUrl = BUCKET ? `${process.env.NEXT_PUBLIC_S3_PUBLIC_BASE ?? ''}` : '';
+        const avatarUrl = url.split('?')[0];
+        setProfileData((p) => ({ ...p, avatar: avatarUrl }));
+        onSuccess && onSuccess({}, new XMLHttpRequest());
+      } catch (e) {
+        onError && onError(e as any);
+        message.error('Failed to upload avatar');
       }
     },
   };

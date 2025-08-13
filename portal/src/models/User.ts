@@ -8,6 +8,12 @@ const UserSchema = new Schema(
     role: { type: String, enum: ['admin', 'staff'], default: 'staff', index: true },
     isActive: { type: Boolean, default: true },
     lastLogin: { type: Date },
+    // Optional profile fields
+    avatar: { type: String },
+    phone: { type: String },
+    department: { type: String },
+    position: { type: String },
+    joinDate: { type: String },
   },
   { timestamps: true }
 );
