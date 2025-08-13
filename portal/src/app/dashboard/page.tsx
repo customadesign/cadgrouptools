@@ -204,7 +204,6 @@ export default function DashboardPage() {
           <StatCard
             title="Monthly Revenue"
             value={67000}
-            prefix="$"
             trend={18}
             trendLabel="vs last month"
             icon={<DollarOutlined />}
