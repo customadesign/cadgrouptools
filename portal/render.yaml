@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free # Change to 'starter' or higher for production
     buildCommand: npm ci && npm run build
-    startCommand: node .next/standalone/server.js
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production

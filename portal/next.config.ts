@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
   typescript: {
     // Temporarily ignore TypeScript errors during build
     ignoreBuildErrors: true,
@@ -19,7 +18,7 @@ const nextConfig: NextConfig = {
   compress: true,
   // Handle image optimization
   images: {
-    unoptimized: true, // Disable Next.js image optimization for standalone mode
+    unoptimized: true, // Disable Next.js image optimization for Render
   },
 };
 
