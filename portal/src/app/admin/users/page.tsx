@@ -77,6 +77,41 @@ export default function UserManagementPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
 
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, [session]);
+
+  const fetchUsers = async () => {
+    if (session?.user?.role !== 'admin') return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/users');
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const data = await response.json();
+      
+      // Map the backend data to match our User interface
+      const mappedUsers = data.users.map((user: any) => ({
+        id: user._id || user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role || 'staff',
+        department: user.department || '',
+        status: user.status || 'active',
+        lastLogin: user.lastLogin || '-',
+        createdAt: user.createdAt || new Date().toISOString(),
+      }));
+      
+      setUsers(mappedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      message.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddUser = () => {
     setEditingUser(null);
     form.resetFields();
@@ -96,19 +131,47 @@ export default function UserManagementPage() {
       content: `Are you sure you want to delete ${user.name}? This action cannot be undone.`,
       okText: 'Delete',
       okType: 'danger',
-      onOk: () => {
-        setUsers(users.filter(u => u.id !== user.id));
-        message.success('User deleted successfully');
+      onOk: async () => {
+        try {
+          const response = await fetch(`/api/admin/users?id=${user.id}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) throw new Error('Failed to delete user');
+          
+          setUsers(users.filter(u => u.id !== user.id));
+          message.success('User deleted successfully');
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          message.error('Failed to delete user');
+        }
       },
     });
   };
 
-  const handleToggleStatus = (user: User) => {
+  const handleToggleStatus = async (user: User) => {
     const newStatus = user.status === 'active' ? 'inactive' : 'active';
-    setUsers(users.map(u => 
-      u.id === user.id ? { ...u, status: newStatus } : u
-    ));
-    message.success(`User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+    
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          update: { status: newStatus }
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to update user status');
+      
+      setUsers(users.map(u => 
+        u.id === user.id ? { ...u, status: newStatus } : u
+      ));
+      message.success(`User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      message.error('Failed to update user status');
+    }
   };
 
   const handleResetPassword = (user: User) => {
@@ -116,8 +179,35 @@ export default function UserManagementPage() {
       title: 'Reset Password',
       icon: <KeyOutlined />,
       content: `Send password reset email to ${user.email}?`,
-      onOk: () => {
-        message.success('Password reset email sent successfully');
+      onOk: async () => {
+        try {
+          const response = await fetch('/api/admin/users/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id }),
+          });
+          
+          if (!response.ok) throw new Error('Failed to reset password');
+          
+          const data = await response.json();
+          
+          // In production, this would send an email. For now, show the temp password
+          Modal.success({
+            title: 'Password Reset Successfully',
+            content: (
+              <div>
+                <p>Temporary password has been generated for {user.email}</p>
+                <p><strong>Temporary Password:</strong> {data.tempPassword}</p>
+                <p style={{ color: '#ff4d4f' }}>
+                  Note: In production, this would be sent via email. User will be required to change this on next login.
+                </p>
+              </div>
+            ),
+          });
+        } catch (error) {
+          console.error('Error resetting password:', error);
+          message.error('Failed to reset password');
+        }
       },
     });
   };
@@ -127,30 +217,63 @@ export default function UserManagementPage() {
       const values = await form.validateFields();
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       if (editingUser) {
+        // Update existing user
+        const response = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingUser.id,
+            update: values
+          }),
+        });
+        
+        if (!response.ok) throw new Error('Failed to update user');
+        
+        const data = await response.json();
         setUsers(users.map(u => 
           u.id === editingUser.id ? { ...u, ...values } : u
         ));
         message.success('User updated successfully');
       } else {
-        const newUser: User = {
-          id: Date.now().toString(),
-          ...values,
-          status: 'active',
-          lastLogin: '-',
-          createdAt: new Date().toISOString(),
-        };
-        setUsers([...users, newUser]);
-        message.success('User created successfully');
+        // Create new user
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to create user');
+        }
+        
+        const data = await response.json();
+        
+        // Show the temporary password to the admin
+        Modal.success({
+          title: 'User Created Successfully',
+          content: (
+            <div>
+              <p>User <strong>{values.name}</strong> has been created.</p>
+              <p><strong>Email:</strong> {values.email}</p>
+              <p><strong>Temporary Password:</strong> {data.tempPassword}</p>
+              <p style={{ color: '#ff4d4f' }}>
+                Note: In production, this would be sent via email. User will be required to change this on first login.
+              </p>
+            </div>
+          ),
+        });
+        
+        // Refresh the users list
+        await fetchUsers();
       }
       
       setIsModalVisible(false);
       form.resetFields();
-    } catch (error) {
-      message.error('Please fill in all required fields');
+    } catch (error: any) {
+      console.error('Error saving user:', error);
+      message.error(error.message || 'Failed to save user');
     } finally {
       setLoading(false);
     }
@@ -324,7 +447,7 @@ export default function UserManagementPage() {
         subtitle="Manage user accounts and permissions"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => message.info('Refreshing...')}>
+            <Button icon={<ReloadOutlined />} onClick={fetchUsers} loading={loading}>
               Refresh
             </Button>
             <Button icon={<DownloadOutlined />}>

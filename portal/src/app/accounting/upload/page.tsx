@@ -177,24 +177,102 @@ export default function BankStatementUploadPage() {
     setConfigModalVisible(false);
     setUploading(true);
 
-    // Simulate upload process
-    setTimeout(() => {
-      const newUploads: StatementUpload[] = fileList.map((file, index) => ({
-        id: Date.now().toString() + index,
-        fileName: file.name,
-        fileSize: file.size || 0,
-        uploadDate: new Date().toISOString(),
-        status: 'processing' as const,
-        account: values.account,
-        period: values.period.format('MMMM YYYY'),
-      }));
+    try {
+      // Process each file with OCR
+      const newUploads: StatementUpload[] = [];
+      
+      for (const [index, file] of fileList.entries()) {
+        const uploadId = Date.now().toString() + index;
+        
+        // Create initial upload record
+        const newUpload: StatementUpload = {
+          id: uploadId,
+          fileName: file.name,
+          fileSize: file.size || 0,
+          uploadDate: new Date().toISOString(),
+          status: 'processing' as const,
+          account: values.account,
+          period: values.period.format('MMMM YYYY'),
+        };
+        
+        newUploads.push(newUpload);
+        setRecentUploads(prev => [newUpload, ...prev]);
 
-      setRecentUploads([...newUploads, ...recentUploads]);
+        // Perform OCR if file is an image
+        if (file.originFileObj && (file.type?.includes('image') || file.type?.includes('pdf'))) {
+          const formData = new FormData();
+          formData.append('file', file.originFileObj);
+          formData.append('provider', 'auto');
+          formData.append('statementId', uploadId);
+
+          try {
+            const response = await fetch('/api/ocr', {
+              method: 'POST',
+              body: formData,
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              // Update upload status with OCR results
+              setRecentUploads(prev => prev.map(upload => 
+                upload.id === uploadId 
+                  ? {
+                      ...upload,
+                      status: 'completed' as const,
+                      transactionsFound: result.parsedData?.transactions?.length || 0,
+                      transactionsImported: result.parsedData?.transactions?.length || 0,
+                      processingTime: 5,
+                    }
+                  : upload
+              ));
+              
+              message.success(`OCR completed for ${file.name} using ${result.provider}`);
+            } else {
+              // Update with error status
+              setRecentUploads(prev => prev.map(upload => 
+                upload.id === uploadId 
+                  ? {
+                      ...upload,
+                      status: 'failed' as const,
+                      errors: [result.error || 'OCR processing failed'],
+                    }
+                  : upload
+              ));
+              
+              message.error(`OCR failed for ${file.name}: ${result.error}`);
+            }
+          } catch (error: any) {
+            console.error('OCR error:', error);
+            setRecentUploads(prev => prev.map(upload => 
+              upload.id === uploadId 
+                ? {
+                    ...upload,
+                    status: 'failed' as const,
+                    errors: ['OCR service unavailable'],
+                  }
+                : upload
+            ));
+          }
+        } else {
+          // Non-image file, mark as completed without OCR
+          setRecentUploads(prev => prev.map(upload => 
+            upload.id === uploadId 
+              ? { ...upload, status: 'completed' as const }
+              : upload
+          ));
+        }
+      }
+
       setFileList([]);
       setUploading(false);
-      message.success('Files uploaded successfully. Processing will begin shortly.');
+      message.success('Files uploaded successfully. OCR processing in progress.');
       form.resetFields();
-    }, 2000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploading(false);
+      message.error('Upload failed. Please try again.');
+    }
   };
 
   const getStatusIcon = (status: string) => {

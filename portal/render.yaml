@@ -28,6 +28,11 @@ services:
         sync: false # Optional
       - key: GOOGLE_API_KEY
         sync: false # Optional
+      # Google Cloud Vision OCR
+      - key: GOOGLE_PROJECT_ID
+        sync: false # Set in dashboard
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false # Path to service account JSON
       # S3 Configuration (Optional)
       - key: S3_REGION
         sync: false

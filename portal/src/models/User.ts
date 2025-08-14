@@ -7,13 +7,24 @@ const UserSchema = new Schema(
     password: { type: String, required: true },
     role: { type: String, enum: ['admin', 'staff'], default: 'staff', index: true },
     isActive: { type: Boolean, default: true },
+    status: { 
+      type: String, 
+      enum: ['active', 'inactive', 'suspended'], 
+      default: 'active',
+      index: true 
+    },
     lastLogin: { type: Date },
+    requirePasswordChange: { type: Boolean, default: false },
+    lastPasswordReset: { type: Date },
     // Optional profile fields
     avatar: { type: String },
     phone: { type: String },
     department: { type: String },
     position: { type: String },
+    jobTitle: { type: String },
     joinDate: { type: String },
+    bio: { type: String },
+    company: { type: String },
   },
   { timestamps: true }
 );
