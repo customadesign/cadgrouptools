@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, List, Avatar, Tag, Button, Space, Typography, Progress, Timeline, Empty, Skeleton } from 'antd';
+import { Row, Col, Card, List, Avatar, Tag, Button, Space, Typography, Progress, Timeline, Empty, Skeleton, InputNumber } from 'antd';
 import {
   TeamOutlined,
   FileTextOutlined,
@@ -43,13 +43,14 @@ dayjs.extend(relativeTime);
 const { Title, Text, Paragraph } = Typography;
 
 // Mock data - replace with actual API calls
-const revenueData = [
-  { month: 'Jan', revenue: 45000, target: 50000 },
-  { month: 'Feb', revenue: 52000, target: 50000 },
-  { month: 'Mar', revenue: 48000, target: 55000 },
-  { month: 'Apr', revenue: 61000, target: 55000 },
-  { month: 'May', revenue: 55000, target: 60000 },
-  { month: 'Jun', revenue: 67000, target: 60000 },
+// Keep only the actual revenue here; target will be injected dynamically
+const baseRevenue = [
+  { month: 'Jan', revenue: 45000 },
+  { month: 'Feb', revenue: 52000 },
+  { month: 'Mar', revenue: 48000 },
+  { month: 'Apr', revenue: 61000 },
+  { month: 'May', revenue: 55000 },
+  { month: 'Jun', revenue: 67000 },
 ];
 
 const proposalStatusData = [
@@ -125,11 +126,30 @@ const upcomingTasks = [
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  // Revenue target configurable by the user (stored in localStorage)
+  const [revenueTarget, setRevenueTarget] = useState<number>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('revenueTarget') : null;
+      return saved ? Number(saved) : 60000;
+    } catch {
+      return 60000;
+    }
+  });
 
   useEffect(() => {
     // Simulate loading
     setTimeout(() => setLoading(false), 1000);
   }, []);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('revenueTarget', String(revenueTarget));
+      }
+    } catch {}
+  }, [revenueTarget]);
+
+  const chartData = baseRevenue.map((r) => ({ ...r, target: revenueTarget }));
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -243,13 +263,22 @@ export default function DashboardPage() {
               <Space>
                 <Tag color="blue">Actual</Tag>
                 <Tag color="green">Target</Tag>
+                <InputNumber
+                  size="small"
+                  min={0}
+                  step={1000}
+                  value={revenueTarget}
+                  onChange={(val) => setRevenueTarget(Number(val) || 0)}
+                  formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={(value) => (value ? value.replace(/\$\s?|,/g, '') : '')}
+                />
               </Space>
             }
             loading={loading}
             style={{ height: '100%' }}
           >
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={revenueData}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#1677ff" stopOpacity={0.8}/>
