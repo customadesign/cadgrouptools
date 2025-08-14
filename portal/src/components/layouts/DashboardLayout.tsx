@@ -35,6 +35,7 @@ import {
   PlusOutlined,
   HomeOutlined,
   CloseOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -173,6 +174,12 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
           onClick: () => router.push('/accounting/reports'),
         },
       ],
+    },
+    {
+      key: '/reports',
+      icon: <BarChartOutlined />,
+      label: 'Reports',
+      onClick: () => router.push('/reports'),
     },
   ];
 

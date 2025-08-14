@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -68,60 +68,8 @@ interface User {
 
 export default function UserManagementPage() {
   const { data: session } = useSession();
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      name: 'Pat Murphy',
-      email: 'hpmurphy@icloud.com',
-      role: 'admin',
-      department: 'Management',
-      status: 'active',
-      lastLogin: '2025-01-13T10:30:00Z',
-      createdAt: '2024-01-01T00:00:00Z',
-    },
-    {
-      id: '2',
-      name: 'John Smith',
-      email: 'john.smith@cadgroup.com',
-      role: 'staff',
-      department: 'Sales',
-      status: 'active',
-      lastLogin: '2025-01-12T14:20:00Z',
-      createdAt: '2024-03-15T00:00:00Z',
-    },
-    {
-      id: '3',
-      name: 'Sarah Johnson',
-      email: 'sarah.j@cadgroup.com',
-      role: 'staff',
-      department: 'Marketing',
-      status: 'active',
-      lastLogin: '2025-01-13T09:00:00Z',
-      createdAt: '2024-05-20T00:00:00Z',
-    },
-    {
-      id: '4',
-      name: 'Mike Wilson',
-      email: 'mike.w@cadgroup.com',
-      role: 'staff',
-      department: 'Engineering',
-      status: 'inactive',
-      lastLogin: '2024-12-15T16:45:00Z',
-      createdAt: '2024-02-10T00:00:00Z',
-    },
-    {
-      id: '5',
-      name: 'Emily Davis',
-      email: 'emily.d@cadgroup.com',
-      role: 'admin',
-      department: 'HR',
-      status: 'active',
-      lastLogin: '2025-01-13T11:00:00Z',
-      createdAt: '2024-04-01T00:00:00Z',
-    },
-  ]);
-
-  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');

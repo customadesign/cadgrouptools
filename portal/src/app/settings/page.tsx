@@ -46,8 +46,13 @@ import {
   CalendarOutlined,
   DollarOutlined,
   DownloadOutlined,
+  CrownOutlined,
+  UserSwitchOutlined,
+  UserAddOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageHeader from '@/components/common/PageHeader';
 import dayjs from 'dayjs';
@@ -58,6 +63,7 @@ const { Option } = Select;
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -576,6 +582,155 @@ export default function SettingsPage() {
                   <Button danger icon={<ExclamationCircleOutlined />}>Delete Account</Button>
                 </Space>
               </TabPane>
+
+              {/* Admin Tab - Only visible to admins */}
+              {session?.user?.role === 'admin' && (
+                <TabPane
+                  tab={
+                    <span>
+                      <CrownOutlined />
+                      Admin
+                    </span>
+                  }
+                  key="admin"
+                >
+                  <Title level={5}>User Management</Title>
+                  <Paragraph type="secondary">
+                    Manage user accounts, roles, and permissions for the CADGroup Tools portal.
+                  </Paragraph>
+                  
+                  <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+                    <Col xs={24} md={12} lg={8}>
+                      <Card
+                        hoverable
+                        onClick={() => router.push('/admin/users')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <TeamOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+                          <Title level={5} style={{ margin: 0 }}>Manage Users</Title>
+                          <Text type="secondary">
+                            View, add, edit, and manage all registered users in the system
+                          </Text>
+                          <Button type="primary" icon={<TeamOutlined />}>
+                            Open User Management
+                          </Button>
+                        </Space>
+                      </Card>
+                    </Col>
+
+                    <Col xs={24} md={12} lg={8}>
+                      <Card
+                        hoverable
+                        onClick={() => router.push('/admin/users?action=add')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <UserAddOutlined style={{ fontSize: 32, color: '#52c41a' }} />
+                          <Title level={5} style={{ margin: 0 }}>Add New User</Title>
+                          <Text type="secondary">
+                            Register a new user and send them login credentials
+                          </Text>
+                          <Button type="primary" icon={<UserAddOutlined />} style={{ backgroundColor: '#52c41a' }}>
+                            Add User
+                          </Button>
+                        </Space>
+                      </Card>
+                    </Col>
+
+                    <Col xs={24} md={12} lg={8}>
+                      <Card>
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <UserSwitchOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
+                          <Title level={5} style={{ margin: 0 }}>Role Management</Title>
+                          <Text type="secondary">
+                            Assign roles and permissions to users
+                          </Text>
+                          <Button icon={<UserSwitchOutlined />}>
+                            Manage Roles
+                          </Button>
+                        </Space>
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  <Divider />
+
+                  <Title level={5}>Quick Actions</Title>
+                  <List
+                    grid={{ gutter: 16, xs: 1, sm: 2, md: 2, lg: 3 }}
+                    dataSource={[
+                      {
+                        title: 'Reset User Password',
+                        description: 'Send password reset email to users',
+                        icon: <KeyOutlined />,
+                        action: () => message.info('Password reset functionality'),
+                      },
+                      {
+                        title: 'Bulk User Import',
+                        description: 'Import multiple users from CSV',
+                        icon: <UploadOutlined />,
+                        action: () => message.info('Bulk import functionality'),
+                      },
+                      {
+                        title: 'Export Users',
+                        description: 'Export user data to CSV',
+                        icon: <DownloadOutlined />,
+                        action: () => message.info('Export functionality'),
+                      },
+                      {
+                        title: 'Activate/Deactivate Users',
+                        description: 'Manage user account status',
+                        icon: <LockOutlined />,
+                        action: () => router.push('/admin/users'),
+                      },
+                      {
+                        title: 'View Activity Logs',
+                        description: 'Monitor user activities',
+                        icon: <CheckCircleOutlined />,
+                        action: () => message.info('Activity logs'),
+                      },
+                      {
+                        title: 'Email All Users',
+                        description: 'Send broadcast messages',
+                        icon: <MailOutlined />,
+                        action: () => message.info('Email broadcast'),
+                      },
+                    ]}
+                    renderItem={item => (
+                      <List.Item>
+                        <Card
+                          hoverable
+                          size="small"
+                          onClick={item.action}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <Space>
+                            <span style={{ fontSize: 24, color: '#1677ff' }}>{item.icon}</span>
+                            <div>
+                              <Text strong>{item.title}</Text>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {item.description}
+                              </Text>
+                            </div>
+                          </Space>
+                        </Card>
+                      </List.Item>
+                    )}
+                  />
+
+                  <Divider />
+
+                  <Alert
+                    message="Admin Access"
+                    description="As an administrator, you have full access to manage users, roles, and system settings. Please use these privileges responsibly."
+                    type="warning"
+                    showIcon
+                    icon={<SafetyOutlined />}
+                  />
+                </TabPane>
+              )}
             </Tabs>
           </Card>
         </Col>
