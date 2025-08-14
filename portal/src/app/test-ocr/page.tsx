@@ -104,15 +104,15 @@ export default function TestOCRPage() {
         </Card>
 
         {/* Upload Section */}
-        <Card title="Upload Test Image" style={{ marginBottom: 24 }}>
+        <Card title="Upload Test File" style={{ marginBottom: 24 }}>
           <Upload
             fileList={fileList}
             onChange={({ fileList }) => setFileList(fileList)}
             beforeUpload={() => false}
-            accept="image/*"
+            accept="image/*,.pdf"
             maxCount={1}
           >
-            <Button icon={<UploadOutlined />}>Select Image</Button>
+            <Button icon={<UploadOutlined />}>Select Image or PDF</Button>
           </Upload>
           <Button
             type="primary"
@@ -140,11 +140,20 @@ export default function TestOCRPage() {
             {ocrResult.success ? (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Alert
-                  message="OCR Processing Successful"
+                  message="Processing Successful"
                   type="success"
-                  description={`Provider: ${ocrResult.provider} | Confidence: ${ocrResult.confidence?.toFixed(2) || 'N/A'}%`}
+                  description={`Provider: ${ocrResult.provider} | ${ocrResult.provider === 'pdf-parse' ? 'PDF Text Extraction' : `OCR Confidence: ${ocrResult.confidence?.toFixed(2) || 'N/A'}%`}`}
                   showIcon
                 />
+                
+                {ocrResult.pdfInfo && (
+                  <Alert
+                    message="PDF Information"
+                    description={`Pages: ${ocrResult.pdfInfo.pages} | Has Text: ${ocrResult.pdfInfo.hasText ? 'Yes' : 'No'}`}
+                    type="info"
+                    showIcon
+                  />
+                )}
                 
                 <Divider />
                 

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Supabase implementation
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE || !STORAGE_BUCKET) {
+  if (!supabaseAdmin || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE || !STORAGE_BUCKET) {
     return NextResponse.json({ error: 'Supabase is not configured on server (missing envs)' }, { status: 503 });
   }
   

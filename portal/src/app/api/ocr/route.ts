@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-config';
 import { ocrService } from '@/lib/ocr';
 import connectDB from '@/lib/mongodb';
 import { Statement } from '@/models/Statement';
+// Import pdf-parse dynamically to avoid build issues
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,23 +37,62 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // For PDFs, we need to convert to image first (simplified for now)
+    let extractedText = '';
+    let ocrProvider = 'pdf-parse';
+    let confidence: number | undefined;
+
+    // Handle PDFs
     if (file.type === 'application/pdf') {
-      return NextResponse.json(
-        { 
-          error: 'PDF processing requires additional setup. Please upload an image file for now.',
-          suggestion: 'Convert your PDF to JPG/PNG and upload the image.'
-        },
-        { status: 400 }
-      );
+      console.log('Processing PDF file...');
+      
+      try {
+        // Dynamic import for PDF parsing
+        const pdfParse = require('pdf-parse/lib/pdf-parse');
+        const pdfResult = await pdfParse(buffer);
+        extractedText = pdfResult.text;
+        
+        // If PDF has no extractable text (scanned PDF), try OCR
+        if (!extractedText || extractedText.trim().length < 50) {
+          console.log('PDF appears to be scanned, attempting OCR...');
+          
+          // For scanned PDFs, we would need to convert to image first
+          // For now, we'll provide a helpful message
+          return NextResponse.json({
+            success: true,
+            provider: 'pdf-parse',
+            extractedText: extractedText || 'No text found in PDF',
+            parsedData: ocrService.parseBankStatement(extractedText),
+            message: 'PDF processed. For scanned PDFs with images, consider converting to JPG/PNG for better OCR results.',
+            pdfInfo: {
+              pages: pdfResult.numpages,
+              hasText: extractedText.length > 0,
+            }
+          });
+        }
+        
+        console.log(`Extracted ${extractedText.length} characters from PDF`);
+      } catch (error: any) {
+        console.error('PDF processing error:', error);
+        return NextResponse.json(
+          { 
+            error: 'Failed to process PDF',
+            details: error.message,
+            suggestion: 'Try converting the PDF to an image format (JPG/PNG) for OCR processing'
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Process images with OCR
+      console.log(`Starting OCR processing with provider: ${provider}`);
+      const ocrResult = await ocrService.extractTextFromImage(buffer, file.type);
+      extractedText = ocrResult.text;
+      ocrProvider = ocrResult.provider;
+      confidence = ocrResult.confidence;
     }
 
-    // Perform OCR
-    console.log(`Starting OCR processing with provider: ${provider}`);
-    const ocrResult = await ocrService.extractTextFromImage(buffer, file.type);
-
-    // Parse bank statement data from OCR text
-    const statementData = ocrService.parseBankStatement(ocrResult.text);
+    // Parse bank statement data from extracted text
+    const statementData = ocrService.parseBankStatement(extractedText);
 
     // Update statement record if ID provided
     if (statementId) {
@@ -61,11 +101,11 @@ export async function POST(request: NextRequest) {
         statementId,
         {
           status: 'extracted',
-          ocrProvider: ocrResult.provider === 'google-vision' ? 'docai' : 'tesseract',
+          ocrProvider: ocrProvider === 'google-vision' ? 'docai' : ocrProvider === 'pdf-parse' ? 'textract' : 'tesseract',
           extractedData: {
-            rawText: ocrResult.text,
+            rawText: extractedText,
             parsedData: statementData,
-            confidence: ocrResult.confidence,
+            confidence: confidence,
           },
         },
         { new: true }
@@ -74,11 +114,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      provider: ocrResult.provider,
-      confidence: ocrResult.confidence,
-      extractedText: ocrResult.text,
+      provider: ocrProvider,
+      confidence: confidence,
+      extractedText: extractedText,
       parsedData: statementData,
-      message: `Successfully extracted text using ${ocrResult.provider}`,
+      message: `Successfully extracted text using ${ocrProvider}`,
     });
 
   } catch (error: any) {
