@@ -495,7 +495,7 @@ export default function ProposalsPage() {
               title="Total Value"
               value={totalValue}
               prefix="$"
-              formatter={(value) => `$${Number(value).toLocaleString()}`}
+              formatter={(value) => `${Number(value).toLocaleString()}`}
             />
           </Card>
         </Col>

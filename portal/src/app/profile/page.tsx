@@ -42,6 +42,7 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
+import { supabase, STORAGE_BUCKET } from '@/lib/supabaseClient';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -177,18 +178,30 @@ export default function ProfilePage() {
         const ext = (file as File).name.split('.').pop();
         const key = `avatars/${session?.user?.id}-${Date.now()}.${ext}`;
         const ct = (file as File).type || 'image/jpeg';
+        
+        // Get signed upload URL from our API
         const presign = await fetch('/api/uploads/presign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, contentType: ct }),
         });
-        const { url, headers: s3Headers, error } = await presign.json();
+        const { path, token, publicUrl, error } = await presign.json();
         if (error) throw new Error(error);
-        const uploadHeaders: Record<string, string> = { 'Content-Type': ct };
-        if (s3Headers && s3Headers['x-amz-acl']) uploadHeaders['x-amz-acl'] = s3Headers['x-amz-acl'];
-        const putRes = await fetch(url, { method: 'PUT', headers: uploadHeaders, body: file as File });
-        if (!putRes.ok) throw new Error('Upload failed');
-        const avatarUrl = url.split('?')[0];
+        
+        // Upload to Supabase using the signed URL
+        const { error: uploadError } = await supabase
+          .storage
+          .from(STORAGE_BUCKET)
+          .uploadToSignedUrl(path, token, file as File, {
+            contentType: ct,
+            upsert: false
+          });
+        
+        if (uploadError) throw uploadError;
+        
+        // Use the public URL or construct it
+        const avatarUrl = publicUrl || supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+        
         // Persist avatar immediately
         await fetch('/api/auth/me', {
           method: 'PUT',
@@ -200,6 +213,7 @@ export default function ProfilePage() {
       } catch (e) {
         onError && onError(e as any);
         message.error('Failed to upload avatar');
+        console.error('Upload error:', e);
       }
     },
   };
