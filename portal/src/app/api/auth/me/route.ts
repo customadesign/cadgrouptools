@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import dbConnect from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  await dbConnect();
+  await connectToDatabase();
   const user = await User.findOne({ email: session.user.email.toLowerCase() }).lean();
   return NextResponse.json({ user });
 }
@@ -20,7 +20,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = await request.json();
-  await dbConnect();
+  await connectToDatabase();
   const update: any = {
     name: body.name,
     phone: body.phone,

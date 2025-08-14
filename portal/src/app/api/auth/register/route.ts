@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import dbConnect from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 
 export async function POST(request: NextRequest) {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to database
-    await dbConnect();
+    await connectToDatabase();
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });

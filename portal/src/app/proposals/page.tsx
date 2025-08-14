@@ -73,7 +73,6 @@ export default function ProposalsPage() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [proposalToDelete, setProposalToDelete] = useState<Proposal | null>(null);
 
-  // Mock data - replace with actual API call
   useEffect(() => {
     fetchProposals();
   }, []);
@@ -81,84 +80,41 @@ export default function ProposalsPage() {
   const fetchProposals = async () => {
     setLoading(true);
     try {
-      // Replace with actual API call
-      // const response = await proposalApi.getAll();
-      // setProposals(response.data);
+      const response = await fetch('/api/proposals', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch proposals');
+      }
+
+      const data = await response.json();
       
-      // Mock data
-      const mockProposals: Proposal[] = [
-        {
-          _id: '1',
-          title: 'Web Development Project',
-          clientName: 'John Smith',
-          clientCompany: 'Tech Corp Solutions',
-          value: 45000,
-          status: 'accepted',
-          validUntil: '2024-02-01',
-          createdAt: '2024-01-01',
-          sentAt: '2024-01-02',
-          viewedAt: '2024-01-03',
-          respondedAt: '2024-01-05',
-          description: 'Complete web application development with React and Node.js',
-        },
-        {
-          _id: '2',
-          title: 'Mobile App Development',
-          clientName: 'Sarah Johnson',
-          clientCompany: 'Innovate IO',
-          value: 65000,
-          status: 'sent',
-          validUntil: '2024-02-15',
-          createdAt: '2024-01-08',
-          sentAt: '2024-01-09',
-          description: 'Native iOS and Android application development',
-        },
-        {
-          _id: '3',
-          title: 'Cloud Migration Services',
-          clientName: 'Michael Chen',
-          clientCompany: 'Global Ventures Ltd',
-          value: 35000,
-          status: 'draft',
-          validUntil: '2024-02-20',
-          createdAt: '2024-01-10',
-          description: 'AWS cloud migration and infrastructure setup',
-        },
-        {
-          _id: '4',
-          title: 'UI/UX Design Package',
-          clientName: 'Emily Davis',
-          clientCompany: 'Creative Design Studio',
-          value: 15000,
-          status: 'viewed',
-          validUntil: '2024-01-25',
-          createdAt: '2024-01-05',
-          sentAt: '2024-01-06',
-          viewedAt: '2024-01-07',
-          description: 'Complete UI/UX redesign for existing application',
-        },
-        {
-          _id: '5',
-          title: 'API Integration Services',
-          clientName: 'Robert Wilson',
-          clientCompany: 'DataFlow Systems',
-          value: 25000,
-          status: 'rejected',
-          validUntil: '2024-01-20',
-          createdAt: '2023-12-28',
-          sentAt: '2023-12-29',
-          viewedAt: '2023-12-30',
-          respondedAt: '2024-01-02',
-          description: 'Third-party API integration and data synchronization',
-        },
-      ];
+      // Transform the data to match the expected format
+      const transformedProposals = data.proposals.map((p: any) => ({
+        _id: p._id,
+        title: p.htmlDraft?.title || 'Untitled Proposal',
+        clientName: p.client?.organization || 'Unknown Client',
+        clientCompany: p.client?.organization || '',
+        value: p.clientRate || 0,
+        status: p.status || 'draft',
+        validUntil: p.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: p.createdAt,
+        sentAt: p.sentAt,
+        viewedAt: p.viewedAt,
+        respondedAt: p.respondedAt,
+        description: p.htmlDraft?.description || '',
+      }));
       
-      setTimeout(() => {
-        setProposals(mockProposals);
-        setLoading(false);
-      }, 1000);
+      setProposals(transformedProposals);
     } catch (error) {
+      console.error('Error fetching proposals:', error);
       message.error('Failed to fetch proposals');
+      setProposals([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -172,12 +128,23 @@ export default function ProposalsPage() {
     if (!proposalToDelete) return;
     
     try {
-      // await proposalApi.delete(proposalToDelete._id);
+      const response = await fetch(`/api/proposals/${proposalToDelete._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete proposal');
+      }
+
       message.success('Proposal deleted successfully');
       setProposals(proposals.filter(p => p._id !== proposalToDelete._id));
       setDeleteModalVisible(false);
       setProposalToDelete(null);
     } catch (error) {
+      console.error('Error deleting proposal:', error);
       message.error('Failed to delete proposal');
     }
   };

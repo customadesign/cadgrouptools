@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import dbConnect from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 
 export async function POST(request: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     let dbConnected = false;
     let dbError = null;
     try {
-      await dbConnect();
+      await connectToDatabase();
       dbConnected = true;
     } catch (error: any) {
       dbError = error.message;

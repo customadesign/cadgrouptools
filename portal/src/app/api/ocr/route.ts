@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { ocrService } from '@/lib/ocr';
-import connectDB from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/db';
 import { Statement } from '@/models/Statement';
 // Import pdf-parse dynamically to avoid build issues
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // Update statement record if ID provided
     if (statementId) {
-      await connectDB();
+      await connectToDatabase();
       await Statement.findByIdAndUpdate(
         statementId,
         {

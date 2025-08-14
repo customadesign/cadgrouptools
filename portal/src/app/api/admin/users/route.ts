@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
@@ -13,7 +13,7 @@ export async function GET() {
     if (session?.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    await dbConnect();
+    await connectToDatabase();
     const users = await User.find({}, { password: 0 }).lean();
     return NextResponse.json({ users });
   } catch (error) {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, email, role, department } = body;
     
-    await dbConnect();
+    await connectToDatabase();
     
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, update } = body;
     
-    await dbConnect();
+    await connectToDatabase();
     
     // Don't allow updating password through this endpoint
     delete update.password;
@@ -130,7 +130,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
     }
     
-    await dbConnect();
+    await connectToDatabase();
     
     const deletedUser = await User.findByIdAndDelete(userId);
     
