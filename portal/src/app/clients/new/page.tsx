@@ -38,28 +38,84 @@ import type { UploadFile } from 'antd/es/upload/interface';
 
 const { TextArea } = Input;
 
+// Helper function to upload avatar
+const uploadAvatar = async (clientId: string, file: File): Promise<string | null> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`/api/clients/${clientId}/avatar`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload avatar');
+    }
+    
+    const data = await response.json();
+    return data.avatarUrl;
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    message.error('Failed to upload avatar');
+    return null;
+  }
+};
+
 export default function NewClientPage() {
   const router = useRouter();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      // Format the data
+      // Format the data to match backend schema
       const clientData = {
-        ...values,
-        avatar: avatarUrl,
+        organization: values.company || `${values.firstName} ${values.lastName}`.trim(),
+        email: values.email,
+        phone: values.phone,
+        website: values.website,
+        industry: values.industry,
+        address: {
+          line1: values.address,
+          line2: '',
+          city: values.city,
+          state: values.state,
+          country: values.country,
+          postalCode: values.zipCode,
+        },
+        firstName: values.firstName,
+        lastName: values.lastName,
+        jobTitle: values.jobTitle,
+        status: values.status || 'prospect',
+        companySize: values.companySize,
+        notes: values.notes,
+        leadSource: values.leadSource,
+        estimatedValue: values.estimatedValue,
+        linkedin: values.linkedin,
+        twitter: values.twitter,
       };
 
-      // Replace with actual API call
-      // await clientApi.create(clientData);
+      // Create the client first
+      const response = await clientApi.create(clientData);
+      const newClientId = response.data.client._id;
       
-      console.log('Client data:', clientData);
+      // Upload avatar if a file was selected
+      if (avatarFile && newClientId) {
+        const uploadedAvatarUrl = await uploadAvatar(newClientId, avatarFile);
+        if (uploadedAvatarUrl) {
+          message.success('Avatar uploaded successfully!');
+        }
+      }
+      
       message.success('Client created successfully!');
-      router.push('/clients');
+      router.push(`/clients/${newClientId}`);
     } catch (error) {
+      console.error('Failed to create client:', error);
       message.error('Failed to create client');
     } finally {
       setLoading(false);
@@ -73,12 +129,15 @@ export default function NewClientPage() {
       return false;
     }
     
-    const isLt2M = file.size / 1024 / 1024 < 2;
-    if (!isLt2M) {
-      message.error('Image must be smaller than 2MB!');
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('Image must be smaller than 5MB!');
       return false;
     }
 
+    // Store the file for upload after client creation
+    setAvatarFile(file);
+    
     // Create a preview URL
     const reader = new FileReader();
     reader.onload = (e) => {

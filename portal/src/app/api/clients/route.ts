@@ -22,6 +22,9 @@ export const GET = withStatelessAuth(async (request: NextRequest) => {
         { organization: { $regex: search, $options: 'i' } },
         { website: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
       ];
     }
     if (industry) {
@@ -57,7 +60,24 @@ export const GET = withStatelessAuth(async (request: NextRequest) => {
 export const POST = withStatelessAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
-    const { organization, website, industry, address, email, phone } = body;
+    const { 
+      organization, 
+      website, 
+      industry, 
+      address, 
+      email, 
+      phone,
+      firstName,
+      lastName,
+      jobTitle,
+      status,
+      companySize,
+      notes,
+      leadSource,
+      estimatedValue,
+      linkedin,
+      twitter
+    } = body;
 
     // Validation
     if (!organization) {
@@ -112,6 +132,16 @@ export const POST = withStatelessAuth(async (request: NextRequest) => {
       address,
       email,
       phone,
+      firstName,
+      lastName,
+      jobTitle,
+      status: status || 'active',
+      companySize,
+      notes,
+      leadSource,
+      estimatedValue: estimatedValue || 0,
+      linkedin,
+      twitter,
     });
 
     return NextResponse.json({ client }, { status: 201 });

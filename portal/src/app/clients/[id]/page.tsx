@@ -49,6 +49,7 @@ import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
+import { clientApi } from '@/services/api';
 import dayjs from 'dayjs';
 import {
   LineChart,
@@ -62,34 +63,39 @@ import {
 
 const { TextArea } = Input;
 
-// Mock data - replace with actual API calls
-const mockClient = {
-  _id: '1',
-  firstName: 'John',
-  lastName: 'Smith',
-  email: 'john.smith@techcorp.com',
-  phone: '+1 (555) 123-4567',
-  company: 'Tech Corp Solutions',
-  jobTitle: 'CEO',
-  industry: 'Technology',
-  companySize: '51-200',
-  website: 'https://techcorp.com',
-  address: '123 Business Avenue',
-  city: 'New York',
-  state: 'NY',
-  zipCode: '10001',
-  country: 'United States',
+// Default client structure for initial state
+const defaultClient = {
+  _id: '',
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  organization: '',
+  jobTitle: '',
+  industry: '',
+  companySize: '',
+  website: '',
+  address: {
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: '',
+  },
   status: 'active',
-  leadSource: 'referral',
-  estimatedValue: 250000,
-  totalProjects: 12,
-  completedProjects: 10,
-  totalRevenue: 125000,
-  createdAt: '2024-01-01',
-  lastContact: '2024-01-10',
-  linkedin: 'linkedin.com/in/johnsmith',
-  twitter: '@johnsmith',
-  notes: 'Key client with high potential for growth. Interested in long-term partnership.',
+  leadSource: '',
+  estimatedValue: 0,
+  totalProjects: 0,
+  completedProjects: 0,
+  totalRevenue: 0,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  lastContact: new Date().toISOString(),
+  linkedin: '',
+  twitter: '',
+  notes: '',
+  avatar: '',
 };
 
 const mockProposals = [
@@ -153,15 +159,54 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const params = useParams();
   const [loading, setLoading] = useState(true);
-  const [client, setClient] = useState(mockClient);
+  const [client, setClient] = useState<any>(defaultClient);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 1000);
-  }, []);
+    if (params.id) {
+      fetchClient();
+    }
+  }, [params.id]);
+
+  const fetchClient = async () => {
+    try {
+      setLoading(true);
+      const response = await clientApi.getById(params.id as string);
+      const clientData = response.data.client;
+      
+      // Transform the data to match the expected format
+      const transformedClient = {
+        ...defaultClient,
+        ...clientData,
+        // Use organization as company if company field doesn't exist
+        company: clientData.organization || clientData.company,
+        // Parse address fields
+        address: clientData.address?.line1 || '',
+        city: clientData.address?.city || '',
+        state: clientData.address?.state || '',
+        zipCode: clientData.address?.postalCode || '',
+        country: clientData.address?.country || '',
+        // Set default values for missing fields
+        firstName: clientData.firstName || clientData.organization?.split(' ')[0] || 'Unknown',
+        lastName: clientData.lastName || clientData.organization?.split(' ').slice(1).join(' ') || 'Client',
+        totalProjects: clientData.totalProjects || 0,
+        completedProjects: clientData.completedProjects || 0,
+        totalRevenue: clientData.totalRevenue || clientData.estimatedValue || 0,
+        lastContact: clientData.lastContact || clientData.updatedAt,
+      };
+      
+      setClient(transformedClient);
+    } catch (error) {
+      console.error('Failed to fetch client:', error);
+      message.error('Failed to load client details');
+      // Optionally redirect to clients list on error
+      // router.push('/clients');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDelete = () => {
     Modal.confirm({
@@ -170,8 +215,14 @@ export default function ClientDetailPage() {
       okText: 'Delete',
       okType: 'danger',
       onOk: async () => {
-        message.success('Client deleted successfully');
-        router.push('/clients');
+        try {
+          await clientApi.delete(params.id as string);
+          message.success('Client deleted successfully');
+          router.push('/clients');
+        } catch (error) {
+          console.error('Failed to delete client:', error);
+          message.error('Failed to delete client');
+        }
       },
     });
   };
@@ -450,18 +501,22 @@ export default function ClientDetailPage() {
         <Col xs={24} lg={8}>
           <Card loading={loading}>
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <Avatar size={80} style={{ backgroundColor: '#1677ff' }}>
-                {client.firstName[0]}{client.lastName[0]}
-              </Avatar>
+              {client.avatar ? (
+                <Avatar size={80} src={client.avatar} />
+              ) : (
+                <Avatar size={80} style={{ backgroundColor: '#1677ff' }}>
+                  {client.firstName?.[0] || ''}{client.lastName?.[0] || ''}
+                </Avatar>
+              )}
               <h2 style={{ marginTop: 16, marginBottom: 4 }}>
                 {client.firstName} {client.lastName}
               </h2>
               <p style={{ color: '#8c8c8c', margin: 0 }}>{client.jobTitle}</p>
               <Tag
-                color={client.status === 'active' ? 'green' : 'red'}
+                color={client.status === 'active' ? 'green' : client.status === 'inactive' ? 'red' : 'blue'}
                 style={{ marginTop: 8 }}
               >
-                {client.status.toUpperCase()}
+                {(client.status || 'active').toUpperCase()}
               </Tag>
             </div>
 
@@ -491,19 +546,19 @@ export default function ClientDetailPage() {
 
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Company">
-                {client.company}
+                {client.company || client.organization}
               </Descriptions.Item>
               <Descriptions.Item label="Industry">
                 {client.industry}
               </Descriptions.Item>
               <Descriptions.Item label="Company Size">
-                {client.companySize} employees
+                {client.companySize ? `${client.companySize} employees` : 'Not specified'}
               </Descriptions.Item>
               <Descriptions.Item label="Lead Source">
                 {client.leadSource}
               </Descriptions.Item>
               <Descriptions.Item label="Est. Value">
-                ${client.estimatedValue.toLocaleString()}
+                ${(client.estimatedValue || 0).toLocaleString()}
               </Descriptions.Item>
             </Descriptions>
 

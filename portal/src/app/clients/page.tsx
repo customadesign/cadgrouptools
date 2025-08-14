@@ -43,16 +43,28 @@ const { Search } = Input;
 
 interface Client {
   _id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  address: string;
-  status: 'active' | 'inactive' | 'prospect';
-  totalProjects: number;
-  totalRevenue: number;
+  organization: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  address?: {
+    line1?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  status?: 'active' | 'inactive' | 'prospect';
+  industry?: string;
+  website?: string;
+  avatar?: string;
+  estimatedValue?: number;
+  totalProjects?: number;
+  totalRevenue?: number;
   createdAt: string;
-  lastContact: string;
+  updatedAt: string;
+  lastContact?: string;
 }
 
 export default function ClientsPage() {
@@ -73,72 +85,27 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      // Replace with actual API call
-      // const response = await clientApi.getAll();
-      // setClients(response.data);
+      const response = await clientApi.getAll();
+      const clientsData = response.data.clients || [];
       
-      // Mock data
-      const mockClients: Client[] = [
-        {
-          _id: '1',
-          name: 'John Smith',
-          email: 'john.smith@techcorp.com',
-          phone: '+1 (555) 123-4567',
-          company: 'Tech Corp Solutions',
-          address: '123 Business Ave, New York, NY 10001',
-          status: 'active',
-          totalProjects: 12,
-          totalRevenue: 125000,
-          createdAt: '2024-01-01',
-          lastContact: '2024-01-10',
-        },
-        {
-          _id: '2',
-          name: 'Sarah Johnson',
-          email: 'sarah@innovate.io',
-          phone: '+1 (555) 234-5678',
-          company: 'Innovate IO',
-          address: '456 Tech Street, San Francisco, CA 94102',
-          status: 'active',
-          totalProjects: 8,
-          totalRevenue: 89000,
-          createdAt: '2023-11-15',
-          lastContact: '2024-01-08',
-        },
-        {
-          _id: '3',
-          name: 'Michael Chen',
-          email: 'mchen@globalventures.com',
-          phone: '+1 (555) 345-6789',
-          company: 'Global Ventures Ltd',
-          address: '789 Commerce Blvd, Chicago, IL 60601',
-          status: 'prospect',
-          totalProjects: 0,
-          totalRevenue: 0,
-          createdAt: '2024-01-05',
-          lastContact: '2024-01-05',
-        },
-        {
-          _id: '4',
-          name: 'Emily Davis',
-          email: 'emily.davis@creative.design',
-          phone: '+1 (555) 456-7890',
-          company: 'Creative Design Studio',
-          address: '321 Art Lane, Los Angeles, CA 90001',
-          status: 'inactive',
-          totalProjects: 5,
-          totalRevenue: 45000,
-          createdAt: '2023-06-20',
-          lastContact: '2023-12-01',
-        },
-      ];
+      // Transform the data to ensure compatibility
+      const transformedClients = clientsData.map((client: any) => ({
+        ...client,
+        // Ensure backward compatibility
+        name: client.firstName && client.lastName 
+          ? `${client.firstName} ${client.lastName}` 
+          : client.organization,
+        company: client.organization,
+        totalRevenue: client.totalRevenue || client.estimatedValue || 0,
+        totalProjects: client.totalProjects || 0,
+        lastContact: client.lastContact || client.updatedAt,
+      }));
       
-      setTimeout(() => {
-        setClients(mockClients);
-        setLoading(false);
-      }, 1000);
+      setClients(transformedClients);
     } catch (error) {
+      console.error('Failed to fetch clients:', error);
       message.error('Failed to fetch clients');
+    } finally {
       setLoading(false);
     }
   };
@@ -152,12 +119,13 @@ export default function ClientsPage() {
     if (!clientToDelete) return;
     
     try {
-      // await clientApi.delete(clientToDelete._id);
+      await clientApi.delete(clientToDelete._id);
       message.success('Client deleted successfully');
       setClients(clients.filter(c => c._id !== clientToDelete._id));
       setDeleteModalVisible(false);
       setClientToDelete(null);
     } catch (error) {
+      console.error('Failed to delete client:', error);
       message.error('Failed to delete client');
     }
   };
@@ -176,10 +144,14 @@ export default function ClientsPage() {
   };
 
   const filteredClients = clients.filter(client => {
+    const clientName = client.firstName && client.lastName 
+      ? `${client.firstName} ${client.lastName}` 
+      : client.organization;
     const matchesSearch = 
-      client.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      client.company.toLowerCase().includes(searchText.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchText.toLowerCase());
+      clientName.toLowerCase().includes(searchText.toLowerCase()) ||
+      client.organization.toLowerCase().includes(searchText.toLowerCase()) ||
+      (client.email?.toLowerCase().includes(searchText.toLowerCase()) || false) ||
+      (client.phone?.toLowerCase().includes(searchText.toLowerCase()) || false);
     
     const matchesStatus = selectedStatus === 'all' || client.status === selectedStatus;
     
@@ -192,17 +164,30 @@ export default function ClientsPage() {
       key: 'client',
       fixed: 'left',
       width: 280,
-      render: (_, record) => (
-        <Space>
-          <Avatar style={{ backgroundColor: '#1677ff' }}>
-            {record.name.charAt(0)}
-          </Avatar>
-          <div>
-            <div style={{ fontWeight: 500 }}>{record.name}</div>
-            <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.company}</div>
-          </div>
-        </Space>
-      ),
+      render: (_, record) => {
+        const displayName = record.firstName && record.lastName
+          ? `${record.firstName} ${record.lastName}`
+          : record.organization;
+        const initials = record.firstName && record.lastName
+          ? `${record.firstName.charAt(0)}${record.lastName.charAt(0)}`
+          : record.organization.charAt(0);
+        
+        return (
+          <Space>
+            {record.avatar ? (
+              <Avatar src={record.avatar} />
+            ) : (
+              <Avatar style={{ backgroundColor: '#1677ff' }}>
+                {initials}
+              </Avatar>
+            )}
+            <div>
+              <div style={{ fontWeight: 500 }}>{displayName}</div>
+              <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.organization}</div>
+            </div>
+          </Space>
+        );
+      },
     },
     {
       title: 'Contact',
@@ -210,14 +195,21 @@ export default function ClientsPage() {
       width: 250,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
-          <Space size={4}>
-            <MailOutlined style={{ color: '#8c8c8c' }} />
-            <span style={{ fontSize: 13 }}>{record.email}</span>
-          </Space>
-          <Space size={4}>
-            <PhoneOutlined style={{ color: '#8c8c8c' }} />
-            <span style={{ fontSize: 13 }}>{record.phone}</span>
-          </Space>
+          {record.email && (
+            <Space size={4}>
+              <MailOutlined style={{ color: '#8c8c8c' }} />
+              <span style={{ fontSize: 13 }}>{record.email}</span>
+            </Space>
+          )}
+          {record.phone && (
+            <Space size={4}>
+              <PhoneOutlined style={{ color: '#8c8c8c' }} />
+              <span style={{ fontSize: 13 }}>{record.phone}</span>
+            </Space>
+          )}
+          {!record.email && !record.phone && (
+            <span style={{ fontSize: 13, color: '#8c8c8c' }}>No contact info</span>
+          )}
         </Space>
       ),
     },
@@ -233,8 +225,8 @@ export default function ClientsPage() {
       ],
       onFilter: (value, record) => record.status === value,
       render: (status) => (
-        <Tag color={getStatusColor(status)}>
-          {status.toUpperCase()}
+        <Tag color={getStatusColor(status || 'active')}>
+          {(status || 'active').toUpperCase()}
         </Tag>
       ),
     },
@@ -255,7 +247,7 @@ export default function ClientsPage() {
       sorter: (a, b) => a.totalRevenue - b.totalRevenue,
       render: (revenue) => (
         <span style={{ fontWeight: 500 }}>
-          ${revenue.toLocaleString()}
+          ${(revenue || 0).toLocaleString()}
         </span>
       ),
     },

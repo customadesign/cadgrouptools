@@ -38,6 +38,31 @@ import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 
+// Helper function to upload avatar
+const uploadAvatar = async (clientId: string, file: File): Promise<string | null> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`/api/clients/${clientId}/avatar`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload avatar');
+    }
+    
+    const data = await response.json();
+    return data.avatarUrl;
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    message.error('Failed to upload avatar');
+    return null;
+  }
+};
+
 // Mock data - replace with actual API call
 const mockClient = {
   _id: '1',
@@ -72,6 +97,8 @@ export default function EditClientPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [currentClient, setCurrentClient] = useState<any>(null);
 
   useEffect(() => {
     fetchClient();
@@ -82,15 +109,21 @@ export default function EditClientPage() {
     try {
       const response = await clientApi.getById(params.id as string);
       const clientData = response.data.client;
+      setCurrentClient(clientData);
+      
+      // Set avatar if exists
+      if (clientData.avatar) {
+        setAvatarUrl(clientData.avatar);
+      }
       
       // Transform backend data to match form fields
       const formData = {
-        firstName: clientData.organization.split(' ')[0] || '',
-        lastName: clientData.organization.split(' ').slice(1).join(' ') || '',
+        firstName: clientData.firstName || clientData.organization?.split(' ')[0] || '',
+        lastName: clientData.lastName || clientData.organization?.split(' ').slice(1).join(' ') || '',
         email: clientData.email || '',
         phone: clientData.phone || '',
-        company: clientData.organization,
-        jobTitle: '',
+        company: clientData.organization || '',
+        jobTitle: clientData.jobTitle || '',
         address: clientData.address?.line1 || '',
         city: clientData.address?.city || '',
         state: clientData.address?.state || '',
@@ -98,13 +131,13 @@ export default function EditClientPage() {
         zipCode: clientData.address?.postalCode || '',
         website: clientData.website || '',
         industry: clientData.industry || '',
-        companySize: '1-50',
-        status: 'active',
-        leadSource: 'website',
-        notes: '',
-        linkedin: '',
-        twitter: '',
-        estimatedValue: 0,
+        companySize: clientData.companySize || '1-50',
+        status: clientData.status || 'active',
+        leadSource: clientData.leadSource || 'website',
+        notes: clientData.notes || '',
+        linkedin: clientData.linkedin || '',
+        twitter: clientData.twitter || '',
+        estimatedValue: clientData.estimatedValue || 0,
         sendWelcomeEmail: false,
         emailNotifications: true,
       };
@@ -114,44 +147,8 @@ export default function EditClientPage() {
     } catch (error) {
       console.error('Failed to fetch client:', error);
       
-      // Fallback to mock data based on ID
-      const mockClients: any = {
-        '1': mockClient,
-        '2': {
-          ...mockClient,
-          _id: '2',
-          firstName: 'Sarah',
-          lastName: 'Johnson',
-          email: 'sarah@innovate.io',
-          phone: '+1 (555) 234-5678',
-          company: 'Innovate IO',
-          jobTitle: 'CTO',
-        },
-        '3': {
-          ...mockClient,
-          _id: '3',
-          firstName: 'Michael',
-          lastName: 'Chen',
-          email: 'mchen@globalventures.com',
-          phone: '+1 (555) 345-6789',
-          company: 'Global Ventures Ltd',
-          jobTitle: 'VP Operations',
-        },
-        '4': {
-          ...mockClient,
-          _id: '4',
-          firstName: 'Emily',
-          lastName: 'Davis',
-          email: 'emily.davis@creative.design',
-          phone: '+1 (555) 456-7890',
-          company: 'Creative Design Studio',
-          jobTitle: 'Creative Director',
-          status: 'inactive',
-        },
-      };
-      
-      const clientToLoad = mockClients[params.id as string] || mockClient;
-      form.setFieldsValue(clientToLoad);
+      // Show error and set empty form
+      message.error('Failed to load client data');
       setFetching(false);
     }
   };
@@ -168,28 +165,41 @@ export default function EditClientPage() {
         industry: values.industry,
         address: {
           line1: values.address,
+          line2: '',
           city: values.city,
           state: values.state,
           country: values.country,
-          postalCode: values.zipCode, // Note: form uses zipCode, backend uses postalCode
+          postalCode: values.zipCode,
         },
+        firstName: values.firstName,
+        lastName: values.lastName,
+        jobTitle: values.jobTitle,
+        status: values.status,
+        companySize: values.companySize,
+        notes: values.notes,
+        leadSource: values.leadSource,
+        estimatedValue: values.estimatedValue,
+        linkedin: values.linkedin,
+        twitter: values.twitter,
       };
 
+      // Update client data first
       await clientApi.update(params.id as string, clientData);
+      
+      // Upload avatar if a new file was selected
+      if (avatarFile) {
+        const uploadedAvatarUrl = await uploadAvatar(params.id as string, avatarFile);
+        if (uploadedAvatarUrl) {
+          // Avatar uploaded successfully
+          message.success('Avatar uploaded successfully!');
+        }
+      }
       
       message.success('Client updated successfully!');
       router.push(`/clients/${params.id}`);
     } catch (error) {
       console.error('Failed to update client:', error);
-      
-      // For now, just show success with mock data
-      message.success('Client updated successfully!');
-      console.log('Updated values:', values);
-      
-      // Optionally navigate back
-      setTimeout(() => {
-        router.push('/clients');
-      }, 1000);
+      message.error('Failed to update client');
     } finally {
       setLoading(false);
     }
@@ -202,12 +212,15 @@ export default function EditClientPage() {
       return false;
     }
     
-    const isLt2M = file.size / 1024 / 1024 < 2;
-    if (!isLt2M) {
-      message.error('Image must be smaller than 2MB!');
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('Image must be smaller than 5MB!');
       return false;
     }
 
+    // Store the file for upload on form submit
+    setAvatarFile(file);
+    
     // Create a preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -248,7 +261,7 @@ export default function EditClientPage() {
     >
       <PageHeader
         title="Edit Client"
-        subtitle={`Editing ${mockClient.firstName} ${mockClient.lastName}`}
+        subtitle={currentClient ? `Editing ${currentClient.firstName || ''} ${currentClient.lastName || currentClient.organization || ''}` : 'Loading...'}
         showBack
       />
 
@@ -532,7 +545,7 @@ export default function EditClientPage() {
                     <Avatar size={100} src={avatarUrl} />
                   ) : (
                     <Avatar size={100} style={{ backgroundColor: '#1677ff' }}>
-                      {mockClient.firstName[0]}{mockClient.lastName[0]}
+                      {form.getFieldValue('firstName')?.[0] || ''}{form.getFieldValue('lastName')?.[0] || ''}
                     </Avatar>
                   )}
                 </Upload>
@@ -605,7 +618,7 @@ export default function EditClientPage() {
             </Button>
             <Button
               type="link"
-              onClick={() => form.setFieldsValue(mockClient)}
+              onClick={() => fetchClient()}
             >
               Reset Changes
             </Button>

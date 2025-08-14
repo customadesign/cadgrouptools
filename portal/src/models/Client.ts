@@ -20,6 +20,22 @@ const ClientSchema = new Schema(
     address: { type: AddressSchema },
     email: { type: String },
     phone: { type: String },
+    avatar: { type: String }, // URL to avatar image in Supabase storage
+    // Additional fields for better client management
+    firstName: { type: String },
+    lastName: { type: String },
+    jobTitle: { type: String },
+    status: { 
+      type: String, 
+      enum: ['active', 'inactive', 'prospect'],
+      default: 'active'
+    },
+    companySize: { type: String },
+    notes: { type: String },
+    leadSource: { type: String },
+    estimatedValue: { type: Number, default: 0 },
+    linkedin: { type: String },
+    twitter: { type: String },
   },
   { timestamps: true }
 );

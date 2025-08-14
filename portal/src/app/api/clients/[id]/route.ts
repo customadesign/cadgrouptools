@@ -39,7 +39,25 @@ export const PUT = requireAuth(async (
   try {
     const { id } = params;
     const body = await request.json();
-    const { organization, website, industry, address, email, phone } = body;
+    const { 
+      organization, 
+      website, 
+      industry, 
+      address, 
+      email, 
+      phone,
+      avatar,
+      firstName,
+      lastName,
+      jobTitle,
+      status,
+      companySize,
+      notes,
+      leadSource,
+      estimatedValue,
+      linkedin,
+      twitter 
+    } = body;
 
     // Validation
     if (organization !== undefined && !organization) {
@@ -108,6 +126,17 @@ export const PUT = requireAuth(async (
         ...(address !== undefined && { address }),
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
+        ...(avatar !== undefined && { avatar }),
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
+        ...(jobTitle !== undefined && { jobTitle }),
+        ...(status !== undefined && { status }),
+        ...(companySize !== undefined && { companySize }),
+        ...(notes !== undefined && { notes }),
+        ...(leadSource !== undefined && { leadSource }),
+        ...(estimatedValue !== undefined && { estimatedValue }),
+        ...(linkedin !== undefined && { linkedin }),
+        ...(twitter !== undefined && { twitter }),
       },
       { new: true, runValidators: true }
     );
