@@ -1,19 +1,18 @@
 import type { Metadata } from 'next';
-import localFont from 'next/font/local';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportWebVitals as reportVitals } from '@/lib/performance';
 
-const geistSans = localFont({
-  src: './fonts/GeistVF.woff',
+const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-geist-sans',
-  weight: '100 900',
 });
-const geistMono = localFont({
-  src: './fonts/GeistMonoVF.woff',
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
   variable: '--font-geist-mono',
-  weight: '100 900',
 });
 
 export const metadata: Metadata = {
@@ -77,7 +76,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <ErrorBoundary>
