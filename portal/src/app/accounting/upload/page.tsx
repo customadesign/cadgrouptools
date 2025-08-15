@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Upload,
@@ -78,6 +78,7 @@ interface StatementUpload {
 
 export default function BankStatementUploadPage() {
   const router = useRouter();
+  const uploadRef = useRef<any>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -281,7 +282,7 @@ export default function BankStatementUploadPage() {
           const formData = new FormData();
           formData.append('file', file.originFileObj);
           formData.append('provider', 'auto');
-          formData.append('statementId', uploadId);
+          formData.append('statementId', statementId);
 
           try {
             const response = await fetch('/api/ocr', {
@@ -744,7 +745,17 @@ export default function BankStatementUploadPage() {
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="No uploads yet"
           >
-            <Button type="primary" icon={<UploadOutlined />}>
+            <Button 
+              type="primary" 
+              icon={<UploadOutlined />}
+              onClick={() => {
+                // Trigger the file input dialog
+                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                if (fileInput) {
+                  fileInput.click();
+                }
+              }}
+            >
               Upload Your First Statement
             </Button>
           </Empty>
