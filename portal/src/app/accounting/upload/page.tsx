@@ -87,10 +87,12 @@ export default function BankStatementUploadPage() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [form] = Form.useForm();
+  const [accounts, setAccounts] = useState<Array<{ _id: string; name: string; bankName: string }>>([]);
 
-  // Fetch statements from API on component mount
+  // Fetch statements and accounts from API on component mount
   React.useEffect(() => {
     fetchStatements();
+    fetchAccounts();
   }, []);
 
   const fetchStatements = async () => {
@@ -134,6 +136,25 @@ export default function BankStatementUploadPage() {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
                    'July', 'August', 'September', 'October', 'November', 'December'];
     return months[month - 1] || '';
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await fetch('/api/accounts?status=active');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch accounts');
+      }
+      
+      const result = await response.json();
+      
+      if (result.accounts) {
+        setAccounts(result.accounts);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+      message.error('Failed to load bank accounts');
+    }
   };
 
   const handleDeleteStatement = async (statementId: string) => {
@@ -784,11 +805,11 @@ export default function BankStatementUploadPage() {
             rules={[{ required: true, message: 'Please select a bank account' }]}
           >
             <Select placeholder="Select account" size="large">
-              <Option value="Murphy Web Services - Bank Ozk 8979">Murphy Web Services - Bank Ozk 8979</Option>
-              <Option value="E Systems Management - Bank Ozk 3633">E Systems Management - Bank Ozk 3633</Option>
-              <Option value="MNM Secretarial Services Inc - Bank Ozk 5883">MNM Secretarial Services Inc - Bank Ozk 5883</Option>
-              <Option value="Murphy Web Services - Bluevine 4281">Murphy Web Services - Bluevine 4281</Option>
-              <Option value="E Systems Management - Bluevine 4005">E Systems Management - Bluevine 4005</Option>
+              {accounts.map(account => (
+                <Option key={account._id} value={`${account.name} - ${account.bankName}`}>
+                  {account.name} - {account.bankName}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           

@@ -2,7 +2,8 @@ import { Schema, model, models, Types } from 'mongoose';
 
 const StatementSchema = new Schema(
   {
-    accountName: { type: String, required: true, index: true },
+    account: { type: Types.ObjectId, ref: 'Account', required: true, index: true },
+    accountName: { type: String, required: true, index: true }, // Keep for backward compatibility
     bankName: { type: String },
     currency: { type: String, default: 'USD' },
     month: { type: Number, required: true, index: true },
@@ -15,6 +16,7 @@ const StatementSchema = new Schema(
   { timestamps: true }
 );
 
+StatementSchema.index({ account: 1, month: 1, year: 1 });
 StatementSchema.index({ accountName: 1, month: 1, year: 1 });
 
 export const Statement = models.Statement || model('Statement', StatementSchema);
