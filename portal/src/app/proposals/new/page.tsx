@@ -375,19 +375,29 @@ export default function CreateProposalPage() {
     }
   };
 
+  const BASELINE_RATE = 150; // baseline dollars/hour used to derive hours from selected services
+
   const calculateTotalPrice = () => {
     const selectedServicesList = services.filter(s => selectedServices.includes(s.id));
     const baseTotal = selectedServicesList.reduce((sum, service) => sum + service.basePrice, 0);
-    const murphyRate = form.getFieldValue('murphyRate') || 150;
-    const clientRate = form.getFieldValue('clientRate') || 200;
-    const margin = ((clientRate - murphyRate) / clientRate) * 100;
-    
+    const murphyRate = Number(form.getFieldValue('murphyRate') ?? 35);
+    const clientRate = Number(form.getFieldValue('clientRate') ?? 100);
+
+    // Derive estimated hours from baseTotal at the baseline rate
+    const hours = baseTotal / BASELINE_RATE;
+
+    const murphyTotal = hours * murphyRate;
+    const clientTotal = hours * clientRate;
+    const marginPct = clientRate > 0 ? ((clientRate - murphyRate) / clientRate) * 100 : 0;
+    const profit = clientTotal - murphyTotal;
+
     return {
       baseTotal,
-      murphyTotal: baseTotal * (murphyRate / 150), // Adjust based on rate
-      clientTotal: baseTotal * (clientRate / 150), // Adjust based on rate
-      margin: margin.toFixed(1),
-      profit: baseTotal * ((clientRate - murphyRate) / 150),
+      hours,
+      murphyTotal,
+      clientTotal,
+      margin: marginPct.toFixed(1),
+      profit,
     };
   };
 
@@ -780,14 +790,14 @@ export default function CreateProposalPage() {
                   </Space>
                 }
                 rules={[{ required: true, message: 'Please enter Murphy rate' }]}
-                initialValue={150}
+                initialValue={35}
               >
                 <InputNumber
                   size="large"
                   style={{ width: '100%' }}
                   formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                  min={50}
+                  min={10}
                   max={500}
                   step={10}
                   addonAfter="/ hour"
@@ -805,14 +815,14 @@ export default function CreateProposalPage() {
                   </Space>
                 }
                 rules={[{ required: true, message: 'Please enter client rate' }]}
-                initialValue={200}
+                initialValue={100}
               >
                 <InputNumber
                   size="large"
                   style={{ width: '100%' }}
                   formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                  min={50}
+                  min={10}
                   max={500}
                   step={10}
                   addonAfter="/ hour"
@@ -876,6 +886,23 @@ export default function CreateProposalPage() {
                     </Col>
                   </Row>
                 </div>
+
+                <div style={{ 
+                  padding: 16, 
+                  background: token.colorBgContainer, 
+                  borderRadius: 8 
+                }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Text type="secondary">Estimated Hours</Text>
+                    </Col>
+                    <Col span={12} style={{ textAlign: 'right' }}>
+                      <Text strong style={{ fontSize: 16 }}>
+                        {pricing.hours.toFixed(1)} hrs
+                      </Text>
+                    </Col>
+                  </Row>
+                </div>
                 
                 <div style={{ 
                   padding: 16, 
@@ -902,7 +929,7 @@ export default function CreateProposalPage() {
                 }}>
                   <Row gutter={16}>
                     <Col span={12}>
-                      <Text strong>Client Total</Text>
+                      <Text strong>Client Total (Sell Price)</Text>
                     </Col>
                     <Col span={12} style={{ textAlign: 'right' }}>
                       <Text strong style={{ fontSize: 20, color: token.colorSuccess }}>
