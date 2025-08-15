@@ -152,10 +152,24 @@ function TransactionsContent() {
   const [form] = Form.useForm();
   const [bulkActionModalVisible, setBulkActionModalVisible] = useState(false);
   const [bulkAction, setBulkAction] = useState<string>('');
+  const [accounts, setAccounts] = useState<Array<{ _id: string; name: string; bankName: string }>>([]);
 
   useEffect(() => {
     fetchTransactions();
+    fetchAccounts();
   }, [statementId, dateRange, filterCategory, filterType, filterAccount]);
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await fetch('/api/accounts?status=active');
+      if (response.ok) {
+        const data = await response.json();
+        setAccounts(data.accounts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -306,8 +320,64 @@ function TransactionsContent() {
   };
 
   const exportToCSV = () => {
-    message.success('Exporting transactions to CSV...');
-    // Implement CSV export logic
+    if (filteredTransactions.length === 0) {
+      message.warning('No transactions to export');
+      return;
+    }
+
+    // Prepare CSV data
+    const headers = [
+      'Date',
+      'Description',
+      'Vendor',
+      'Type',
+      'Category',
+      'Amount',
+      'Account',
+      'Reference',
+      'Status',
+      'Reconciled',
+      'Notes'
+    ];
+
+    const rows = filteredTransactions.map(txn => [
+      dayjs(txn.date || txn.txnDate).format('YYYY-MM-DD'),
+      txn.description,
+      txn.vendor || '',
+      txn.type || txn.direction,
+      txn.category || '',
+      txn.amount.toString(),
+      txn.account || '',
+      txn.reference || '',
+      txn.status || '',
+      txn.reconciled ? 'Yes' : 'No',
+      txn.notes || ''
+    ]);
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma
+        const escaped = cell.replace(/"/g, '""');
+        return cell.includes(',') ? `"${escaped}"` : escaped;
+      }).join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${dayjs().format('YYYY-MM-DD')}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    message.success('Transactions exported successfully');
   };
 
   const getCategoryIcon = (category: string) => {
@@ -504,11 +574,10 @@ function TransactionsContent() {
       dataIndex: 'account',
       key: 'account',
       width: 150,
-      filters: [
-        { text: 'Business Checking', value: 'Business Checking' },
-        { text: 'Business Credit Card', value: 'Business Credit Card' },
-        { text: 'Savings Account', value: 'Savings Account' },
-      ],
+      filters: accounts.map(account => ({
+        text: `${account.name} - ${account.bankName}`,
+        value: `${account.name} - ${account.bankName}`,
+      })),
       onFilter: (value, record) => record.account === value,
       render: (account) => (
         <Space>
@@ -711,9 +780,11 @@ function TransactionsContent() {
               onChange={setFilterAccount}
             >
               <Option value="all">All Accounts</Option>
-              <Option value="Business Checking">Business Checking</Option>
-              <Option value="Business Credit Card">Business Credit Card</Option>
-              <Option value="Savings Account">Savings Account</Option>
+              {accounts.map(account => (
+                <Option key={account._id} value={`${account.name} - ${account.bankName}`}>
+                  {account.name} - {account.bankName}
+                </Option>
+              ))}
             </Select>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -885,9 +956,11 @@ function TransactionsContent() {
                 rules={[{ required: true, message: 'Please select account' }]}
               >
                 <Select placeholder="Select account">
-                  <Option value="Business Checking">Business Checking</Option>
-                  <Option value="Business Credit Card">Business Credit Card</Option>
-                  <Option value="Savings Account">Savings Account</Option>
+                  {accounts.map(account => (
+                    <Option key={account._id} value={`${account.name} - ${account.bankName}`}>
+                      {account.name} - {account.bankName}
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
