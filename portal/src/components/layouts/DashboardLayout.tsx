@@ -168,11 +168,6 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
           label: 'Upload Statement',
           onClick: () => router.push('/accounting/upload'),
         },
-        {
-          key: '/accounting/reports',
-          label: 'Reports',
-          onClick: () => router.push('/accounting/reports'),
-        },
       ],
     },
     {

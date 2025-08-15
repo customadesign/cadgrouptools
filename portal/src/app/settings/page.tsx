@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Form,
@@ -24,6 +24,9 @@ import {
   Modal,
   TimePicker,
   Radio,
+  Spin,
+  Table,
+  Tooltip,
 } from 'antd';
 import {
   UserOutlined,
@@ -50,12 +53,17 @@ import {
   UserSwitchOutlined,
   UserAddOutlined,
   UploadOutlined,
+  ChromeOutlined,
+  SendOutlined,
+  HistoryOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageHeader from '@/components/common/PageHeader';
 import dayjs from 'dayjs';
+import clientPushNotificationService from '@/services/clientPushNotificationService';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -66,12 +74,143 @@ export default function SettingsPage() {
   const router = useRouter();
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const [notificationForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
+  const [userSubscriptions, setUserSubscriptions] = useState<any[]>([]);
+  const [notificationHistory, setNotificationHistory] = useState<any[]>([]);
+  const [loadingPush, setLoadingPush] = useState(false);
+  const [sendNotificationModal, setSendNotificationModal] = useState(false);
+
+  // Check push notification support and status on mount
+  useEffect(() => {
+    checkPushNotificationStatus();
+  }, []);
+
+  const checkPushNotificationStatus = async () => {
+    if (clientPushNotificationService.isSupported()) {
+      setPushSupported(true);
+      setPushPermission(clientPushNotificationService.getPermissionStatus());
+      
+      // Check if user is subscribed
+      const isSubscribed = await clientPushNotificationService.isSubscribed();
+      setPushNotifications(isSubscribed);
+      
+      if (isSubscribed) {
+        // Fetch user subscriptions
+        const subs = await clientPushNotificationService.getUserSubscriptions();
+        setUserSubscriptions(subs);
+      }
+      
+      // Fetch notification history
+      const history = await clientPushNotificationService.getNotificationHistory();
+      setNotificationHistory(history);
+    }
+  };
+
+  const handlePushNotificationToggle = async (enabled: boolean) => {
+    if (!pushSupported) {
+      message.error('Push notifications are not supported in this browser');
+      return;
+    }
+
+    setLoadingPush(true);
+    try {
+      if (enabled) {
+        // Subscribe to push notifications
+        await clientPushNotificationService.subscribe();
+        setPushNotifications(true);
+        setPushPermission('granted');
+        message.success('Push notifications enabled successfully');
+        
+        // Refresh subscriptions list
+        const subs = await clientPushNotificationService.getUserSubscriptions();
+        setUserSubscriptions(subs);
+      } else {
+        // Unsubscribe from push notifications
+        await clientPushNotificationService.unsubscribe();
+        setPushNotifications(false);
+        message.success('Push notifications disabled');
+        setUserSubscriptions([]);
+      }
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update push notification settings');
+      setPushNotifications(!enabled); // Revert the toggle
+    } finally {
+      setLoadingPush(false);
+    }
+  };
+
+  const testPushNotification = async () => {
+    try {
+      await clientPushNotificationService.showLocalNotification(
+        'Test Notification',
+        'This is a test notification from CADGroup Tools Portal',
+        {
+          requireInteraction: true,
+          actions: [
+            { action: 'view', title: 'View' },
+            { action: 'dismiss', title: 'Dismiss' }
+          ]
+        }
+      );
+      message.success('Test notification sent');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to send test notification');
+    }
+  };
+
+  const sendCustomNotification = async (values: any) => {
+    setLoading(true);
+    try {
+      const result = await clientPushNotificationService.sendCustomNotification(
+        values.targetUsers,
+        values.title,
+        values.body,
+        {
+          requireInteraction: values.requireInteraction,
+          data: values.data
+        }
+      );
+      
+      if (result.success) {
+        message.success(`Notification sent successfully (${result.successCount} sent, ${result.failureCount} failed)`);
+        setSendNotificationModal(false);
+        notificationForm.resetFields();
+        
+        // Refresh history
+        const history = await clientPushNotificationService.getNotificationHistory();
+        setNotificationHistory(history);
+      } else {
+        message.error('Failed to send notification');
+      }
+    } catch (error: any) {
+      message.error(error.message || 'Failed to send notification');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeSubscription = async (endpoint: string) => {
+    try {
+      await fetch(`/api/notifications/subscribe?endpoint=${encodeURIComponent(endpoint)}`, {
+        method: 'DELETE',
+      });
+      message.success('Device removed successfully');
+      
+      // Refresh subscriptions list
+      const subs = await clientPushNotificationService.getUserSubscriptions();
+      setUserSubscriptions(subs);
+    } catch (error) {
+      message.error('Failed to remove device');
+    }
+  };
 
   const handleProfileUpdate = async (values: any) => {
     setLoading(true);
