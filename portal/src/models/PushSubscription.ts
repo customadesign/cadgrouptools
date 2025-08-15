@@ -63,7 +63,7 @@ const PushSubscriptionSchema = new Schema<IPushSubscription>(
 
 // Index for efficient queries
 PushSubscriptionSchema.index({ userId: 1, isActive: 1 });
-PushSubscriptionSchema.index({ 'subscription.endpoint': 1 });
+// Note: subscription.endpoint already has an index from the unique: true constraint
 
 const PushSubscription = models.PushSubscription || model('PushSubscription', PushSubscriptionSchema);
 
