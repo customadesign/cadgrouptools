@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import userEmailService from '@/services/userEmailService';
 
 // Get all users
 export async function GET() {
@@ -56,8 +57,19 @@ export async function POST(request: NextRequest) {
       requirePasswordChange: true,
     });
     
-    // TODO: Send email with temporary password
-    // For now, return the temporary password (in production, this should be sent via email)
+    // Send invitation email
+    const adminUser = await User.findById(session.user.id);
+    const emailSent = await userEmailService.sendUserInvitation({
+      name: newUser.name,
+      email: newUser.email,
+      tempPassword,
+      role: newUser.role,
+      invitedBy: adminUser?.name || 'Administrator'
+    });
+
+    if (!emailSent) {
+      console.warn('Failed to send invitation email to:', newUser.email);
+    }
     
     return NextResponse.json({ 
       user: {
@@ -68,8 +80,11 @@ export async function POST(request: NextRequest) {
         department: newUser.department,
         status: newUser.status,
       },
-      tempPassword, // Remove this in production - send via email instead
-      message: 'User created successfully. Temporary password has been generated.'
+      tempPassword, // Still return for development/testing, remove in production
+      emailSent,
+      message: emailSent 
+        ? 'User created successfully. Invitation email has been sent.'
+        : 'User created successfully. Failed to send invitation email.'
     });
   } catch (error) {
     console.error('Error creating user:', error);

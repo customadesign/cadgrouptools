@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import userEmailService from '@/services/userEmailService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,15 +38,28 @@ export async function POST(request: NextRequest) {
     user.lastPasswordReset = new Date();
     await user.save();
     
+    let emailSent = false;
     if (sendEmail) {
-      // TODO: Implement email sending
-      // await sendPasswordResetEmail(user.email, tempPassword);
+      const adminUser = await User.findById(session.user.id);
+      emailSent = await userEmailService.sendPasswordReset({
+        name: user.name,
+        email: user.email,
+        tempPassword,
+        resetBy: adminUser?.email || 'administrator@cadgroupmgt.com'
+      });
+      
+      if (!emailSent) {
+        console.warn('Failed to send password reset email to:', user.email);
+      }
     }
     
     return NextResponse.json({ 
-      message: 'Password reset successfully',
-      tempPassword, // Remove this in production - send via email instead
-      email: user.email
+      message: emailSent 
+        ? 'Password reset successfully. Email has been sent to the user.'
+        : 'Password reset successfully. Failed to send email notification.',
+      tempPassword, // Still return for development/testing, remove in production
+      email: user.email,
+      emailSent
     });
   } catch (error) {
     console.error('Error resetting password:', error);

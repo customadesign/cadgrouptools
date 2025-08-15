@@ -1,0 +1,488 @@
+[
+  {
+    "id": 12,
+    "title": "Wire Admin Users UI to API",
+    "description": "Connect the admin users interface to the backend API endpoints for full functionality.",
+    "details": "Replace the mock data in the admin users table with actual API calls. Implement edit functionality, user invitation flow, and ensure proper access control.",
+    "testStrategy": "Test CRUD operations on users, verify role-based access, test loading states and error handling.",
+    "priority": "high",
+    "dependencies": [],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Replace mock table with GET /api/admin/users",
+        "description": "Update the admin users page to fetch real data from the API endpoint",
+        "details": "Remove hardcoded data and implement API call with proper error handling",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 12
+      },
+      {
+        "id": 2,
+        "title": "Edit modal save via PUT /api/admin/users",
+        "description": "Connect the edit modal to update users through the API",
+        "details": "Implement form submission, validation, and success/error feedback",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 12
+      },
+      {
+        "id": 3,
+        "title": "Invite user flow (email + temp password)",
+        "description": "Create user invitation system with temporary password",
+        "details": "Generate secure temporary passwords, send invitation emails via SendGrid",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 12
+      },
+      {
+        "id": 4,
+        "title": "Guard access (middleware + client check)",
+        "description": "Implement authorization checks for admin-only access",
+        "details": "Add server-side middleware and client-side route guards",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 12
+      },
+      {
+        "id": 5,
+        "title": "Loading/empty/error UI states",
+        "description": "Add proper UI feedback for all states",
+        "details": "Implement loading spinners, empty state messages, and error displays",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 12
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "title": "Complete Supabase storage migration",
+    "description": "Fully migrate all file storage operations from S3 to Supabase Storage.",
+    "details": "Complete the migration of statement uploads and proposal assets to Supabase, remove S3 dependencies, and implement cleanup processes.",
+    "testStrategy": "Test all file upload scenarios, verify migration of existing files, ensure no S3 dependencies remain.",
+    "priority": "high",
+    "dependencies": [11],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Switch statement uploads to Supabase",
+        "description": "Migrate bank statement upload functionality to use Supabase Storage",
+        "details": "Update upload endpoints and client-side logic for statements",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 13
+      },
+      {
+        "id": 2,
+        "title": "Switch proposal assets to Supabase",
+        "description": "Migrate proposal file attachments to Supabase Storage",
+        "details": "Update proposal generation and asset management",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 13
+      },
+      {
+        "id": 3,
+        "title": "Remove S3 envs and dead code",
+        "description": "Clean up all S3-related code and environment variables",
+        "details": "Remove AWS SDK dependencies, S3 client code, and related configs",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 13
+      },
+      {
+        "id": 4,
+        "title": "Add orphaned-file cleanup job",
+        "description": "Implement scheduled job to clean up unused files",
+        "details": "Create cron job to identify and remove files not referenced in database",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 13
+      },
+      {
+        "id": 5,
+        "title": "Update docs and Render env",
+        "description": "Update all documentation and environment configurations",
+        "details": "Update setup guides, remove S3 references, update Render variables",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 13
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "title": "OCR ingestion pipeline",
+    "description": "Implement the complete OCR pipeline for processing bank statements into transactions.",
+    "details": "Set up Google Vision API or similar OCR service, implement PDF/image parsing, transaction extraction with validation, and database persistence.",
+    "testStrategy": "Test with various bank statement formats, verify transaction accuracy, test error handling and retry logic.",
+    "priority": "high",
+    "dependencies": [],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Setup OCR client (e.g., Vision API) and credentials",
+        "description": "Configure Google Cloud Vision API or alternative OCR service",
+        "details": "Set up service account, API credentials, and client initialization",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 14
+      },
+      {
+        "id": 2,
+        "title": "Parse statement PDFs/images to transactions",
+        "description": "Implement OCR text extraction and transaction parsing logic",
+        "details": "Extract text from documents, identify transaction patterns, parse amounts and dates",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 14
+      },
+      {
+        "id": 3,
+        "title": "Deduplication and heuristics validation",
+        "description": "Implement logic to prevent duplicate transactions and validate extracted data",
+        "details": "Check for existing transactions, validate amounts and dates, flag suspicious entries",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 14
+      },
+      {
+        "id": 4,
+        "title": "Persist to MongoDB with schema",
+        "description": "Save extracted transactions to database with proper schema",
+        "details": "Use Transaction model, maintain statement relationships, handle batch inserts",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 14
+      },
+      {
+        "id": 5,
+        "title": "Retry/error handling and logs",
+        "description": "Implement robust error handling and logging for the pipeline",
+        "details": "Add retry logic for OCR failures, detailed logging, error notifications",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 14
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "title": "Transactions viewer",
+    "description": "Build a comprehensive transaction viewing and management interface.",
+    "details": "Create a full-featured transaction list with filtering, export capabilities, and drill-down views.",
+    "testStrategy": "Test filtering logic, CSV export accuracy, pagination performance, and UI responsiveness.",
+    "priority": "medium",
+    "dependencies": [14],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "List with filters: date, amount, account",
+        "description": "Implement transaction list with multiple filter options",
+        "details": "Add date range picker, amount range filter, account selector",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 15
+      },
+      {
+        "id": 2,
+        "title": "CSV export",
+        "description": "Add functionality to export filtered transactions to CSV",
+        "details": "Generate CSV with all transaction fields, handle large datasets",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 15
+      },
+      {
+        "id": 3,
+        "title": "Reconciliation toggle",
+        "description": "Add ability to mark transactions as reconciled",
+        "details": "Toggle reconciliation status, track who reconciled and when",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 15
+      },
+      {
+        "id": 4,
+        "title": "Drill-down view and link from uploads",
+        "description": "Create detailed transaction view with navigation from statements",
+        "details": "Show full transaction details, link back to source statement",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 15
+      },
+      {
+        "id": 5,
+        "title": "Pagination and empty/error states",
+        "description": "Implement efficient pagination and state management",
+        "details": "Add infinite scroll or pagination, handle empty and error states gracefully",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 15
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "title": "Bank account registry",
+    "description": "Enhance the bank account management system with additional metadata and admin interface.",
+    "details": "Extend the Account model with provider information and import tracking, create admin UI for account management.",
+    "testStrategy": "Test CRUD operations on accounts, verify data integrity, test UI functionality.",
+    "priority": "medium",
+    "dependencies": [],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Model and CRUD for account metadata",
+        "description": "Extend Account model with provider and import tracking",
+        "details": "Add fields for bank provider, account mask, last imported date",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 16
+      },
+      {
+        "id": 2,
+        "title": "Admin UI to manage accounts",
+        "description": "Create admin interface for account management",
+        "details": "Build CRUD interface with forms for account creation and editing",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 16
+      },
+      {
+        "id": 3,
+        "title": "Enforce selection from registry in Upload flow",
+        "description": "Ensure uploads can only use registered accounts",
+        "details": "Validate account selection, prevent manual entry of unregistered accounts",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 16
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "title": "Security and ops hardening",
+    "description": "Enhance security measures and operational capabilities for production readiness.",
+    "details": "Implement GitHub security features, enhance rate limiting, add structured logging, and set up monitoring.",
+    "testStrategy": "Verify security scanning catches secrets, test rate limits under load, verify logging and monitoring work.",
+    "priority": "high",
+    "dependencies": [],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Enable GitHub secret scanning + push protection",
+        "description": "Configure GitHub repository security features",
+        "details": "Enable secret scanning, push protection, and security alerts",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 17
+      },
+      {
+        "id": 2,
+        "title": "Add API rate limiting on auth/uploads",
+        "description": "Enhance existing rate limiting with Redis backing",
+        "details": "Move from in-memory to Redis-based rate limiting for distributed system",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 17
+      },
+      {
+        "id": 3,
+        "title": "Structured logging with request IDs",
+        "description": "Implement structured logging system with correlation IDs",
+        "details": "Add request ID generation, structured log format, log aggregation",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 17
+      },
+      {
+        "id": 4,
+        "title": "Sentry setup for error monitoring",
+        "description": "Configure Sentry for production error tracking",
+        "details": "Set up Sentry project, configure error capture, set up alerts",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 17
+      },
+      {
+        "id": 5,
+        "title": "Secrets rotation runbook",
+        "description": "Document process for rotating all secrets",
+        "details": "Create step-by-step guide for rotating API keys, tokens, and passwords",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 17
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "title": "Push notifications",
+    "description": "Implement web push notifications for real-time alerts and updates.",
+    "details": "Set up VAPID keys, implement subscription management, create notification system with retry logic.",
+    "testStrategy": "Test subscription flow, verify notifications delivery, test retry mechanism.",
+    "priority": "medium",
+    "dependencies": [],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Generate VAPID keys",
+        "description": "Create and configure VAPID keys for push notifications",
+        "details": "Generate public/private key pair, configure in environment",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 18
+      },
+      {
+        "id": 2,
+        "title": "Subscription API and persistence",
+        "description": "Implement endpoint to manage push subscriptions",
+        "details": "Store subscription endpoints, handle subscription updates",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 18
+      },
+      {
+        "id": 3,
+        "title": "Batch sender with retries",
+        "description": "Create notification sending service with retry logic",
+        "details": "Implement batch sending, exponential backoff for retries",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 18
+      },
+      {
+        "id": 4,
+        "title": "In-app notifications UI",
+        "description": "Build UI for notification preferences and history",
+        "details": "Create settings page, notification center, preference management",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 18
+      },
+      {
+        "id": 5,
+        "title": "Production verification",
+        "description": "Verify push notifications work in production environment",
+        "details": "Test across browsers, verify HTTPS requirements, test delivery rates",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 18
+      }
+    ]
+  },
+  {
+    "id": 19,
+    "title": "Tests and CI/CD",
+    "description": "Implement comprehensive testing suite and enhance CI/CD pipeline.",
+    "details": "Add unit tests for critical components, implement E2E tests with Playwright, and protect the main branch.",
+    "testStrategy": "Achieve 80% code coverage, ensure all E2E scenarios pass, verify CI blocks bad commits.",
+    "priority": "high",
+    "dependencies": [],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Unit tests: auth, upload, OCR parser",
+        "description": "Write unit tests for core functionality",
+        "details": "Test authentication flows, file upload logic, OCR parsing functions",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 19
+      },
+      {
+        "id": 2,
+        "title": "Playwright E2E: login, profile avatar, upload, admin users",
+        "description": "Implement end-to-end tests for critical user flows",
+        "details": "Test complete user journeys with Playwright",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 19
+      },
+      {
+        "id": 3,
+        "title": "GitHub Actions workflow to run tests on PR",
+        "description": "Enhance CI to run all tests on pull requests",
+        "details": "Add test jobs to existing workflow, require passing tests",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 19
+      },
+      {
+        "id": 4,
+        "title": "Protect main branch",
+        "description": "Configure branch protection rules on GitHub",
+        "details": "Require PR reviews, passing tests, up-to-date branches",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 19
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "title": "Production readiness",
+    "description": "Finalize production setup with monitoring, logging, and operational procedures.",
+    "details": "Implement health endpoints, performance monitoring, create dashboards and runbooks for operations.",
+    "testStrategy": "Verify all monitoring works, test runbook procedures, validate performance metrics.",
+    "priority": "medium",
+    "dependencies": [17, 19],
+    "status": "pending",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Health/metrics endpoints",
+        "description": "Create comprehensive health check and metrics endpoints",
+        "details": "Add /health, /metrics endpoints with system status",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 20
+      },
+      {
+        "id": 2,
+        "title": "Pino logging + performance profiling",
+        "description": "Implement production-grade logging with Pino",
+        "details": "Replace console.log with structured Pino logging, add performance metrics",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 20
+      },
+      {
+        "id": 3,
+        "title": "Dashboard/alerts",
+        "description": "Set up monitoring dashboards and alerting",
+        "details": "Create Grafana dashboards, configure PagerDuty alerts",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 20
+      },
+      {
+        "id": 4,
+        "title": "Autoscaling/timeouts checks",
+        "description": "Configure and test autoscaling and timeout settings",
+        "details": "Set up Render autoscaling, configure appropriate timeouts",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 20
+      },
+      {
+        "id": 5,
+        "title": "Runbooks (deploy, rollback, on-call)",
+        "description": "Create operational runbooks for common scenarios",
+        "details": "Document deployment, rollback, incident response procedures",
+        "status": "pending",
+        "dependencies": [],
+        "parentTaskId": 20
+      }
+    ]
+  }
+]

@@ -191,15 +191,26 @@ export default function UserManagementPage() {
           
           const data = await response.json();
           
-          // In production, this would send an email. For now, show the temp password
+          // Show result to admin
           Modal.success({
             title: 'Password Reset Successfully',
             content: (
               <div>
-                <p>Temporary password has been generated for {user.email}</p>
-                <p><strong>Temporary Password:</strong> {data.tempPassword}</p>
-                <p style={{ color: '#ff4d4f' }}>
-                  Note: In production, this would be sent via email. User will be required to change this on next login.
+                <p>Password has been reset for {user.email}</p>
+                {data.emailSent ? (
+                  <div style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', padding: '10px', borderRadius: '4px', margin: '10px 0' }}>
+                    <p style={{ color: '#52c41a', margin: 0 }}>✅ Password reset email sent successfully!</p>
+                  </div>
+                ) : (
+                  <>
+                    <p><strong>Temporary Password:</strong> {data.tempPassword}</p>
+                    <p style={{ color: '#faad14' }}>
+                      ⚠️ Failed to send reset email. Please share the new password manually.
+                    </p>
+                  </>
+                )}
+                <p style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '10px' }}>
+                  User will be required to change this password on next login.
                 </p>
               </div>
             ),
@@ -257,9 +268,20 @@ export default function UserManagementPage() {
             <div>
               <p>User <strong>{values.name}</strong> has been created.</p>
               <p><strong>Email:</strong> {values.email}</p>
-              <p><strong>Temporary Password:</strong> {data.tempPassword}</p>
-              <p style={{ color: '#ff4d4f' }}>
-                Note: In production, this would be sent via email. User will be required to change this on first login.
+              {data.emailSent ? (
+                <div style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', padding: '10px', borderRadius: '4px', margin: '10px 0' }}>
+                  <p style={{ color: '#52c41a', margin: 0 }}>✅ Invitation email sent successfully!</p>
+                </div>
+              ) : (
+                <>
+                  <p><strong>Temporary Password:</strong> {data.tempPassword}</p>
+                  <p style={{ color: '#faad14' }}>
+                    ⚠️ Failed to send invitation email. Please share the credentials manually.
+                  </p>
+                </>
+              )}
+              <p style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '10px' }}>
+                User will be required to change their password on first login.
               </p>
             </div>
           ),
