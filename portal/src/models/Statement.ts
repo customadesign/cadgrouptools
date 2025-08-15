@@ -24,7 +24,10 @@ const StatementSchema = new Schema(
     transactionsFound: { type: Number, default: 0 },
     transactionsImported: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    suppressReservedKeysWarning: true // Suppress warning about 'errors' being a reserved pathname
+  }
 );
 
 StatementSchema.index({ account: 1, month: 1, year: 1 });
