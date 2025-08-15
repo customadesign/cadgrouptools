@@ -14,8 +14,13 @@ export const POST = requireAuth(async (
     
     // Check if Supabase is configured
     if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized. Check environment variables:', {
+        SUPABASE_URL: !!process.env.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE: !!process.env.SUPABASE_SERVICE_ROLE,
+        SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || 'Not set'
+      });
       return NextResponse.json(
-        { error: 'Storage service not configured' },
+        { error: 'Storage service not configured. Please check Supabase environment variables.' },
         { status: 503 }
       );
     }
@@ -92,9 +97,15 @@ export const POST = requireAuth(async (
       });
 
     if (error) {
-      console.error('Supabase upload error:', error);
+      console.error('Supabase upload error:', {
+        error: error.message,
+        bucket: STORAGE_BUCKET,
+        fileName,
+        fileSize: file.size,
+        fileType: file.type
+      });
       return NextResponse.json(
-        { error: 'Failed to upload avatar' },
+        { error: `Failed to upload avatar: ${error.message}` },
         { status: 500 }
       );
     }
@@ -112,6 +123,13 @@ export const POST = requireAuth(async (
       { avatar: avatarUrl },
       { new: true }
     );
+
+    console.log('Avatar uploaded successfully:', {
+      clientId: id,
+      avatarUrl,
+      bucket: STORAGE_BUCKET,
+      fileName
+    });
 
     return NextResponse.json({
       message: 'Avatar uploaded successfully',

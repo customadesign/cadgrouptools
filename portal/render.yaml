@@ -33,7 +33,18 @@ services:
         sync: false # Set in dashboard
       - key: GOOGLE_APPLICATION_CREDENTIALS
         sync: false # Path to service account JSON
-      # S3 Configuration (Optional)
+      # Supabase Storage Configuration (Primary storage solution)
+      - key: SUPABASE_URL
+        sync: false # Set in dashboard - your Supabase project URL
+      - key: SUPABASE_SERVICE_ROLE
+        sync: false # Set in dashboard - your service role key
+      - key: SUPABASE_BUCKET
+        value: cadgroup-uploads # Default bucket name
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false # Same as SUPABASE_URL
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false # Your anon key (optional)
+      # S3 Configuration (Legacy/Alternative - Optional)
       - key: S3_REGION
         sync: false
       - key: S3_BUCKET_NAME
