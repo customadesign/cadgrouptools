@@ -157,6 +157,87 @@ export default function BankStatementUploadPage() {
     }
   };
 
+  const pollStatementStatus = async (statementId: string) => {
+    const maxAttempts = 30; // Poll for up to 5 minutes (30 * 10 seconds)
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(`/api/statements/${statementId}`);
+        if (response.ok) {
+          const result = await response.json();
+          const statement = result.data || result;
+          
+          if (statement.status === 'extracted' || statement.status === 'completed') {
+            // Update UI with success
+            setRecentUploads(prev => prev.map(upload => 
+              upload.id === statementId 
+                ? {
+                    ...upload,
+                    status: 'completed' as const,
+                    transactionsFound: statement.extractedData?.parsedData?.transactions?.length || 0,
+                    transactionsImported: statement.extractedData?.parsedData?.transactions?.length || 0,
+                    processingTime: Math.round((new Date().getTime() - new Date(upload.uploadDate).getTime()) / 1000),
+                  }
+                : upload
+            ));
+            message.success(`OCR completed for statement`);
+            return;
+          } else if (statement.status === 'failed') {
+            // Update UI with failure
+            setRecentUploads(prev => prev.map(upload => 
+              upload.id === statementId 
+                ? {
+                    ...upload,
+                    status: 'failed' as const,
+                    errors: statement.errors || ['OCR processing failed'],
+                  }
+                : upload
+            ));
+            message.error(`OCR failed for statement`);
+            return;
+          } else if (statement.status === 'needs_review') {
+            // Update UI with needs review status
+            setRecentUploads(prev => prev.map(upload => 
+              upload.id === statementId 
+                ? {
+                    ...upload,
+                    status: 'completed' as const,
+                    errors: ['Manual review required for scanned PDF'],
+                  }
+                : upload
+            ));
+            message.warning(`Statement needs manual review`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error polling statement status:', error);
+      }
+
+      // Continue polling if not complete and under max attempts
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(checkStatus, 10000); // Poll every 10 seconds
+      } else {
+        // Timeout - mark as needs review
+        setRecentUploads(prev => prev.map(upload => 
+          upload.id === statementId 
+            ? {
+                ...upload,
+                status: 'completed' as const,
+                errors: ['OCR processing timed out'],
+              }
+            : upload
+        ));
+        message.warning(`OCR processing timed out for statement`);
+      }
+    };
+
+    // Start polling after 2 seconds
+    setTimeout(checkStatus, 2000);
+  };
+
   const handleDeleteStatement = async (statementId: string) => {
     try {
       const response = await fetch(`/api/statements/${statementId}`, {
@@ -256,166 +337,50 @@ export default function BankStatementUploadPage() {
         const bankName = values.account.split(' - ')[1]?.split(' ')[0] || 'Unknown Bank';
         const month = values.period.month() + 1; // dayjs months are 0-indexed
         const year = values.period.year();
-        
-        // Create statement record in database
-        const statementData = {
-          fileName: file.name,
-          fileSize: file.size || 0,
-          fileType: file.type,
-          accountName: values.account,
-          bankName: bankName,
-          month: month,
-          year: year,
-          status: 'processing',
-        };
-        
-        try {
-          const createResponse = await fetch('/api/statements', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(statementData),
-          });
-          
-          if (!createResponse.ok) {
-            throw new Error('Failed to create statement record');
-          }
-          
-          const createResult = await createResponse.json();
-          const statementId = createResult.data._id;
-          
-          // Add to UI immediately
-          const newUpload: StatementUpload = {
-            id: statementId,
-            fileName: file.name,
-            fileSize: file.size || 0,
-            uploadDate: new Date().toISOString(),
-            status: 'processing' as const,
-            account: values.account,
-            period: values.period.format('MMMM YYYY'),
-          };
-          
-          setRecentUploads(prev => [newUpload, ...prev]);
 
-        // Perform OCR if file is an image
-        if (file.originFileObj && (file.type?.includes('image') || file.type?.includes('pdf'))) {
-          const formData = new FormData();
-          formData.append('file', file.originFileObj);
-          formData.append('provider', 'auto');
-          formData.append('statementId', statementId);
+        // Upload file to Supabase and process OCR
+        if (file.originFileObj) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', file.originFileObj);
+          uploadFormData.append('accountName', values.account);
+          uploadFormData.append('bankName', bankName);
+          uploadFormData.append('month', month.toString());
+          uploadFormData.append('year', year.toString());
 
           try {
-            const response = await fetch('/api/ocr', {
+            const response = await fetch('/api/statements/upload', {
               method: 'POST',
-              body: formData,
+              body: uploadFormData,
             });
 
             const result = await response.json();
 
-            if (response.ok) {
-              // Update statement status in database
-              const updateResponse = await fetch(`/api/statements/${statementId}`, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  status: 'completed',
-                  transactionsFound: result.parsedData?.transactions?.length || 0,
-                  transactionsImported: result.parsedData?.transactions?.length || 0,
-                  processingTime: 5,
-                }),
-              });
+            if (response.ok && result.data) {
+              const statementId = result.data._id;
               
-              if (updateResponse.ok) {
-                // Update UI
-                setRecentUploads(prev => prev.map(upload => 
-                  upload.id === statementId 
-                    ? {
-                        ...upload,
-                        status: 'completed' as const,
-                        transactionsFound: result.parsedData?.transactions?.length || 0,
-                        transactionsImported: result.parsedData?.transactions?.length || 0,
-                        processingTime: 5,
-                      }
-                    : upload
-                ));
-                
-                message.success(`OCR completed for ${file.name} using ${result.provider}`);
-              }
+              // Add to UI immediately
+              const newUpload: StatementUpload = {
+                id: statementId,
+                fileName: file.name,
+                fileSize: file.size || 0,
+                uploadDate: new Date().toISOString(),
+                status: 'processing' as const,
+                account: values.account,
+                period: values.period.format('MMMM YYYY'),
+              };
+              
+              setRecentUploads(prev => [newUpload, ...prev]);
+              message.success(`${file.name} uploaded successfully. OCR processing started.`);
+              
+              // Poll for OCR completion
+              pollStatementStatus(statementId);
             } else {
-              // Update with error status in database
-              await fetch(`/api/statements/${statementId}`, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  status: 'failed',
-                  errors: [result.error || 'OCR processing failed'],
-                }),
-              });
-              
-              // Update UI
-              setRecentUploads(prev => prev.map(upload => 
-                upload.id === statementId 
-                  ? {
-                      ...upload,
-                      status: 'failed' as const,
-                      errors: [result.error || 'OCR processing failed'],
-                    }
-                  : upload
-              ));
-              
-              message.error(`OCR failed for ${file.name}: ${result.error}`);
+              throw new Error(result.error || 'Failed to upload statement');
             }
           } catch (error: any) {
-            console.error('OCR error:', error);
-            
-            // Update database with error
-            await fetch(`/api/statements/${statementId}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                status: 'failed',
-                errors: ['OCR service unavailable'],
-              }),
-            });
-            
-            setRecentUploads(prev => prev.map(upload => 
-              upload.id === statementId 
-                ? {
-                    ...upload,
-                    status: 'failed' as const,
-                    errors: ['OCR service unavailable'],
-                  }
-                : upload
-            ));
+            console.error('Upload error:', error);
+            message.error(`Failed to upload ${file.name}: ${error.message}`);
           }
-        } else {
-          // Non-image/PDF file, mark as completed without OCR
-          await fetch(`/api/statements/${statementId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              status: 'completed',
-            }),
-          });
-          
-          setRecentUploads(prev => prev.map(upload => 
-            upload.id === statementId 
-              ? { ...upload, status: 'completed' as const }
-              : upload
-          ));
-        }
-        } catch (error: any) {
-          console.error('Error creating statement:', error);
-          message.error(`Failed to process ${file.name}`);
         }
       }
 

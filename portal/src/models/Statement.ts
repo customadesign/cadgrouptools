@@ -10,8 +10,17 @@ const StatementSchema = new Schema(
     year: { type: Number, required: true, index: true },
     sourceFile: { type: Types.ObjectId, ref: 'File', required: true },
     pages: { type: Number },
-    ocrProvider: { type: String, enum: ['textract', 'docai', 'tesseract'], default: 'textract' },
-    status: { type: String, enum: ['uploaded', 'queued', 'processing', 'extracted', 'needs_review', 'completed'], default: 'uploaded', index: true },
+    ocrProvider: { type: String, enum: ['textract', 'docai', 'tesseract', 'pdf-parse'], default: 'textract' },
+    status: { type: String, enum: ['uploaded', 'queued', 'processing', 'extracted', 'needs_review', 'completed', 'failed'], default: 'uploaded', index: true },
+    extractedData: {
+      rawText: { type: String },
+      parsedData: { type: Schema.Types.Mixed },
+      confidence: { type: Number },
+      message: { type: String },
+    },
+    extractedAt: { type: Date },
+    errors: [{ type: String }],
+    createdBy: { type: Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

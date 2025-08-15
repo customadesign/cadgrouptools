@@ -83,6 +83,14 @@ export async function GET(
   }
 }
 
+// PATCH: Update a statement (partial update)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return PUT(request, { params });
+}
+
 // PUT: Update a statement
 export async function PUT(
   request: NextRequest,
