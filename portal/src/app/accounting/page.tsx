@@ -114,148 +114,90 @@ export default function AccountingPage() {
   ]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
+  const [overviewData, setOverviewData] = useState<any>(null);
+  const [categoryData, setCategoryData] = useState<any>(null);
+  const [balanceData, setBalanceData] = useState<any>(null);
 
   useEffect(() => {
-    fetchTransactions();
+    fetchAccountingData();
   }, [dateRange]);
 
-  const fetchTransactions = async () => {
+  const fetchAccountingData = async () => {
     setLoading(true);
     try {
-      // Mock data for development
-      const mockTransactions: Transaction[] = [
-        {
-          id: '1',
-          date: '2024-01-15',
-          description: 'Client Payment - Tech Corp',
-          category: 'Income',
-          amount: 15000,
-          type: 'income',
-          status: 'completed',
-          account: 'Business Checking',
-          vendor: 'Tech Corp Solutions',
-        },
-        {
-          id: '2',
-          date: '2024-01-14',
-          description: 'AWS Services',
-          category: 'Technology',
-          amount: 2500,
-          type: 'expense',
-          status: 'completed',
-          account: 'Business Credit Card',
-          vendor: 'Amazon Web Services',
-        },
-        {
-          id: '3',
-          date: '2024-01-13',
-          description: 'Office Rent',
-          category: 'Rent',
-          amount: 3500,
-          type: 'expense',
-          status: 'completed',
-          account: 'Business Checking',
-          vendor: 'Property Management LLC',
-        },
-        {
-          id: '4',
-          date: '2024-01-12',
-          description: 'Client Payment - Innovate IO',
-          category: 'Income',
-          amount: 8500,
-          type: 'income',
-          status: 'completed',
-          account: 'Business Checking',
-          vendor: 'Innovate IO',
-        },
-        {
-          id: '5',
-          date: '2024-01-10',
-          description: 'Team Lunch',
-          category: 'Meals',
-          amount: 250,
-          type: 'expense',
-          status: 'completed',
-          account: 'Business Credit Card',
-          vendor: 'Local Restaurant',
-        },
-      ];
-      
-      setTimeout(() => {
-        setTransactions(mockTransactions);
-        setLoading(false);
-      }, 1000);
+      // Fetch overview data
+      const params = new URLSearchParams();
+      if (dateRange[0]) params.append('startDate', dateRange[0].format('YYYY-MM-DD'));
+      if (dateRange[1]) params.append('endDate', dateRange[1].format('YYYY-MM-DD'));
+      params.append('includeBalances', 'true');
+
+      const [overviewResponse, categoriesResponse, balancesResponse] = await Promise.all([
+        fetch(`/api/accounting/overview?${params.toString()}`),
+        fetch(`/api/accounting/categories?${params.toString()}`),
+        fetch('/api/accounting/balances?includeHistory=true&historyDays=30'),
+      ]);
+
+      if (!overviewResponse.ok || !categoriesResponse.ok || !balancesResponse.ok) {
+        throw new Error('Failed to fetch accounting data');
+      }
+
+      const overview = await overviewResponse.json();
+      const categories = await categoriesResponse.json();
+      const balances = await balancesResponse.json();
+
+      setOverviewData(overview);
+      setCategoryData(categories);
+      setBalanceData(balances);
+      setTransactions(overview.recentTransactions || []);
+      setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      console.error('Failed to fetch accounting data:', error);
       setLoading(false);
     }
   };
 
-  // Calculate statistics
-  const totalIncome = transactions
-    .filter(t => t.type === 'income' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  const totalExpenses = transactions
-    .filter(t => t.type === 'expense' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  const netIncome = totalIncome - totalExpenses;
-  const profitMargin = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
+  // Calculate statistics from API data
+  const totalIncome = overviewData?.keyMetrics?.totalIncome || 0;
+  const totalExpenses = overviewData?.keyMetrics?.totalExpenses || 0;
+  const netIncome = overviewData?.keyMetrics?.netIncome || 0;
+  const profitMargin = overviewData?.keyMetrics?.profitMargin || 0;
 
-  // Category breakdown
-  const categoryBreakdown: CategoryData[] = [
-    {
-      name: 'Technology',
-      amount: 2500,
-      percentage: 28,
-      icon: <ShopOutlined />,
-      color: '#1677ff',
-    },
-    {
-      name: 'Rent',
-      amount: 3500,
-      percentage: 39,
-      icon: <HomeOutlined />,
-      color: '#52c41a',
-    },
-    {
-      name: 'Meals',
-      amount: 250,
-      percentage: 3,
-      icon: <CoffeeOutlined />,
-      color: '#fa8c16',
-    },
-    {
-      name: 'Transport',
-      amount: 450,
-      percentage: 5,
-      icon: <CarOutlined />,
-      color: '#eb2f96',
-    },
-    {
-      name: 'Utilities',
-      amount: 800,
-      percentage: 9,
-      icon: <BankOutlined />,
-      color: '#722ed1',
-    },
-    {
-      name: 'Other',
-      amount: 1500,
-      percentage: 16,
-      icon: <WalletOutlined />,
-      color: '#8c8c8c',
-    },
-  ];
+  // Category breakdown from API
+  const categoryIcons: Record<string, React.ReactNode> = {
+    'Technology': <ShopOutlined />,
+    'Rent': <HomeOutlined />,
+    'Meals': <CoffeeOutlined />,
+    'Transport': <CarOutlined />,
+    'Utilities': <BankOutlined />,
+    'Other': <WalletOutlined />,
+    'Uncategorized': <WalletOutlined />,
+  };
 
-  // Chart data
-  const cashFlowData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+  const categoryColors: Record<string, string> = {
+    'Technology': '#1677ff',
+    'Rent': '#52c41a',
+    'Meals': '#fa8c16',
+    'Transport': '#eb2f96',
+    'Utilities': '#722ed1',
+    'Other': '#8c8c8c',
+    'Uncategorized': '#8c8c8c',
+  };
+
+  const categoryBreakdown: CategoryData[] = (overviewData?.expenseCategories || []).map((cat: any, index: number) => ({
+    name: cat.name,
+    amount: cat.amount,
+    percentage: cat.percentage,
+    icon: categoryIcons[cat.name] || <WalletOutlined />,
+    color: categoryColors[cat.name] || `hsl(${index * 60}, 70%, 50%)`,
+  }));
+
+  // Chart data from API
+  const cashFlowData = overviewData?.cashFlowTrend || {
+    labels: [],
     datasets: [
       {
         label: 'Income',
-        data: [45000, 52000, 48000, 61000, 58000, 65000],
+        data: [],
         borderColor: '#52c41a',
         backgroundColor: 'rgba(82, 196, 26, 0.1)',
         fill: true,
@@ -263,7 +205,7 @@ export default function AccountingPage() {
       },
       {
         label: 'Expenses',
-        data: [32000, 28000, 35000, 30000, 33000, 31000],
+        data: [],
         borderColor: '#ff4d4f',
         backgroundColor: 'rgba(255, 77, 79, 0.1)',
         fill: true,
@@ -335,12 +277,20 @@ export default function AccountingPage() {
     datasets: [
       {
         label: 'This Month',
-        data: [65000, 31000, 34000],
+        data: [
+          overviewData?.monthlyComparison?.thisMonth?.income || 0,
+          overviewData?.monthlyComparison?.thisMonth?.expenses || 0,
+          overviewData?.monthlyComparison?.thisMonth?.net || 0,
+        ],
         backgroundColor: '#1677ff',
       },
       {
         label: 'Last Month',
-        data: [58000, 33000, 25000],
+        data: [
+          overviewData?.monthlyComparison?.lastMonth?.income || 0,
+          overviewData?.monthlyComparison?.lastMonth?.expenses || 0,
+          overviewData?.monthlyComparison?.lastMonth?.net || 0,
+        ],
         backgroundColor: '#a0d4ff',
       },
     ],
@@ -451,7 +401,7 @@ export default function AccountingPage() {
         subtitle="Monitor your financial health and cash flow"
         extra={
           <Space>
-            <Button icon={<SyncOutlined />} onClick={fetchTransactions}>
+            <Button icon={<SyncOutlined />} onClick={fetchAccountingData}>
               Refresh
             </Button>
             <Button icon={<DownloadOutlined />}>
@@ -506,9 +456,16 @@ export default function AccountingPage() {
               valueStyle={{ color: '#52c41a' }}
               prefix={<DollarOutlined />}
               suffix={
-                <span style={{ fontSize: 14, fontWeight: 'normal' }}>
-                  <ArrowUpOutlined /> 12%
-                </span>
+                overviewData?.monthlyComparison?.percentageChange?.income ? (
+                  <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                    {overviewData.monthlyComparison.percentageChange.income > 0 ? (
+                      <ArrowUpOutlined />
+                    ) : (
+                      <ArrowDownOutlined />
+                    )}{' '}
+                    {Math.abs(overviewData.monthlyComparison.percentageChange.income).toFixed(1)}%
+                  </span>
+                ) : null
               }
             />
             <Progress
@@ -528,9 +485,16 @@ export default function AccountingPage() {
               valueStyle={{ color: '#ff4d4f' }}
               prefix={<DollarOutlined />}
               suffix={
-                <span style={{ fontSize: 14, fontWeight: 'normal' }}>
-                  <ArrowDownOutlined /> 5%
-                </span>
+                overviewData?.monthlyComparison?.percentageChange?.expenses ? (
+                  <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                    {overviewData.monthlyComparison.percentageChange.expenses > 0 ? (
+                      <ArrowUpOutlined />
+                    ) : (
+                      <ArrowDownOutlined />
+                    )}{' '}
+                    {Math.abs(overviewData.monthlyComparison.percentageChange.expenses).toFixed(1)}%
+                  </span>
+                ) : null
               }
             />
             <Progress
@@ -673,50 +637,47 @@ export default function AccountingPage() {
       </Card>
 
       {/* Account Balances */}
-      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-        <Col xs={24} md={8}>
-          <Card>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space>
-                <BankOutlined style={{ fontSize: 24, color: '#1677ff' }} />
-                <Text strong>Business Checking</Text>
-              </Space>
-              <Title level={3} style={{ margin: '8px 0' }}>
-                $125,450.00
-              </Title>
-              <Text type="secondary">Last updated: 2 hours ago</Text>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space>
-                <CreditCardOutlined style={{ fontSize: 24, color: '#52c41a' }} />
-                <Text strong>Business Credit Card</Text>
-              </Space>
-              <Title level={3} style={{ margin: '8px 0' }}>
-                $8,250.00
-              </Title>
-              <Text type="secondary">Available credit: $41,750</Text>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space>
-                <WalletOutlined style={{ fontSize: 24, color: '#fa8c16' }} />
-                <Text strong>Savings Account</Text>
-              </Space>
-              <Title level={3} style={{ margin: '8px 0' }}>
-                $85,000.00
-              </Title>
-              <Text type="secondary">APY: 4.5%</Text>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+      {balanceData?.accounts && balanceData.accounts.length > 0 && (
+        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+          {balanceData.accounts.slice(0, 3).map((account: any, index: number) => {
+            const iconColors = ['#1677ff', '#52c41a', '#fa8c16'];
+            const icons = [<BankOutlined />, <CreditCardOutlined />, <WalletOutlined />];
+            
+            return (
+              <Col xs={24} md={8} key={account.accountName}>
+                <Card>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      {React.cloneElement(icons[index] || icons[0], {
+                        style: { fontSize: 24, color: iconColors[index] || iconColors[0] },
+                      })}
+                      <Text strong>{account.accountName}</Text>
+                    </Space>
+                    <Title level={3} style={{ margin: '8px 0' }}>
+                      ${(account.currentBalance || 0).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Title>
+                    <Text type="secondary">
+                      {account.lastTransaction?.date
+                        ? `Updated: ${dayjs(account.lastTransaction.date).fromNow()}`
+                        : 'No recent transactions'}
+                    </Text>
+                    {account.statistics && (
+                      <div style={{ marginTop: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Net Flow: ${account.statistics.netFlow.toLocaleString()}
+                        </Text>
+                      </div>
+                    )}
+                  </Space>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+      )}
 
       {/* Alerts */}
       <div style={{ marginTop: 24 }}>

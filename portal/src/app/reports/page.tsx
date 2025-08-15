@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import {
   Row,
   Col,
@@ -24,6 +24,7 @@ import {
   Input,
   List,
   Avatar,
+  Switch,
 } from 'antd';
 import {
   DownloadOutlined,
@@ -79,6 +80,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageHeader from '@/components/common/PageHeader';
 import dayjs, { Dayjs } from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
+import { usePageTracking, useInteractionTracking } from '@/hooks/useActivityTracking';
 
 dayjs.extend(quarterOfYear);
 
@@ -175,6 +177,10 @@ const generateTransactionData = () => {
 // User activity data will be fetched from the API
 
 export default function ReportsPage() {
+  // Activity tracking hooks
+  usePageTracking();
+  const { trackInteraction } = useInteractionTracking();
+  
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('revenue');
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
@@ -194,6 +200,8 @@ export default function ReportsPage() {
     success: '',
     search: '',
   });
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds default
 
   useEffect(() => {
     // Simulate loading
@@ -211,6 +219,24 @@ export default function ReportsPage() {
       fetchActivityStats();
     }
   }, [activeTab, dateRange, activityFilter]);
+
+  // Auto-refresh functionality for activity logs
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    if (activeTab === 'activity' && autoRefresh) {
+      intervalId = setInterval(() => {
+        fetchActivityLogs();
+        fetchActivityStats();
+      }, refreshInterval);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [activeTab, autoRefresh, refreshInterval, dateRange, activityFilter]);
 
   const fetchActivityLogs = async () => {
     try {
@@ -1091,8 +1117,48 @@ export default function ReportsPage() {
 
   const renderUserActivityReport = () => (
     <>
-      {/* Filter Controls */}
+      {/* Auto-refresh and Filter Controls */}
       <Card style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={12} md={8}>
+            <Space>
+              <Switch
+                checked={autoRefresh}
+                onChange={setAutoRefresh}
+                checkedChildren="Auto Refresh ON"
+                unCheckedChildren="Auto Refresh OFF"
+              />
+              {autoRefresh && (
+                <Select
+                  value={refreshInterval}
+                  onChange={setRefreshInterval}
+                  style={{ width: 120 }}
+                >
+                  <Select.Option value={10000}>10 seconds</Select.Option>
+                  <Select.Option value={30000}>30 seconds</Select.Option>
+                  <Select.Option value={60000}>1 minute</Select.Option>
+                  <Select.Option value={300000}>5 minutes</Select.Option>
+                </Select>
+              )}
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Text type="secondary">
+              {autoRefresh ? `Refreshing every ${refreshInterval / 1000} seconds` : 'Auto-refresh disabled'}
+            </Text>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Space>
+              <Tag color={activityLoading ? 'processing' : 'success'}>
+                {activityLoading ? <SyncOutlined spin /> : <CheckCircleOutlined />}
+                {activityLoading ? ' Loading...' : ' Live'}
+              </Tag>
+              <Text type="secondary">
+                Last updated: {dayjs().format('HH:mm:ss')}
+              </Text>
+            </Space>
+          </Col>
+        </Row>
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={6}>
             <Input

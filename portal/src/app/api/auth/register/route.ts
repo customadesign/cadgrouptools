@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
+import pushNotificationService from '@/services/pushNotificationService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,18 @@ export async function POST(request: NextRequest) {
       role: role || 'staff',
       isActive: true,
     });
+
+    // Send push notification to admins about new user registration
+    try {
+      await pushNotificationService.notifyNewUserRegistration({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (notificationError) {
+      // Log error but don't fail the registration
+      console.error('Failed to send notification for new user registration:', notificationError);
+    }
 
     // Return user data (without password)
     return NextResponse.json({

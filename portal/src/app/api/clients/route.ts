@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Client } from '@/models/Client';
 import { withStatelessAuth } from '@/lib/auth-stateless';
+import { withActivityTracking } from '@/middleware/activityTracking';
 
 // GET /api/clients - List all clients
-export const GET = withStatelessAuth(async (request: NextRequest) => {
+export const GET = withStatelessAuth(withActivityTracking(async (request: NextRequest) => {
   try {
     await connectToDatabase();
 
@@ -54,10 +55,10 @@ export const GET = withStatelessAuth(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}));
 
 // POST /api/clients - Create a new client
-export const POST = withStatelessAuth(async (request: NextRequest) => {
+export const POST = withStatelessAuth(withActivityTracking(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { 
@@ -152,4 +153,4 @@ export const POST = withStatelessAuth(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}));

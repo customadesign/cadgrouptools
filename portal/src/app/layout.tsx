@@ -4,6 +4,7 @@ import "./globals.css";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CADGroup Tools Portal",
   description: "Internal tools portal",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -28,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ServiceWorkerRegistration />
         <AuthSessionProvider>
           <AntdRegistry>
             <ThemeProvider>

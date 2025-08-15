@@ -5,9 +5,10 @@ import { connectToDatabase } from '@/lib/db';
 import { Transaction } from '@/models/Transaction';
 import { Statement } from '@/models/Statement';
 import { Types } from 'mongoose';
+import { withActivityTracking } from '@/middleware/activityTracking';
 
 // GET: Fetch transactions with filtering and pagination
-export async function GET(request: NextRequest) {
+export const GET = withActivityTracking(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // POST: Create new transactions (bulk support)
 export async function POST(request: NextRequest) {

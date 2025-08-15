@@ -54,6 +54,23 @@ export const authOptions: NextAuthOptions = {
               }
             );
             
+            // Send push notification about failed login attempt
+            try {
+              const pushNotificationService = await import('@/services/pushNotificationService').then(m => m.default);
+              const userAgent = 'Unknown'; // In a real scenario, this would come from the request headers
+              const ip = 'Unknown'; // In a real scenario, this would come from the request
+              await pushNotificationService.notifyFailedLogin(
+                user._id.toString(),
+                {
+                  ip,
+                  userAgent,
+                  location: 'Unknown Location'
+                }
+              );
+            } catch (notificationError) {
+              console.error('Failed to send security alert notification:', notificationError);
+            }
+            
             return null;
           }
 
