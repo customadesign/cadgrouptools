@@ -19,14 +19,13 @@ const StatementSchema = new Schema(
       message: { type: String },
     },
     extractedAt: { type: Date },
-    errors: [{ type: String }],
+    processingErrors: [{ type: String }],
     createdBy: { type: Types.ObjectId, ref: 'User' },
     transactionsFound: { type: Number, default: 0 },
     transactionsImported: { type: Number, default: 0 },
   },
   { 
-    timestamps: true,
-    suppressReservedKeysWarning: true // Suppress warning about 'errors' being a reserved pathname
+    timestamps: true
   }
 );
 

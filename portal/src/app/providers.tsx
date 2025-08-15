@@ -2,22 +2,16 @@
 
 import { SessionProvider } from 'next-auth/react';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import { ConfigProvider } from 'antd';
 import { ReactNode } from 'react';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <AntdRegistry>
-        <ConfigProvider
-          theme={{
-            token: {
-              colorPrimary: '#1890ff',
-            },
-          }}
-        >
+        <ThemeProvider>
           {children}
-        </ConfigProvider>
+        </ThemeProvider>
       </AntdRegistry>
     </SessionProvider>
   );

@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-
-// Force dynamic rendering to prevent static generation issues with theme context
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Upload,

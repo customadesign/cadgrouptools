@@ -20,8 +20,6 @@ export const metadata: Metadata = {
   description: 'Internal tools and management system for CADGroup',
   keywords: 'internal tools, management, CADGroup',
   authors: [{ name: 'CADGroup' }],
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#1890ff',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
@@ -43,6 +41,12 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#1890ff',
 };
 
 // Report web vitals

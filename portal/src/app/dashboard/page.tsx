@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-
-// Force dynamic rendering to prevent static generation issues with theme context
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
+import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, List, Avatar, Tag, Button, Space, Typography, Progress, Timeline, Empty, Skeleton, InputNumber } from 'antd';
 import {
   TeamOutlined,

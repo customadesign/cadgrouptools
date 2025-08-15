@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Upload, Alert, Spin, Space, Tag, Typography, Divider, Result, message, List } from 'antd';
 import { UploadOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, CloudUploadOutlined } from '@ant-design/icons';
