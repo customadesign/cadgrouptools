@@ -246,7 +246,7 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
 
 // Fallback PDF text extraction using pdfjs-dist (no native deps)
 async function extractTextFromPdfWithPdfJs(buffer: Buffer): Promise<string> {
-  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.js');
+  const pdfjs: any = await import('pdfjs-dist');
   // In Node we typically don't need a worker; pdfjs uses a fake worker
   const loadingTask = pdfjs.getDocument({ data: buffer });
   const pdf = await loadingTask.promise;
