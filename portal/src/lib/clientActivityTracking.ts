@@ -8,7 +8,7 @@
  */
 export async function trackPageView(
   pathname: string,
-  searchParams: URLSearchParams,
+  searchParams: URLSearchParams | null,
   userId?: string
 ) {
   try {
@@ -19,7 +19,7 @@ export async function trackPageView(
       },
       body: JSON.stringify({
         pathname,
-        searchParams: Object.fromEntries(searchParams),
+        searchParams: searchParams ? Object.fromEntries(searchParams) : {},
         userId,
         timestamp: new Date().toISOString()
       })

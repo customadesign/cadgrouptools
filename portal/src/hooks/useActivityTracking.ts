@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -5,6 +7,7 @@ import { trackPageView, trackUserInteraction } from '@/lib/clientActivityTrackin
 
 /**
  * Hook to automatically track page views
+ * Note: This hook uses useSearchParams and must be used within a Suspense boundary
  */
 export function usePageTracking() {
   const pathname = usePathname();
@@ -16,6 +19,20 @@ export function usePageTracking() {
       trackPageView(pathname, searchParams, session?.user?.id);
     }
   }, [pathname, searchParams, session?.user?.id]);
+}
+
+/**
+ * Hook to track page views without search params (doesn't require Suspense)
+ */
+export function useSimplePageTracking() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if (pathname) {
+      trackPageView(pathname, null, session?.user?.id);
+    }
+  }, [pathname, session?.user?.id]);
 }
 
 /**
