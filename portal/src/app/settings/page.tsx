@@ -64,6 +64,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageHeader from '@/components/common/PageHeader';
 import dayjs from 'dayjs';
 import clientPushNotificationService from '@/services/clientPushNotificationService';
+import PushNotificationSettings from '@/components/settings/PushNotificationSettings';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -573,16 +574,7 @@ export default function SettingsPage() {
 
                 <Divider />
 
-                <Title level={5}>Push Notifications</Title>
-                {!pushSupported ? (
-                  <Alert
-                    message="Push Notifications Not Supported"
-                    description="Your browser does not support push notifications. Please use a modern browser like Chrome, Firefox, or Edge."
-                    type="warning"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
-                ) : (
+                <PushNotificationSettings />
                   <>
                     <Alert
                       message="Browser Notifications"

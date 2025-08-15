@@ -1,36 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 import pushNotificationService from '@/services/pushNotificationService';
 
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication and admin role
-    const user = await verifyAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     // Get notification data from request body
     const body = await request.json();
-    const { 
-      targetUsers, // 'all', 'admins', or array of user IDs
-      title, 
-      body: notificationBody, 
+    const {
+      targetUsers,
+      title,
+      body: notificationBody,
       requireInteraction,
       actions,
-      data 
+      data,
     } = body;
 
-    if (!title || !notificationBody) {
+    // Validate required fields
+    if (!targetUsers || !title || !notificationBody) {
       return NextResponse.json(
-        { error: 'Title and body are required' },
+        { error: 'Missing required fields: targetUsers, title, body' },
         { status: 400 }
       );
     }
@@ -43,15 +38,14 @@ export async function POST(request: NextRequest) {
       {
         requireInteraction,
         actions,
-        data
+        data,
       },
-      user.id
+      session.user.id
     );
 
     return NextResponse.json({
       success: true,
-      message: 'Notification sent successfully',
-      ...result
+      ...result,
     });
   } catch (error) {
     console.error('Error sending notification:', error);

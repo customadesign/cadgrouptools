@@ -5,13 +5,20 @@ export async function GET() {
   try {
     const publicKey = pushNotificationService.getVapidPublicKey();
     
+    if (!publicKey) {
+      return NextResponse.json(
+        { error: 'VAPID keys not configured' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
-      publicKey
+      publicKey,
     });
   } catch (error) {
-    console.error('Error getting VAPID public key:', error);
+    console.error('Error fetching VAPID public key:', error);
     return NextResponse.json(
-      { error: 'Failed to get VAPID public key' },
+      { error: 'Failed to fetch VAPID public key' },
       { status: 500 }
     );
   }
