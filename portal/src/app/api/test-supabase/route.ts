@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 
 export async function GET() {
@@ -96,4 +96,98 @@ export async function GET() {
       SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || STORAGE_BUCKET,
     }
   });
+}
+
+// POST method for testing actual file uploads
+export async function POST(request: NextRequest) {
+  try {
+    // Check if Supabase is configured
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { 
+          error: 'Storage service not configured',
+          details: {
+            SUPABASE_URL: !!process.env.SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE: !!process.env.SUPABASE_SERVICE_ROLE,
+            SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || STORAGE_BUCKET,
+          }
+        },
+        { status: 503 }
+      );
+    }
+
+    // Get the form data
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      );
+    }
+
+    // Generate test filename
+    const timestamp = Date.now();
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `test/test-upload-${timestamp}.${fileExt}`;
+
+    // Convert File to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Upload to Supabase
+    const { data, error } = await supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (error) {
+      return NextResponse.json(
+        { 
+          error: `Upload failed: ${error.message}`,
+          details: {
+            bucket: STORAGE_BUCKET,
+            fileName,
+            fileSize: file.size,
+            fileType: file.type,
+            errorDetails: error
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(fileName);
+
+    // Try to clean up the test file
+    const { error: deleteError } = await supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .remove([fileName]);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Test upload successful',
+      publicUrl: publicUrlData.publicUrl,
+      fileName,
+      bucket: STORAGE_BUCKET,
+      cleaned: !deleteError,
+      cleanupError: deleteError?.message
+    });
+
+  } catch (error) {
+    console.error('Test upload error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Test upload failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
 }

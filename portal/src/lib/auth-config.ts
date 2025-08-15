@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
+import { activityLogger } from '@/services/activityLogger';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -30,12 +31,55 @@ export const authOptions: NextAuthOptions = {
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
           if (!isPasswordValid) {
             console.error('Invalid password for user:', credentials.email);
+            
+            // Log failed login attempt
+            await activityLogger.logSystemActivity(
+              {
+                id: user._id.toString(),
+                name: user.name || user.email,
+                email: user.email,
+                role: user.role || 'staff'
+              },
+              {
+                actionType: 'login',
+                resourceType: 'auth',
+                method: 'POST',
+                endpoint: '/api/auth/signin',
+                metadata: { reason: 'invalid_password' }
+              },
+              {
+                success: false,
+                statusCode: 401,
+                errorMessage: 'Invalid password'
+              }
+            );
+            
             return null;
           }
 
           // Update last login
           user.lastLogin = new Date();
           await user.save();
+          
+          // Log successful login
+          await activityLogger.logSystemActivity(
+            {
+              id: user._id.toString(),
+              name: user.name || user.email,
+              email: user.email,
+              role: user.role || 'staff'
+            },
+            {
+              actionType: 'login',
+              resourceType: 'auth',
+              method: 'POST',
+              endpoint: '/api/auth/signin'
+            },
+            {
+              success: true,
+              statusCode: 200
+            }
+          );
 
           // Return user object for JWT
           return {
