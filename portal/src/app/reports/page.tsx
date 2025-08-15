@@ -21,6 +21,9 @@ import {
   Segmented,
   Tooltip,
   Dropdown,
+  Input,
+  List,
+  Avatar,
 } from 'antd';
 import {
   DownloadOutlined,
@@ -45,6 +48,9 @@ import {
   LineChartOutlined,
   PieChartOutlined,
   AreaChartOutlined,
+  SearchOutlined,
+  ReloadOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import {
   LineChart,
@@ -166,19 +172,7 @@ const generateTransactionData = () => {
   }));
 };
 
-const generateUserActivityData = () => {
-  const actions = ['Login', 'Created Proposal', 'Updated Client', 'Generated Report', 'Uploaded File'];
-  const users = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Williams', 'Tom Brown'];
-  
-  return Array.from({ length: 30 }, (_, i) => ({
-    id: i + 1,
-    user: users[Math.floor(Math.random() * users.length)],
-    action: actions[Math.floor(Math.random() * actions.length)],
-    timestamp: dayjs().subtract(Math.floor(Math.random() * 168), 'hour').format('YYYY-MM-DD HH:mm'),
-    ip: `192.168.1.${Math.floor(Math.random() * 255)}`,
-    device: Math.random() > 0.5 ? 'Desktop' : 'Mobile',
-  }));
-};
+// User activity data will be fetched from the API
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -190,6 +184,16 @@ export default function ReportsPage() {
   const [revenuePeriod, setRevenuePeriod] = useState('monthly');
   const [clientFilter, setClientFilter] = useState('all');
   const [proposalFilter, setProposalFilter] = useState('all');
+  const [userActivityData, setUserActivityData] = useState<any[]>([]);
+  const [activityStats, setActivityStats] = useState<any>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityFilter, setActivityFilter] = useState({
+    userId: '',
+    actionType: '',
+    resourceType: '',
+    success: '',
+    search: '',
+  });
 
   useEffect(() => {
     // Simulate loading
@@ -200,7 +204,85 @@ export default function ReportsPage() {
   const clientData = useMemo(() => generateClientData(), []);
   const proposalData = useMemo(() => generateProposalData(), []);
   const transactionData = useMemo(() => generateTransactionData(), []);
-  const userActivityData = useMemo(() => generateUserActivityData(), []);
+  // Fetch user activity data from API
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      fetchActivityLogs();
+      fetchActivityStats();
+    }
+  }, [activeTab, dateRange, activityFilter]);
+
+  const fetchActivityLogs = async () => {
+    try {
+      setActivityLoading(true);
+      const params = new URLSearchParams();
+      if (dateRange[0]) params.append('startDate', dateRange[0].toISOString());
+      if (dateRange[1]) params.append('endDate', dateRange[1].toISOString());
+      if (activityFilter.userId) params.append('userId', activityFilter.userId);
+      if (activityFilter.actionType) params.append('actionType', activityFilter.actionType);
+      if (activityFilter.resourceType) params.append('resourceType', activityFilter.resourceType);
+      if (activityFilter.success !== '') params.append('success', activityFilter.success);
+      if (activityFilter.search) params.append('search', activityFilter.search);
+      params.append('limit', '100');
+
+      const response = await fetch(`/api/admin/activity-logs?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch activity logs');
+      const data = await response.json();
+      setUserActivityData(data.logs || []);
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+      message.error('Failed to load activity logs');
+      setUserActivityData([]);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const fetchActivityStats = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (dateRange[0]) params.append('startDate', dateRange[0].toISOString());
+      if (dateRange[1]) params.append('endDate', dateRange[1].toISOString());
+
+      const response = await fetch(`/api/admin/activity-logs/stats?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch activity stats');
+      const data = await response.json();
+      setActivityStats(data);
+    } catch (error) {
+      console.error('Error fetching activity stats:', error);
+      setActivityStats(null);
+    }
+  };
+
+  const handleActivityExport = async (format: 'csv' | 'json') => {
+    try {
+      const params = new URLSearchParams();
+      if (dateRange[0]) params.append('startDate', dateRange[0].toISOString());
+      if (dateRange[1]) params.append('endDate', dateRange[1].toISOString());
+      params.append('format', format);
+
+      const response = await fetch(`/api/admin/activity-logs/export?${params}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) throw new Error('Failed to export activity logs');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `activity-logs-${dayjs().format('YYYY-MM-DD')}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      message.success(`Activity logs exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Error exporting activity logs:', error);
+      message.error('Failed to export activity logs');
+    }
+  };
 
   // Calculate summary statistics
   const totalRevenue = revenueData.reduce((sum, item) => sum + item.revenue, 0);
@@ -1009,81 +1091,269 @@ export default function ReportsPage() {
 
   const renderUserActivityReport = () => (
     <>
+      {/* Filter Controls */}
+      <Card style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} sm={12} md={6}>
+            <Input
+              placeholder="Search logs..."
+              prefix={<SearchOutlined />}
+              value={activityFilter.search}
+              onChange={(e) => setActivityFilter({ ...activityFilter, search: e.target.value })}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Select
+              placeholder="Action Type"
+              value={activityFilter.actionType || undefined}
+              onChange={(value) => setActivityFilter({ ...activityFilter, actionType: value || '' })}
+              style={{ width: '100%' }}
+              allowClear
+            >
+              <Select.Option value="login">Login</Select.Option>
+              <Select.Option value="logout">Logout</Select.Option>
+              <Select.Option value="create">Create</Select.Option>
+              <Select.Option value="read">Read</Select.Option>
+              <Select.Option value="update">Update</Select.Option>
+              <Select.Option value="delete">Delete</Select.Option>
+              <Select.Option value="upload">Upload</Select.Option>
+              <Select.Option value="download">Download</Select.Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Select
+              placeholder="Resource Type"
+              value={activityFilter.resourceType || undefined}
+              onChange={(value) => setActivityFilter({ ...activityFilter, resourceType: value || '' })}
+              style={{ width: '100%' }}
+              allowClear
+            >
+              <Select.Option value="user">User</Select.Option>
+              <Select.Option value="client">Client</Select.Option>
+              <Select.Option value="proposal">Proposal</Select.Option>
+              <Select.Option value="report">Report</Select.Option>
+              <Select.Option value="transaction">Transaction</Select.Option>
+              <Select.Option value="file">File</Select.Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={3}>
+            <Select
+              placeholder="Status"
+              value={activityFilter.success === '' ? undefined : activityFilter.success}
+              onChange={(value) => setActivityFilter({ ...activityFilter, success: value === undefined ? '' : value })}
+              style={{ width: '100%' }}
+              allowClear
+            >
+              <Select.Option value="true">Success</Select.Option>
+              <Select.Option value="false">Failed</Select.Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={3}>
+            <Button 
+              onClick={() => {
+                setActivityFilter({
+                  userId: '',
+                  actionType: '',
+                  resourceType: '',
+                  success: '',
+                  search: '',
+                });
+              }}
+              icon={<FilterOutlined />}
+            >
+              Clear Filters
+            </Button>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Space>
+              <Button
+                onClick={() => handleActivityExport('csv')}
+                icon={<FileExcelOutlined />}
+              >
+                Export CSV
+              </Button>
+              <Button
+                onClick={() => fetchActivityLogs()}
+                icon={<ReloadOutlined />}
+                loading={activityLoading}
+              >
+                Refresh
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
       {/* Summary Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Active Users"
-              value={new Set(userActivityData.map(a => a.user)).size}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#1677ff' }}
-            />
-            <Text type="secondary">Last 7 days</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card loading={activityLoading}>
             <Statistic
               title="Total Activities"
-              value={userActivityData.length}
-              valueStyle={{ color: '#52c41a' }}
+              value={activityStats?.summary?.totalLogs || 0}
+              prefix={<UserOutlined />}
+              valueStyle={{ color: '#1677ff' }}
+              formatter={(value) => Number(value).toLocaleString()}
             />
-            <Text type="secondary">All actions</Text>
+            <Text type="secondary">In selected period</Text>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card loading={activityLoading}>
             <Statistic
-              title="Desktop Users"
-              value={
-                (userActivityData.filter(a => a.device === 'Desktop').length /
-                  userActivityData.length) *
-                100
-              }
+              title="Success Rate"
+              value={activityStats?.summary?.successRate || 0}
               suffix="%"
               precision={1}
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: '#52c41a' }}
+              prefix={activityStats?.summary?.successRate > 95 ? <CheckCircleOutlined /> : null}
             />
-            <Text type="secondary">vs Mobile</Text>
+            <Progress 
+              percent={activityStats?.summary?.successRate || 0} 
+              strokeColor="#52c41a" 
+              showInfo={false} 
+            />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card loading={activityLoading}>
             <Statistic
-              title="Avg Daily Actions"
-              value={Math.floor(userActivityData.length / 7)}
-              valueStyle={{ color: '#722ed1' }}
+              title="Failed Operations"
+              value={activityStats?.summary?.failedLogs || 0}
+              valueStyle={{ color: '#ff4d4f' }}
+              prefix={<CloseCircleOutlined />}
             />
-            <Text type="secondary">Per day</Text>
+            <Text type="secondary">
+              {activityStats?.summary?.failureRate?.toFixed(1) || 0}% failure rate
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={activityLoading}>
+            <Statistic
+              title="Avg Response Time"
+              value={activityStats?.summary?.avgResponseTime || 0}
+              suffix="ms"
+              valueStyle={{ color: '#faad14' }}
+              prefix={<ClockCircleOutlined />}
+            />
+            <Text type="secondary">Server performance</Text>
           </Card>
         </Col>
       </Row>
 
-      {/* Activity Chart */}
+      {/* Activity Charts */}
       <Row gutter={[16, 16]}>
-        <Col span={24}>
-          <Card title="User Activity Heatmap">
+        <Col xs={24} lg={12}>
+          <Card title="Activity Trends" loading={activityLoading}>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={Array.from({ length: 7 }, (_, i) => {
-                  const date = dayjs().subtract(6 - i, 'day');
-                  const count = userActivityData.filter(a =>
-                    dayjs(a.timestamp).isSame(date, 'day')
-                  ).length;
-                  return {
-                    day: date.format('ddd'),
-                    activities: count || Math.floor(Math.random() * 20) + 5,
-                  };
-                })}
+              <LineChart
+                data={activityStats?.trends?.hourly || []}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
+                <XAxis 
+                  dataKey="hour" 
+                  tickFormatter={(hour) => `${hour}:00`}
+                />
                 <YAxis />
-                <RechartsTooltip />
-                <Bar dataKey="activities" fill="#1677ff" />
-              </BarChart>
+                <RechartsTooltip 
+                  labelFormatter={(hour) => `${hour}:00`}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="count" 
+                  stroke="#1677ff" 
+                  strokeWidth={2}
+                  dot={{ fill: '#1677ff', r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
             </ResponsiveContainer>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Activity Distribution" loading={activityLoading}>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={activityStats?.actionTypes || []}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="count"
+                >
+                  {(activityStats?.actionTypes || []).map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Top Users */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Most Active Users" loading={activityLoading}>
+            <List
+              dataSource={activityStats?.topUsers?.slice(0, 5) || []}
+              renderItem={(user: any) => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar style={{ backgroundColor: '#1677ff' }}>
+                        {user.userName?.[0] || user.userId?.[0] || '?'}
+                      </Avatar>
+                    }
+                    title={user.userName || user.userId}
+                    description={`${user.count} activities`}
+                  />
+                  <Progress
+                    type="circle"
+                    percent={Math.min((user.count / (activityStats?.summary?.totalLogs || 1)) * 100, 100)}
+                    width={50}
+                    format={(percent) => `${percent?.toFixed(0)}%`}
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Recent Errors" loading={activityLoading}>
+            <List
+              dataSource={activityStats?.recentErrors?.slice(0, 5) || []}
+              renderItem={(error: any) => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={<CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />}
+                    title={
+                      <Space>
+                        <Text type="danger">{error.actionType}</Text>
+                        <Tag color="red">{error.resourceType}</Tag>
+                      </Space>
+                    }
+                    description={
+                      <Space direction="vertical" size={0}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {error.userName || error.userId}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {dayjs(error.timestamp).format('MMM DD, HH:mm')}
+                        </Text>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+              empty={<Empty description="No errors found" />}
+            />
           </Card>
         </Col>
       </Row>
@@ -1091,65 +1361,141 @@ export default function ReportsPage() {
       {/* Activity Table */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col span={24}>
-          <Card title="Activity Log">
+          <Card title="Activity Logs" loading={activityLoading}>
             <Table
               dataSource={userActivityData}
+              rowKey={(record) => record._id || record.id || `${record.timestamp}-${record.userId}`}
               columns={[
-                {
-                  title: 'User',
-                  dataIndex: 'user',
-                  key: 'user',
-                  render: (text) => (
-                    <Space>
-                      <Avatar size="small" style={{ backgroundColor: '#1677ff' }}>
-                        {text[0]}
-                      </Avatar>
-                      {text}
-                    </Space>
-                  ),
-                  filters: Array.from(new Set(userActivityData.map(a => a.user))).map(u => ({
-                    text: u,
-                    value: u,
-                  })),
-                  onFilter: (value, record) => record.user === value,
-                },
-                {
-                  title: 'Action',
-                  dataIndex: 'action',
-                  key: 'action',
-                  filters: Array.from(new Set(userActivityData.map(a => a.action))).map(a => ({
-                    text: a,
-                    value: a,
-                  })),
-                  onFilter: (value, record) => record.action === value,
-                },
                 {
                   title: 'Timestamp',
                   dataIndex: 'timestamp',
                   key: 'timestamp',
-                  render: (timestamp) => dayjs(timestamp).format('MMM DD, YYYY HH:mm'),
+                  render: (timestamp) => (
+                    <Tooltip title={dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')}>
+                      <Text>{dayjs(timestamp).format('MMM DD, HH:mm')}</Text>
+                    </Tooltip>
+                  ),
                   sorter: (a, b) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(),
+                  defaultSortOrder: 'descend',
+                  width: 130,
+                },
+                {
+                  title: 'User',
+                  key: 'user',
+                  render: (_, record) => (
+                    <Space>
+                      <Avatar size="small" style={{ backgroundColor: '#1677ff' }}>
+                        {record.userName?.[0] || record.userId?.[0] || '?'}
+                      </Avatar>
+                      <Text>{record.userName || record.userId || 'System'}</Text>
+                    </Space>
+                  ),
+                  width: 200,
+                },
+                {
+                  title: 'Action',
+                  dataIndex: 'actionType',
+                  key: 'actionType',
+                  render: (action) => {
+                    const actionColors: Record<string, string> = {
+                      login: 'green',
+                      logout: 'orange',
+                      create: 'blue',
+                      read: 'default',
+                      update: 'cyan',
+                      delete: 'red',
+                      upload: 'purple',
+                      download: 'magenta',
+                    };
+                    return (
+                      <Tag color={actionColors[action] || 'default'}>
+                        {action?.toUpperCase() || 'UNKNOWN'}
+                      </Tag>
+                    );
+                  },
+                  width: 100,
+                },
+                {
+                  title: 'Resource',
+                  key: 'resource',
+                  render: (_, record) => (
+                    <Space>
+                      <Tag color="blue">{record.resourceType}</Tag>
+                      {record.resourceName && (
+                        <Text ellipsis style={{ maxWidth: 200 }}>
+                          {record.resourceName}
+                        </Text>
+                      )}
+                    </Space>
+                  ),
+                  width: 250,
+                },
+                {
+                  title: 'Status',
+                  dataIndex: 'success',
+                  key: 'success',
+                  render: (success) => (
+                    success ? (
+                      <Tag color="green" icon={<CheckCircleOutlined />}>SUCCESS</Tag>
+                    ) : (
+                      <Tag color="red" icon={<CloseCircleOutlined />}>FAILED</Tag>
+                    )
+                  ),
+                  filters: [
+                    { text: 'Success', value: true },
+                    { text: 'Failed', value: false },
+                  ],
+                  onFilter: (value, record) => record.success === value,
+                  width: 100,
+                },
+                {
+                  title: 'Response Time',
+                  dataIndex: 'responseTime',
+                  key: 'responseTime',
+                  render: (time) => {
+                    if (!time) return '-';
+                    const color = time < 100 ? 'green' : time < 500 ? 'orange' : 'red';
+                    return <Tag color={color}>{time}ms</Tag>;
+                  },
+                  sorter: (a, b) => (a.responseTime || 0) - (b.responseTime || 0),
+                  width: 100,
                 },
                 {
                   title: 'IP Address',
-                  dataIndex: 'ip',
-                  key: 'ip',
+                  dataIndex: 'ipAddress',
+                  key: 'ipAddress',
+                  render: (ip) => <Text code>{ip || 'N/A'}</Text>,
+                  width: 130,
                 },
                 {
-                  title: 'Device',
-                  dataIndex: 'device',
-                  key: 'device',
-                  render: (device) => (
-                    <Tag color={device === 'Desktop' ? 'blue' : 'green'}>{device}</Tag>
+                  title: 'Details',
+                  key: 'details',
+                  render: (_, record) => (
+                    <Tooltip
+                      title={
+                        <div>
+                          <p>User Agent: {record.userAgent || 'N/A'}</p>
+                          {record.metadata && (
+                            <p>Metadata: {JSON.stringify(record.metadata, null, 2)}</p>
+                          )}
+                        </div>
+                      }
+                    >
+                      <Button type="link" size="small" icon={<EyeOutlined />}>
+                        View
+                      </Button>
+                    </Tooltip>
                   ),
-                  filters: [
-                    { text: 'Desktop', value: 'Desktop' },
-                    { text: 'Mobile', value: 'Mobile' },
-                  ],
-                  onFilter: (value, record) => record.device === value,
+                  width: 80,
                 },
               ]}
-              pagination={{ pageSize: 10 }}
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showTotal: (total) => `Total ${total} activities`,
+              }}
+              scroll={{ x: 1200 }}
+              size="small"
             />
           </Card>
         </Col>

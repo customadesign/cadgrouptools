@@ -3,10 +3,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { connectToDatabase } from '@/lib/db';
 import { Statement } from '@/models/Statement';
-import { File } from '@/models/File';
 import { Transaction } from '@/models/Transaction';
+import { File } from '@/models/File';
+import { Types } from 'mongoose';
 
-// GET: Fetch a single statement with transactions
+// GET: Fetch a single statement with its details
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -19,8 +20,19 @@ export async function GET(
 
     await connectToDatabase();
 
+    const { id } = params;
+
+    // Validate MongoDB ObjectId
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid statement ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch statement with populated file reference
     const statement = await Statement
-      .findById(params.id)
+      .findById(id)
       .populate('sourceFile')
       .lean();
 
@@ -31,19 +43,36 @@ export async function GET(
       );
     }
 
-    // Get associated transactions
-    const transactions = await Transaction
-      .find({ statementId: params.id })
-      .sort({ date: -1 })
-      .lean();
+    // Fetch associated transactions count
+    const transactionCount = await Transaction.countDocuments({
+      statement: statement._id,
+    });
+
+    // Fetch transaction summary
+    const transactionSummary = await Transaction.aggregate([
+      { $match: { statement: new Types.ObjectId(id) } },
+      {
+        $group: {
+          _id: '$direction',
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Format the response
+    const response = {
+      ...statement,
+      transactionCount,
+      transactionSummary: {
+        debit: transactionSummary.find(s => s._id === 'debit') || { totalAmount: 0, count: 0 },
+        credit: transactionSummary.find(s => s._id === 'credit') || { totalAmount: 0, count: 0 },
+      },
+    };
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...statement,
-        transactions,
-        transactionsCount: transactions.length,
-      },
+      data: response,
     });
   } catch (error: any) {
     console.error('Error fetching statement:', error);
@@ -54,8 +83,8 @@ export async function GET(
   }
 }
 
-// PATCH: Update a statement
-export async function PATCH(
+// PUT: Update a statement
+export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -67,40 +96,42 @@ export async function PATCH(
 
     await connectToDatabase();
 
+    const { id } = params;
+
+    // Validate MongoDB ObjectId
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid statement ID format' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
-    const {
-      status,
-      accountName,
-      bankName,
-      month,
-      year,
-      ocrProvider,
-      transactionsFound,
-      transactionsImported,
-      processingTime,
-      errors,
-    } = body;
+    const allowedUpdates = [
+      'accountName',
+      'bankName',
+      'currency',
+      'month',
+      'year',
+      'status',
+      'ocrProvider',
+      'pages',
+    ];
 
-    // Build update object
-    const updateData: any = {};
-    if (status) updateData.status = status;
-    if (accountName) updateData.accountName = accountName;
-    if (bankName) updateData.bankName = bankName;
-    if (month) updateData.month = month;
-    if (year) updateData.year = year;
-    if (ocrProvider) updateData.ocrProvider = ocrProvider;
-    if (transactionsFound !== undefined) updateData.transactionsFound = transactionsFound;
-    if (transactionsImported !== undefined) updateData.transactionsImported = transactionsImported;
-    if (processingTime !== undefined) updateData.processingTime = processingTime;
-    if (errors) updateData.errors = errors;
+    // Filter only allowed fields
+    const updates: any = {};
+    for (const key of allowedUpdates) {
+      if (body[key] !== undefined) {
+        updates[key] = body[key];
+      }
+    }
 
-    const statement = await Statement
-      .findByIdAndUpdate(
-        params.id,
-        updateData,
-        { new: true, runValidators: true }
-      )
-      .populate('sourceFile');
+    // Update the statement
+    const statement = await Statement.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).populate('sourceFile');
 
     if (!statement) {
       return NextResponse.json(
@@ -122,7 +153,7 @@ export async function PATCH(
   }
 }
 
-// DELETE: Delete a single statement
+// DELETE: Delete a single statement and its associated data
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -135,9 +166,19 @@ export async function DELETE(
 
     await connectToDatabase();
 
-    // Find statement to get file reference
-    const statement = await Statement.findById(params.id);
-    
+    const { id } = params;
+
+    // Validate MongoDB ObjectId
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid statement ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Find the statement first to get file reference
+    const statement = await Statement.findById(id);
+
     if (!statement) {
       return NextResponse.json(
         { error: 'Statement not found' },
@@ -145,20 +186,23 @@ export async function DELETE(
       );
     }
 
-    // Delete associated file
+    // Delete associated transactions
+    const transactionDeleteResult = await Transaction.deleteMany({
+      statement: statement._id,
+    });
+
+    // Delete associated file if exists
     if (statement.sourceFile) {
       await File.findByIdAndDelete(statement.sourceFile);
     }
 
-    // Delete associated transactions
-    await Transaction.deleteMany({ statementId: params.id });
-
-    // Delete statement
-    await Statement.findByIdAndDelete(params.id);
+    // Delete the statement
+    await Statement.findByIdAndDelete(id);
 
     return NextResponse.json({
       success: true,
-      message: 'Statement deleted successfully',
+      message: 'Statement and associated data deleted successfully',
+      deletedTransactions: transactionDeleteResult.deletedCount,
     });
   } catch (error: any) {
     console.error('Error deleting statement:', error);

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   Table,
@@ -80,21 +81,34 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 interface Transaction {
-  id: string;
-  date: string;
+  _id: string;
+  id?: string;
+  statement?: {
+    _id: string;
+    accountName: string;
+    bankName?: string;
+    month: number;
+    year: number;
+  };
+  txnDate: string;
+  date?: string;
   description: string;
-  vendor: string;
-  category: string;
-  subcategory?: string;
+  vendor?: string;
   amount: number;
-  type: 'income' | 'expense' | 'transfer';
-  account: string;
-  status: 'completed' | 'pending' | 'failed';
+  direction: 'debit' | 'credit';
+  type?: 'income' | 'expense' | 'transfer';
+  checkNo?: string;
+  balance?: number;
+  category?: string;
+  subcategory?: string;
+  confidence?: number;
+  account?: string;
+  status?: 'completed' | 'pending' | 'failed';
   reference?: string;
   notes?: string;
   tags?: string[];
   attachments?: number;
-  reconciled: boolean;
+  reconciled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +133,8 @@ const categories = {
 
 export default function TransactionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const statementId = searchParams.get('statement');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -139,153 +155,46 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [statementId, dateRange, filterCategory, filterType, filterAccount]);
 
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      // Mock data for development
-      const mockTransactions: Transaction[] = [
-        {
-          id: '1',
-          date: '2024-01-15',
-          description: 'Invoice #1234 Payment - Tech Corp Solutions',
-          vendor: 'Tech Corp Solutions',
-          category: 'client_payment',
-          amount: 15000,
-          type: 'income',
-          account: 'Business Checking',
-          status: 'completed',
-          reference: 'INV-1234',
-          notes: 'Q4 2023 Web Development Services',
-          tags: ['recurring', 'monthly'],
-          attachments: 2,
-          reconciled: true,
-          createdAt: '2024-01-15T10:00:00Z',
-          updatedAt: '2024-01-15T10:00:00Z',
-        },
-        {
-          id: '2',
-          date: '2024-01-14',
-          description: 'AWS Cloud Services',
-          vendor: 'Amazon Web Services',
-          category: 'technology',
-          subcategory: 'Cloud Infrastructure',
-          amount: 2500,
-          type: 'expense',
-          account: 'Business Credit Card',
-          status: 'completed',
-          reference: 'AWS-2024-01',
-          notes: 'Monthly cloud hosting and services',
-          tags: ['recurring', 'infrastructure'],
-          attachments: 1,
-          reconciled: true,
-          createdAt: '2024-01-14T09:00:00Z',
-          updatedAt: '2024-01-14T09:00:00Z',
-        },
-        {
-          id: '3',
-          date: '2024-01-13',
-          description: 'Office Rent - January 2024',
-          vendor: 'Property Management LLC',
-          category: 'rent',
-          amount: 3500,
-          type: 'expense',
-          account: 'Business Checking',
-          status: 'completed',
-          reference: 'RENT-2024-01',
-          tags: ['recurring', 'monthly', 'fixed'],
-          reconciled: false,
-          createdAt: '2024-01-13T08:00:00Z',
-          updatedAt: '2024-01-13T08:00:00Z',
-        },
-        {
-          id: '4',
-          date: '2024-01-12',
-          description: 'Client Lunch Meeting',
-          vendor: 'The Capital Grille',
-          category: 'meals',
-          amount: 250,
-          type: 'expense',
-          account: 'Business Credit Card',
-          status: 'pending',
-          notes: 'Client meeting with Innovate IO team',
-          tags: ['client', 'deductible'],
-          reconciled: false,
-          createdAt: '2024-01-12T13:00:00Z',
-          updatedAt: '2024-01-12T13:00:00Z',
-        },
-        {
-          id: '5',
-          date: '2024-01-11',
-          description: 'Transfer to Savings',
-          vendor: 'Internal Transfer',
-          category: 'transfer',
-          amount: 10000,
-          type: 'transfer',
-          account: 'Business Checking',
-          status: 'completed',
-          reference: 'TRF-2024-0111',
-          notes: 'Monthly savings allocation',
-          reconciled: true,
-          createdAt: '2024-01-11T15:00:00Z',
-          updatedAt: '2024-01-11T15:00:00Z',
-        },
-        {
-          id: '6',
-          date: '2024-01-10',
-          description: 'Office Supplies - Staples',
-          vendor: 'Staples',
-          category: 'office',
-          amount: 150,
-          type: 'expense',
-          account: 'Business Credit Card',
-          status: 'completed',
-          tags: ['supplies'],
-          reconciled: true,
-          createdAt: '2024-01-10T11:00:00Z',
-          updatedAt: '2024-01-10T11:00:00Z',
-        },
-        {
-          id: '7',
-          date: '2024-01-09',
-          description: 'Invoice #1235 Payment - Innovate IO',
-          vendor: 'Innovate IO',
-          category: 'client_payment',
-          amount: 8500,
-          type: 'income',
-          account: 'Business Checking',
-          status: 'completed',
-          reference: 'INV-1235',
-          tags: ['project'],
-          attachments: 1,
-          reconciled: false,
-          createdAt: '2024-01-09T14:00:00Z',
-          updatedAt: '2024-01-09T14:00:00Z',
-        },
-        {
-          id: '8',
-          date: '2024-01-08',
-          description: 'Failed Transaction - Payment Processing Error',
-          vendor: 'Unknown',
-          category: 'other_expense',
-          amount: 500,
-          type: 'expense',
-          account: 'Business Checking',
-          status: 'failed',
-          notes: 'Payment failed due to insufficient funds',
-          reconciled: false,
-          createdAt: '2024-01-08T16:00:00Z',
-          updatedAt: '2024-01-08T16:00:00Z',
-        },
-      ];
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (statementId) params.append('statement', statementId);
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        params.append('startDate', dateRange[0].format('YYYY-MM-DD'));
+        params.append('endDate', dateRange[1].format('YYYY-MM-DD'));
+      }
+      if (filterCategory && filterCategory !== 'all') params.append('category', filterCategory);
+      if (searchText) params.append('search', searchText);
       
-      setTimeout(() => {
-        setTransactions(mockTransactions);
-        setLoading(false);
-      }, 1000);
+      const response = await fetch(`/api/transactions?${params.toString()}`);
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Transform API data to match frontend interface
+        const transformedTransactions = data.data.map((txn: any) => ({
+          ...txn,
+          id: txn._id,
+          date: txn.txnDate,
+          type: txn.direction === 'credit' ? 'income' : 'expense',
+          account: txn.statement?.accountName || 'Unknown Account',
+          status: 'completed',
+          vendor: txn.description.split(' - ')[0] || txn.description,
+          reconciled: false,
+        }));
+        setTransactions(transformedTransactions);
+      } else {
+        // If no data from API, show empty state
+        setTransactions([]);
+      }
     } catch (error) {
+      console.error('Error fetching transactions:', error);
       message.error('Failed to fetch transactions');
+      setTransactions([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -294,7 +203,7 @@ export default function TransactionsPage() {
     setSelectedTransaction(record);
     form.setFieldsValue({
       ...record,
-      date: dayjs(record.date),
+      date: dayjs(record.date || record.txnDate),
     });
     setEditModalVisible(true);
   };
@@ -328,9 +237,22 @@ export default function TransactionsPage() {
       content: `Are you sure you want to delete this transaction for $${record.amount.toLocaleString()}?`,
       okText: 'Delete',
       okType: 'danger',
-      onOk: () => {
-        setTransactions(transactions.filter(t => t.id !== record.id));
-        message.success('Transaction deleted successfully');
+      onOk: async () => {
+        try {
+          const response = await fetch(`/api/transactions/${record._id || record.id}`, {
+            method: 'DELETE',
+          });
+
+          if (response.ok) {
+            setTransactions(transactions.filter(t => (t._id || t.id) !== (record._id || record.id)));
+            message.success('Transaction deleted successfully');
+          } else {
+            throw new Error('Failed to delete transaction');
+          }
+        } catch (error) {
+          console.error('Error deleting transaction:', error);
+          message.error('Failed to delete transaction. Please try again.');
+        }
       },
     });
   };
@@ -423,16 +345,18 @@ export default function TransactionsPage() {
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = 
       transaction.description.toLowerCase().includes(searchText.toLowerCase()) ||
-      transaction.vendor.toLowerCase().includes(searchText.toLowerCase()) ||
-      transaction.reference?.toLowerCase().includes(searchText.toLowerCase());
+      transaction.vendor?.toLowerCase().includes(searchText.toLowerCase()) ||
+      transaction.reference?.toLowerCase().includes(searchText.toLowerCase()) ||
+      transaction.checkNo?.toLowerCase().includes(searchText.toLowerCase());
     
     const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory;
     const matchesType = filterType === 'all' || transaction.type === filterType;
     const matchesAccount = filterAccount === 'all' || transaction.account === filterAccount;
     
+    const transactionDate = transaction.date || transaction.txnDate;
     const matchesDate = !dateRange || 
-      (dayjs(transaction.date).isAfter(dateRange[0]) && 
-       dayjs(transaction.date).isBefore(dateRange[1]));
+      (dayjs(transactionDate).isAfter(dateRange[0]) && 
+       dayjs(transactionDate).isBefore(dateRange[1]));
     
     return matchesSearch && matchesCategory && matchesType && matchesAccount && matchesDate;
   });
@@ -831,7 +755,7 @@ export default function TransactionsPage() {
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredTransactions}
-          rowKey="id"
+          rowKey={(record) => record._id || record.id || ''}
           loading={loading}
           scroll={{ x: 1200 }}
           pagination={{

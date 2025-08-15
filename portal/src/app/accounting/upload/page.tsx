@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Upload,
@@ -80,55 +80,104 @@ export default function BankStatementUploadPage() {
   const router = useRouter();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [recentUploads, setRecentUploads] = useState<StatementUpload[]>([
-    {
-      id: '1',
-      fileName: 'Chase_Statement_Dec_2023.pdf',
-      fileSize: 2457600,
-      uploadDate: '2024-01-10T10:30:00Z',
-      status: 'completed',
-      account: 'Business Checking',
-      period: 'December 2023',
-      transactionsFound: 145,
-      transactionsImported: 143,
-      processingTime: 12,
-    },
-    {
-      id: '2',
-      fileName: 'Chase_Statement_Nov_2023.pdf',
-      fileSize: 2097152,
-      uploadDate: '2024-01-05T14:20:00Z',
-      status: 'completed',
-      account: 'Business Checking',
-      period: 'November 2023',
-      transactionsFound: 132,
-      transactionsImported: 132,
-      processingTime: 10,
-    },
-    {
-      id: '3',
-      fileName: 'AmEx_Statement_Dec_2023.pdf',
-      fileSize: 1572864,
-      uploadDate: '2024-01-03T09:15:00Z',
-      status: 'processing',
-      account: 'Business Credit Card',
-      period: 'December 2023',
-    },
-    {
-      id: '4',
-      fileName: 'Wells_Fargo_Statement_Dec_2023.pdf',
-      fileSize: 3145728,
-      uploadDate: '2023-12-28T16:45:00Z',
-      status: 'failed',
-      account: 'Savings Account',
-      period: 'December 2023',
-      errors: ['Unable to parse PDF format', 'Please ensure the file is not password protected'],
-    },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [recentUploads, setRecentUploads] = useState<StatementUpload[]>([]);
   const [selectedUpload, setSelectedUpload] = useState<StatementUpload | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [form] = Form.useForm();
+
+  // Fetch statements from API on component mount
+  React.useEffect(() => {
+    fetchStatements();
+  }, []);
+
+  const fetchStatements = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/statements?limit=20');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch statements');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        // Transform API data to match component's StatementUpload interface
+        const transformedData = result.data.map((statement: any) => ({
+          id: statement._id,
+          fileName: statement.sourceFile?.originalName || statement.sourceFile?.filename || 'Unknown file',
+          fileSize: statement.sourceFile?.size || 0,
+          uploadDate: statement.createdAt,
+          status: statement.status || 'pending',
+          account: statement.accountName,
+          period: `${getMonthName(statement.month)} ${statement.year}`,
+          transactionsFound: statement.transactionsFound,
+          transactionsImported: statement.transactionsImported,
+          processingTime: statement.processingTime,
+          errors: statement.errors,
+        }));
+        
+        setRecentUploads(transformedData);
+      }
+    } catch (error) {
+      console.error('Error fetching statements:', error);
+      message.error('Failed to load statements. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMonthName = (month: number) => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+    return months[month - 1] || '';
+  };
+
+  const handleDeleteStatement = async (statementId: string) => {
+    try {
+      const response = await fetch(`/api/statements/${statementId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setRecentUploads(recentUploads.filter(u => u._id !== statementId && u.id !== statementId));
+        message.success('Statement deleted successfully');
+      } else {
+        message.error(data.error || 'Failed to delete statement');
+      }
+    } catch (error) {
+      console.error('Error deleting statement:', error);
+      message.error('Failed to delete statement');
+    }
+  };
+
+  const handleViewStatement = async (statement: StatementUpload) => {
+    try {
+      // Fetch full statement details including transactions
+      const response = await fetch(`/api/statements/${statement._id || statement.id}`);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Update selected statement with full details
+        setSelectedUpload({
+          ...statement,
+          ...data.data,
+          transactionsFound: data.data.transactionCount,
+          transactionsImported: data.data.transactionCount,
+        });
+        setDetailModalVisible(true);
+      } else {
+        message.error('Failed to load statement details');
+      }
+    } catch (error) {
+      console.error('Error fetching statement details:', error);
+      message.error('Failed to load statement details');
+    }
+  };
 
   const uploadProps: UploadProps = {
     name: 'file',
@@ -178,25 +227,54 @@ export default function BankStatementUploadPage() {
     setUploading(true);
 
     try {
-      // Process each file with OCR
-      const newUploads: StatementUpload[] = [];
-      
+      // Process each file
       for (const [index, file] of fileList.entries()) {
-        const uploadId = Date.now().toString() + index;
         
-        // Create initial upload record
-        const newUpload: StatementUpload = {
-          id: uploadId,
+        // Extract bank name from account selection
+        const bankName = values.account.split(' - ')[1]?.split(' ')[0] || 'Unknown Bank';
+        const month = values.period.month() + 1; // dayjs months are 0-indexed
+        const year = values.period.year();
+        
+        // Create statement record in database
+        const statementData = {
           fileName: file.name,
           fileSize: file.size || 0,
-          uploadDate: new Date().toISOString(),
-          status: 'processing' as const,
-          account: values.account,
-          period: values.period.format('MMMM YYYY'),
+          fileType: file.type,
+          accountName: values.account,
+          bankName: bankName,
+          month: month,
+          year: year,
+          status: 'processing',
         };
         
-        newUploads.push(newUpload);
-        setRecentUploads(prev => [newUpload, ...prev]);
+        try {
+          const createResponse = await fetch('/api/statements', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(statementData),
+          });
+          
+          if (!createResponse.ok) {
+            throw new Error('Failed to create statement record');
+          }
+          
+          const createResult = await createResponse.json();
+          const statementId = createResult.data._id;
+          
+          // Add to UI immediately
+          const newUpload: StatementUpload = {
+            id: statementId,
+            fileName: file.name,
+            fileSize: file.size || 0,
+            uploadDate: new Date().toISOString(),
+            status: 'processing' as const,
+            account: values.account,
+            period: values.period.format('MMMM YYYY'),
+          };
+          
+          setRecentUploads(prev => [newUpload, ...prev]);
 
         // Perform OCR if file is an image
         if (file.originFileObj && (file.type?.includes('image') || file.type?.includes('pdf'))) {
@@ -214,24 +292,52 @@ export default function BankStatementUploadPage() {
             const result = await response.json();
 
             if (response.ok) {
-              // Update upload status with OCR results
-              setRecentUploads(prev => prev.map(upload => 
-                upload.id === uploadId 
-                  ? {
-                      ...upload,
-                      status: 'completed' as const,
-                      transactionsFound: result.parsedData?.transactions?.length || 0,
-                      transactionsImported: result.parsedData?.transactions?.length || 0,
-                      processingTime: 5,
-                    }
-                  : upload
-              ));
+              // Update statement status in database
+              const updateResponse = await fetch(`/api/statements/${statementId}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  status: 'completed',
+                  transactionsFound: result.parsedData?.transactions?.length || 0,
+                  transactionsImported: result.parsedData?.transactions?.length || 0,
+                  processingTime: 5,
+                }),
+              });
               
-              message.success(`OCR completed for ${file.name} using ${result.provider}`);
+              if (updateResponse.ok) {
+                // Update UI
+                setRecentUploads(prev => prev.map(upload => 
+                  upload.id === statementId 
+                    ? {
+                        ...upload,
+                        status: 'completed' as const,
+                        transactionsFound: result.parsedData?.transactions?.length || 0,
+                        transactionsImported: result.parsedData?.transactions?.length || 0,
+                        processingTime: 5,
+                      }
+                    : upload
+                ));
+                
+                message.success(`OCR completed for ${file.name} using ${result.provider}`);
+              }
             } else {
-              // Update with error status
+              // Update with error status in database
+              await fetch(`/api/statements/${statementId}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  status: 'failed',
+                  errors: [result.error || 'OCR processing failed'],
+                }),
+              });
+              
+              // Update UI
               setRecentUploads(prev => prev.map(upload => 
-                upload.id === uploadId 
+                upload.id === statementId 
                   ? {
                       ...upload,
                       status: 'failed' as const,
@@ -244,8 +350,21 @@ export default function BankStatementUploadPage() {
             }
           } catch (error: any) {
             console.error('OCR error:', error);
+            
+            // Update database with error
+            await fetch(`/api/statements/${statementId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                status: 'failed',
+                errors: ['OCR service unavailable'],
+              }),
+            });
+            
             setRecentUploads(prev => prev.map(upload => 
-              upload.id === uploadId 
+              upload.id === statementId 
                 ? {
                     ...upload,
                     status: 'failed' as const,
@@ -255,12 +374,26 @@ export default function BankStatementUploadPage() {
             ));
           }
         } else {
-          // Non-image file, mark as completed without OCR
+          // Non-image/PDF file, mark as completed without OCR
+          await fetch(`/api/statements/${statementId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: 'completed',
+            }),
+          });
+          
           setRecentUploads(prev => prev.map(upload => 
-            upload.id === uploadId 
+            upload.id === statementId 
               ? { ...upload, status: 'completed' as const }
               : upload
           ));
+        }
+        } catch (error: any) {
+          console.error('Error creating statement:', error);
+          message.error(`Failed to process ${file.name}`);
         }
       }
 
@@ -329,9 +462,9 @@ export default function BankStatementUploadPage() {
       title: 'Account',
       dataIndex: 'account',
       key: 'account',
-      render: (account: string) => (
+      render: (account: string, record: StatementUpload) => (
         <Tag icon={<BankOutlined />} color="blue">
-          {account}
+          {account || record.accountName}
         </Tag>
       ),
     },
@@ -386,10 +519,7 @@ export default function BankStatementUploadPage() {
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => {
-                setSelectedUpload(record);
-                setDetailModalVisible(true);
-              }}
+              onClick={() => handleViewStatement(record)}
             />
           </Tooltip>
           {record.status === 'completed' && (
@@ -397,7 +527,7 @@ export default function BankStatementUploadPage() {
               <Button
                 type="text"
                 icon={<DollarOutlined />}
-                onClick={() => router.push('/accounting/transactions')}
+                onClick={() => router.push(`/accounting/transactions?statement=${record._id || record.id}`)}
               />
             </Tooltip>
           )}
@@ -418,13 +548,10 @@ export default function BankStatementUploadPage() {
               onClick={() => {
                 Modal.confirm({
                   title: 'Delete Upload',
-                  content: 'Are you sure you want to delete this upload?',
+                  content: 'Are you sure you want to delete this upload? This will also delete all associated transactions.',
                   okText: 'Delete',
                   okType: 'danger',
-                  onOk: () => {
-                    setRecentUploads(recentUploads.filter(u => u.id !== record.id));
-                    message.success('Upload deleted');
-                  },
+                  onOk: () => handleDeleteStatement(record._id || record.id || ''),
                 });
               }}
             />
@@ -571,17 +698,41 @@ export default function BankStatementUploadPage() {
         title="Recent Uploads"
         extra={
           <Space>
-            <Select defaultValue="all" style={{ width: 120 }}>
+            <Select 
+              defaultValue="all" 
+              style={{ width: 120 }}
+              onChange={(value) => {
+                // Filter statements based on status
+                if (value === 'all') {
+                  fetchStatements();
+                } else {
+                  fetchStatements();
+                }
+              }}
+            >
               <Option value="all">All Status</Option>
               <Option value="completed">Completed</Option>
               <Option value="processing">Processing</Option>
               <Option value="failed">Failed</Option>
+              <Option value="uploaded">Uploaded</Option>
+              <Option value="extracted">Extracted</Option>
             </Select>
-            <Button icon={<SyncOutlined />}>Refresh</Button>
+            <Button 
+              icon={<SyncOutlined />}
+              onClick={fetchStatements}
+              loading={loading}
+            >
+              Refresh
+            </Button>
           </Space>
         }
       >
-        {recentUploads.length > 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <LoadingOutlined style={{ fontSize: 32 }} />
+            <Title level={5} style={{ marginTop: 16 }}>Loading statements...</Title>
+          </div>
+        ) : recentUploads.length > 0 ? (
           <Table
             columns={columns}
             dataSource={recentUploads}
