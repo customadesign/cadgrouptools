@@ -1,0 +1,26 @@
+# GitHub Security Configuration
+# This file enables security features for the repository
+
+# Secret Scanning
+# Automatically enabled for public repositories
+# For private repositories, enable in Settings > Security & analysis
+
+# Dependabot Security Updates
+# Enable automatic security updates for dependencies
+# Configure in Settings > Security & analysis > Dependabot
+
+# Code Scanning
+# Enable CodeQL analysis through GitHub Actions
+# See .github/workflows/codeql.yml
+
+# Branch Protection Rules
+# Configure in Settings > Branches
+# Recommended settings:
+# - Require pull request reviews before merging
+# - Require status checks to pass before merging
+# - Require branches to be up to date before merging
+# - Include administrators
+# - Restrict who can push to matching branches
+
+# Security Policy
+# See SECURITY.md for vulnerability reporting guidelines

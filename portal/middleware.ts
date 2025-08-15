@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { customAlphabet } from 'nanoid';
+
+// Generate request IDs
+const generateRequestId = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);
 
 // Security headers to prevent common attacks
 const securityHeaders = {
@@ -56,6 +60,10 @@ function checkRateLimit(request: NextRequest, type: keyof typeof rateLimitConfig
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
+  
+  // Generate and attach request ID
+  const requestId = generateRequestId();
+  response.headers.set('X-Request-ID', requestId);
   
   // Apply security headers
   Object.entries(securityHeaders).forEach(([key, value]) => {
