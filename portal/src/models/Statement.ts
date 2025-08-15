@@ -2,7 +2,7 @@ import { Schema, model, models, Types } from 'mongoose';
 
 const StatementSchema = new Schema(
   {
-    account: { type: Types.ObjectId, ref: 'Account', required: true, index: true },
+    account: { type: Types.ObjectId, ref: 'Account', index: true },
     accountName: { type: String, required: true, index: true }, // Keep for backward compatibility
     bankName: { type: String },
     currency: { type: String, default: 'USD' },

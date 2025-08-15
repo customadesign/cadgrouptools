@@ -23,6 +23,14 @@ export async function POST(request: NextRequest) {
 
     await connectToDatabase();
 
+    // Ensure Supabase is configured
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Storage is not configured', details: 'Supabase Admin client is not initialized. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE env vars.' },
+        { status: 500 }
+      );
+    }
+
     // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -153,7 +161,7 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
     // Handle PDFs
     if (mimeType === 'application/pdf') {
       try {
-        const pdfParse = require('pdf-parse/lib/pdf-parse');
+        const pdfParse = require('pdf-parse');
         const pdfResult = await pdfParse(buffer);
         extractedText = pdfResult.text;
         ocrProvider = 'pdf-parse';
@@ -174,7 +182,7 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
         console.error('PDF processing error:', error);
         await Statement.findByIdAndUpdate(statementId, {
           status: 'failed',
-          errors: ['PDF processing failed'],
+          processingErrors: ['PDF processing failed'],
         });
         return;
       }
@@ -213,7 +221,7 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
     
     await Statement.findByIdAndUpdate(statementId, {
       status: 'failed',
-      errors: ['OCR processing failed: ' + (error as Error).message],
+      processingErrors: ['OCR processing failed: ' + (error as Error).message],
     });
   }
 }

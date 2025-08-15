@@ -121,7 +121,7 @@ export default function BankStatementUploadPage() {
           transactionsFound: statement.transactionsFound,
           transactionsImported: statement.transactionsImported,
           processingTime: statement.processingTime,
-          errors: statement.errors,
+          errors: statement.processingErrors,
         }));
         
         setRecentUploads(transformedData);
@@ -192,7 +192,7 @@ export default function BankStatementUploadPage() {
                 ? {
                     ...upload,
                     status: 'failed' as const,
-                    errors: statement.errors || ['OCR processing failed'],
+                    errors: statement.processingErrors || ['OCR processing failed'],
                   }
                 : upload
             ));
