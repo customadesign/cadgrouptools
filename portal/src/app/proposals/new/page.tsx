@@ -302,6 +302,16 @@ const services: Service[] = [
     category: 'Social Media',
   },
 
+  // VA Services
+  {
+    id: 'va-services',
+    name: 'Virtual Assistant (VA) Services',
+    description: 'Dedicated VA support. Equivalent to $10/hr for 160 hours (monthly retainer).',
+    icon: <UserOutlined />,
+    basePrice: 1600,
+    category: 'VA Services',
+  },
+
   // Custom
   {
     id: 'custom-project',
