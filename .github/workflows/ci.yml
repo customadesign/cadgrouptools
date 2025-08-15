@@ -1,0 +1,211 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: portal/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./portal
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: ./portal
+      run: npm run lint
+    
+    - name: Run TypeScript compiler check
+      working-directory: ./portal
+      run: npx tsc --noEmit
+
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: portal/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./portal
+      run: npm ci
+    
+    - name: Run npm audit
+      working-directory: ./portal
+      run: npm audit --audit-level=moderate || true
+    
+    - name: Run security checks
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: './portal'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: portal/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./portal
+      run: npm ci
+    
+    - name: Create test env file
+      working-directory: ./portal
+      run: |
+        echo "MONGODB_URI=mongodb://localhost:27017/test" >> .env.test
+        echo "DB_NAME=cadgroup_test" >> .env.test
+        echo "NEXTAUTH_SECRET=test-secret-for-ci-only" >> .env.test
+        echo "NEXTAUTH_URL=http://localhost:3000" >> .env.test
+    
+    - name: Run unit tests
+      working-directory: ./portal
+      run: npm test -- --passWithNoTests
+      env:
+        NODE_ENV: test
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: portal/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./portal
+      run: npm ci
+    
+    - name: Build Next.js application
+      working-directory: ./portal
+      run: npm run build
+      env:
+        NEXT_TELEMETRY_DISABLED: 1
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-files
+        path: portal/.next/
+        retention-days: 1
+
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Comment PR with preview status
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '🚀 Preview deployment initiated. Render will automatically deploy this PR.'
+          })
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, test, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Trigger Render Deploy
+      run: |
+        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      
+    - name: Wait for deployment
+      run: sleep 30
+    
+    - name: Health check
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://cadgrouptools.onrender.com/api/health/db)
+        if [ $response -eq 200 ]; then
+          echo "Health check passed"
+        else
+          echo "Health check failed with status $response"
+          exit 1
+        fi
+
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Send notification
+      if: needs.deploy-production.result == 'success'
+      run: |
+        echo "✅ Deployment successful for commit ${{ github.sha }}"
+    
+    - name: Send failure notification
+      if: needs.deploy-production.result == 'failure'
+      run: |
+        echo "❌ Deployment failed for commit ${{ github.sha }}"
