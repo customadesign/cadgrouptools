@@ -603,6 +603,7 @@ export default function SettingsPage() {
                             Assign roles and permissions to users
                           </Text>
                           <Button 
+                            type="primary"
                             icon={<UserSwitchOutlined />}
                             onClick={(e) => {
                               e.stopPropagation();
