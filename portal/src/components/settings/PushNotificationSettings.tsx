@@ -30,9 +30,9 @@ import {
   MobileOutlined,
   DesktopOutlined,
   ChromeOutlined,
-  SafariOutlined,
   WindowsOutlined,
   AppleOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import clientPushNotificationService from '@/services/clientPushNotificationService';
 import { useSession } from 'next-auth/react';
@@ -185,7 +185,7 @@ export default function PushNotificationSettings() {
     const ua = userAgent.toLowerCase();
     if (ua.includes('mobile') || ua.includes('android')) return <MobileOutlined />;
     if (ua.includes('chrome')) return <ChromeOutlined />;
-    if (ua.includes('safari')) return <SafariOutlined />;
+    if (ua.includes('safari')) return <GlobalOutlined />;
     if (ua.includes('windows')) return <WindowsOutlined />;
     if (ua.includes('mac')) return <AppleOutlined />;
     return <DesktopOutlined />;

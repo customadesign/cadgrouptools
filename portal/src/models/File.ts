@@ -2,17 +2,16 @@ import { Schema, model, models, Types } from 'mongoose';
 
 const FileSchema = new Schema(
   {
-    // Legacy S3 fields (kept for backward compatibility)
-    bucketKey: { type: String, index: true },
-    sha256: { type: String, index: true },
-    sizeBytes: { type: Number },
-    
     // Common fields
     filename: { type: String, required: true },
     originalName: { type: String, required: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
     uploadedBy: { type: Types.ObjectId, ref: 'User', required: true },
+    
+    // Legacy S3 fields (kept for backward compatibility)
+    bucketKey: { type: String, index: true },
+    sha256: { type: String, index: true },
     
     // Storage provider fields
     storageProvider: { 
@@ -37,10 +36,10 @@ const FileSchema = new Schema(
 FileSchema.index({ uploadedBy: 1, createdAt: -1 });
 FileSchema.index({ storageProvider: 1, path: 1 });
 
-// Virtual for size compatibility
-FileSchema.virtual('sizeBytes').get(function() {
-  return this.size || this.sizeBytes;
-});
+// Add a method to get size for backward compatibility
+FileSchema.methods.getSizeBytes = function() {
+  return this.size || this.sizeBytes || 0;
+};
 
 export const File = models.File || model('File', FileSchema);
 
