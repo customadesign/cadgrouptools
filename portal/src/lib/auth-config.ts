@@ -5,6 +5,11 @@ import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import { activityLogger } from '@/services/activityLogger';
 
+// Ensure NEXTAUTH_SECRET is set
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET environment variable is not set. Please set it to a secure random string.');
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -154,7 +159,7 @@ export const authOptions: NextAuthOptions = {
   jwt: {
     maxAge: 24 * 60 * 60, // 24 hours
   },
-  secret: process.env.NEXTAUTH_SECRET || 'K8x3J9mNp2QrL5vT7wY1aB6cD4eF0gH8iS3kR9nM2oP5qU7tV1xW4yZ6aB8cD0eF2g',
-  debug: true, // Enable debug to see what's happening
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV !== 'production',
   useSecureCookies: process.env.NODE_ENV === 'production',
 };

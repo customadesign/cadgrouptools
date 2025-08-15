@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import pushNotificationService from '@/services/pushNotificationService';
+import { validators, passwordPolicy } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +17,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sanitize inputs
+    const sanitizedName = validators.sanitizeString(name);
+    const sanitizedEmail = email.toLowerCase().trim();
+
     // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!validators.email(sanitizedEmail)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400 }
@@ -26,9 +30,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Password strength validation
-    if (password.length < 6) {
+    const passwordValidation = passwordPolicy.validate(password);
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters long' },
+        { error: passwordValidation.errors.join('. ') },
         { status: 400 }
       );
     }
@@ -37,7 +42,7 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email: sanitizedEmail });
     if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
@@ -50,8 +55,8 @@ export async function POST(request: NextRequest) {
 
     // Create user
     const user = await User.create({
-      name,
-      email: email.toLowerCase(),
+      name: sanitizedName,
+      email: sanitizedEmail,
       password: hashedPassword,
       role: role || 'staff',
       isActive: true,
