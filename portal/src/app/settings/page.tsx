@@ -139,29 +139,6 @@ export default function SettingsPage() {
     },
   ];
 
-  const connectedApps = [
-    {
-      id: 1,
-      name: 'Google Workspace',
-      description: 'Access to Google Drive and Calendar',
-      connected: true,
-      icon: '🔗',
-    },
-    {
-      id: 2,
-      name: 'Slack',
-      description: 'Team communication and notifications',
-      connected: true,
-      icon: '💬',
-    },
-    {
-      id: 3,
-      name: 'Dropbox',
-      description: 'File storage and sharing',
-      connected: false,
-      icon: '📦',
-    },
-  ];
 
   return (
     <DashboardLayout
@@ -548,31 +525,6 @@ export default function SettingsPage() {
                     </Select>
                   </Form.Item>
                 </Form>
-
-                <Divider />
-
-                <Title level={5}>Connected Apps</Title>
-                <List
-                  dataSource={connectedApps}
-                  renderItem={item => (
-                    <List.Item
-                      actions={[
-                        item.connected ? (
-                          <Button danger size="small">Disconnect</Button>
-                        ) : (
-                          <Button type="primary" size="small">Connect</Button>
-                        ),
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={<span style={{ fontSize: 24 }}>{item.icon}</span>}
-                        title={item.name}
-                        description={item.description}
-                      />
-                      {item.connected && <Tag color="green">Connected</Tag>}
-                    </List.Item>
-                  )}
-                />
 
                 <Divider />
 
