@@ -281,7 +281,7 @@ export default function ClientDetailPage() {
                 title="Total Revenue"
                 value={client.totalRevenue}
                 prefix="$"
-                formatter={(value) => `$${Number(value).toLocaleString()}`}
+                formatter={(value) => Number(value).toLocaleString()}
                 icon={<DollarOutlined />}
                 color="#52c41a"
               />
