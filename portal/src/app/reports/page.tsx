@@ -176,7 +176,7 @@ const generateTransactionData = () => {
 
 // User activity data will be fetched from the API
 
-export default function ReportsPage() {
+function ReportsContent() {
   // Activity tracking hooks
   usePageTracking();
   const { trackInteraction } = useInteractionTracking();
@@ -1649,5 +1649,13 @@ export default function ReportsPage() {
         />
       )}
     </DashboardLayout>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<DashboardLayout><Skeleton active paragraph={{ rows: 12 }} /></DashboardLayout>}>
+      <ReportsContent />
+    </Suspense>
   );
 }
