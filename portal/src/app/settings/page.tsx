@@ -591,14 +591,24 @@ export default function SettingsPage() {
                     </Col>
 
                     <Col xs={24} md={12} lg={8}>
-                      <Card>
+                      <Card
+                        hoverable
+                        onClick={() => router.push('/admin/users')}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <UserSwitchOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
                           <Title level={5} style={{ margin: 0 }}>Role Management</Title>
                           <Text type="secondary">
                             Assign roles and permissions to users
                           </Text>
-                          <Button icon={<UserSwitchOutlined />}>
+                          <Button 
+                            icon={<UserSwitchOutlined />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push('/admin/users');
+                            }}
+                          >
                             Manage Roles
                           </Button>
                         </Space>

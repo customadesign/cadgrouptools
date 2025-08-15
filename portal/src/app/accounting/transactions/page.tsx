@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Card,
@@ -131,7 +131,7 @@ const categories = {
   ],
 };
 
-export default function TransactionsPage() {
+function TransactionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statementId = searchParams.get('statement');
@@ -1135,5 +1135,17 @@ export default function TransactionsPage() {
         )}
       </Drawer>
     </DashboardLayout>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout breadcrumbs={[{ title: 'Accounting', href: '/accounting' }, { title: 'Transactions' }]}>
+        <div style={{ padding: '50px', textAlign: 'center' }}>Loading...</div>
+      </DashboardLayout>
+    }>
+      <TransactionsContent />
+    </Suspense>
   );
 }
