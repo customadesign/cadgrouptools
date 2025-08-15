@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// Ensure Node.js runtime (needed for Buffer, require, pdf-parse)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { connectToDatabase } from '@/lib/db';
