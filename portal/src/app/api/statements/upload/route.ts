@@ -4,9 +4,11 @@ import { authOptions } from '@/lib/auth-config';
 import { connectToDatabase } from '@/lib/db';
 import { Statement } from '@/models/Statement';
 import { File } from '@/models/File';
+import { Transaction } from '@/models/Transaction';
 import { Types } from 'mongoose';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 import { ocrService } from '@/lib/ocr';
+import type { ExtractedTransaction } from '@/lib/ocr';
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -199,6 +201,11 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
       extractedAt: new Date(),
     });
 
+    // Create transaction records from parsed data
+    if (statementData.transactions && statementData.transactions.length > 0) {
+      await createTransactionsFromOCR(statementId, statementData.transactions);
+    }
+
     console.log(`OCR processing completed for statement ${statementId}`);
 
   } catch (error) {
@@ -208,5 +215,96 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
       status: 'failed',
       errors: ['OCR processing failed: ' + (error as Error).message],
     });
+  }
+}
+
+// Helper function to create transactions from OCR data with deduplication
+async function createTransactionsFromOCR(
+  statementId: string,
+  extractedTransactions: ExtractedTransaction[]
+): Promise<void> {
+  try {
+    // Get existing transactions for this statement to avoid duplicates
+    const existingTransactions = await Transaction.find({ statement: statementId })
+      .select('txnDate description amount direction')
+      .lean();
+
+    // Create a Set of existing transaction signatures for deduplication
+    const existingSignatures = new Set(
+      existingTransactions.map(t => 
+        `${new Date(t.txnDate).toISOString().split('T')[0]}_${t.description}_${t.amount}_${t.direction}`
+      )
+    );
+
+    // Prepare new transactions for bulk insert
+    const newTransactions = [];
+    const currentYear = new Date().getFullYear();
+
+    for (const extracted of extractedTransactions) {
+      // Parse date (handle various formats)
+      let txnDate: Date;
+      const dateParts = extracted.date.split('/');
+      
+      if (dateParts.length === 2) {
+        // MM/DD format - assume current year
+        const [month, day] = dateParts;
+        txnDate = new Date(currentYear, parseInt(month) - 1, parseInt(day));
+      } else if (dateParts.length === 3) {
+        // MM/DD/YY or MM/DD/YYYY format
+        const [month, day, year] = dateParts;
+        const fullYear = year.length === 2 ? 2000 + parseInt(year) : parseInt(year);
+        txnDate = new Date(fullYear, parseInt(month) - 1, parseInt(day));
+      } else {
+        console.warn(`Skipping transaction with invalid date format: ${extracted.date}`);
+        continue;
+      }
+
+      // Create transaction signature for deduplication
+      const signature = `${txnDate.toISOString().split('T')[0]}_${extracted.description}_${extracted.amount}_${extracted.type}`;
+      
+      // Skip if transaction already exists
+      if (existingSignatures.has(signature)) {
+        console.log(`Skipping duplicate transaction: ${signature}`);
+        continue;
+      }
+
+      // Add to new transactions list
+      newTransactions.push({
+        statement: new Types.ObjectId(statementId),
+        txnDate,
+        description: extracted.description,
+        amount: extracted.amount,
+        direction: extracted.type,
+        balance: extracted.balance,
+        confidence: 0.8, // Default confidence for OCR-extracted transactions
+      });
+    }
+
+    // Bulk insert new transactions
+    if (newTransactions.length > 0) {
+      await Transaction.insertMany(newTransactions);
+      console.log(`Created ${newTransactions.length} new transactions for statement ${statementId}`);
+      
+      // Update statement status to completed
+      await Statement.findByIdAndUpdate(statementId, {
+        status: 'completed',
+        $inc: {
+          transactionsFound: extractedTransactions.length,
+          transactionsImported: newTransactions.length,
+        },
+      });
+    } else {
+      console.log(`No new transactions to create for statement ${statementId}`);
+      
+      // Update statement status to completed even if no new transactions
+      await Statement.findByIdAndUpdate(statementId, {
+        status: 'completed',
+        transactionsFound: extractedTransactions.length,
+        transactionsImported: 0,
+      });
+    }
+  } catch (error) {
+    console.error(`Error creating transactions for statement ${statementId}:`, error);
+    throw error;
   }
 }

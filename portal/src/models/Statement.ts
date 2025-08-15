@@ -21,6 +21,8 @@ const StatementSchema = new Schema(
     extractedAt: { type: Date },
     errors: [{ type: String }],
     createdBy: { type: Types.ObjectId, ref: 'User' },
+    transactionsFound: { type: Number, default: 0 },
+    transactionsImported: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
