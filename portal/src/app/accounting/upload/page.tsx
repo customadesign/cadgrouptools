@@ -525,7 +525,22 @@ export default function BankStatementUploadPage() {
               <Button
                 type="text"
                 icon={<SyncOutlined />}
-                onClick={() => message.info('Retrying upload...')}
+                onClick={async () => {
+                  try {
+                    message.loading({ content: 'Retrying OCR...', key: `retry-${record.id}` });
+                    const res = await fetch(`/api/statements/${record.id}/retry`, { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok) {
+                      message.success({ content: 'Retry completed', key: `retry-${record.id}` });
+                      // refresh list
+                      fetchStatements();
+                    } else {
+                      message.error({ content: data.error || 'Retry failed', key: `retry-${record.id}` });
+                    }
+                  } catch (e: any) {
+                    message.error({ content: e.message || 'Retry failed', key: `retry-${record.id}` });
+                  }
+                }}
               />
             </Tooltip>
           )}
@@ -540,7 +555,21 @@ export default function BankStatementUploadPage() {
                   content: 'Are you sure you want to delete this upload? This will also delete all associated transactions.',
                   okText: 'Delete',
                   okType: 'danger',
-                  onOk: () => handleDeleteStatement(record._id || record.id || ''),
+                  onOk: async () => {
+                    try {
+                      const id = (record as any)._id || record.id;
+                      const res = await fetch(`/api/statements/${id}`, { method: 'DELETE' });
+                      const data = await res.json();
+                      if (res.ok) {
+                        message.success('Statement deleted successfully');
+                        setRecentUploads(prev => prev.filter(u => (u as any)._id !== id && u.id !== id));
+                      } else {
+                        message.error(data.error || 'Failed to delete statement');
+                      }
+                    } catch (e: any) {
+                      message.error(e.message || 'Failed to delete statement');
+                    }
+                  },
                 });
               }}
             />

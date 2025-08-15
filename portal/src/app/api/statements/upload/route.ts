@@ -169,26 +169,40 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
         const pdfResult = await pdfParse(buffer);
         extractedText = pdfResult.text;
         ocrProvider = 'pdf-parse';
-        
-        // If PDF has no extractable text, mark for manual OCR
+
+        // If PDF has no extractable text, try a robust fallback with pdfjs textContent
         if (!extractedText || extractedText.trim().length < 50) {
+          try {
+            const fallbackText = await extractTextFromPdfWithPdfJs(buffer);
+            extractedText = fallbackText;
+            ocrProvider = 'pdfjs-dist';
+          } catch (fallbackErr) {
+            console.warn('pdfjs-dist fallback failed, marking needs_review:', fallbackErr);
+            await Statement.findByIdAndUpdate(statementId, {
+              status: 'needs_review',
+              ocrProvider: 'pdf-parse',
+              extractedData: {
+                rawText: extractedText || '',
+                message: 'PDF appears to be scanned. Manual OCR processing may be required.',
+              },
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('PDF processing error, attempting pdfjs-dist fallback:', error);
+        try {
+          const fallbackText = await extractTextFromPdfWithPdfJs(buffer);
+          extractedText = fallbackText;
+          ocrProvider = 'pdfjs-dist';
+        } catch (fallbackErr) {
+          console.error('PDF fallback (pdfjs) also failed:', fallbackErr);
           await Statement.findByIdAndUpdate(statementId, {
-            status: 'needs_review',
-            ocrProvider: 'pdf-parse',
-            extractedData: {
-              rawText: extractedText || '',
-              message: 'PDF appears to be scanned. Manual OCR processing may be required.',
-            },
+            status: 'failed',
+            processingErrors: ['PDF processing failed', `Fallback failed: ${(fallbackErr as Error).message}`],
           });
           return;
         }
-      } catch (error) {
-        console.error('PDF processing error:', error);
-        await Statement.findByIdAndUpdate(statementId, {
-          status: 'failed',
-          processingErrors: ['PDF processing failed'],
-        });
-        return;
       }
     } else {
       // Process images with OCR
@@ -204,7 +218,7 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
     // Update statement with extracted data
     await Statement.findByIdAndUpdate(statementId, {
       status: 'extracted',
-      ocrProvider: ocrProvider === 'google-vision' ? 'docai' : ocrProvider === 'pdf-parse' ? 'textract' : 'tesseract',
+      ocrProvider,
       extractedData: {
         rawText: extractedText,
         parsedData: statementData,
@@ -228,6 +242,23 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
       processingErrors: ['OCR processing failed: ' + (error as Error).message],
     });
   }
+}
+
+// Fallback PDF text extraction using pdfjs-dist (no native deps)
+async function extractTextFromPdfWithPdfJs(buffer: Buffer): Promise<string> {
+  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.js');
+  // In Node we typically don't need a worker; pdfjs uses a fake worker
+  const loadingTask = pdfjs.getDocument({ data: buffer });
+  const pdf = await loadingTask.promise;
+  let combinedText = '';
+  const maxPages = Math.min(pdf.numPages || 1, 20);
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = (textContent.items || []).map((it: any) => it.str).join(' ');
+    combinedText += `\n${pageText}`;
+  }
+  return combinedText.trim();
 }
 
 // Helper function to create transactions from OCR data with deduplication
