@@ -90,90 +90,39 @@ const { Title, Text, Paragraph } = Typography;
 const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
 
-// Mock data generation functions
-const generateRevenueData = (period: string) => {
-  const baseData = {
-    daily: Array.from({ length: 30 }, (_, i) => ({
-      date: dayjs().subtract(29 - i, 'day').format('MMM DD'),
-      revenue: Math.floor(Math.random() * 5000) + 2000,
-      expenses: Math.floor(Math.random() * 3000) + 1000,
-      profit: 0,
-    })),
-    monthly: Array.from({ length: 12 }, (_, i) => ({
-      date: dayjs().subtract(11 - i, 'month').format('MMM YYYY'),
-      revenue: Math.floor(Math.random() * 80000) + 40000,
-      expenses: Math.floor(Math.random() * 50000) + 20000,
-      profit: 0,
-    })),
-    quarterly: Array.from({ length: 4 }, (_, i) => ({
-      date: `Q${i + 1} ${dayjs().year()}`,
-      revenue: Math.floor(Math.random() * 250000) + 150000,
-      expenses: Math.floor(Math.random() * 150000) + 80000,
-      profit: 0,
-    })),
-    yearly: Array.from({ length: 5 }, (_, i) => ({
-      date: String(dayjs().year() - 4 + i),
-      revenue: Math.floor(Math.random() * 1000000) + 600000,
-      expenses: Math.floor(Math.random() * 600000) + 400000,
-      profit: 0,
-    })),
-  };
-
-  return baseData[period as keyof typeof baseData].map(item => ({
-    ...item,
-    profit: item.revenue - item.expenses,
-  }));
+// Real data state and fetch helpers
+type RevenuePoint = { date: string; revenue: number; expenses: number; profit: number };
+type ClientRow = {
+  id: string;
+  name: string;
+  industry?: string;
+  revenue: number;
+  proposals: number;
+  successRate: number;
+  lastActivity?: string;
+  status?: string;
+  growth: number;
 };
-
-const generateClientData = () => {
-  const industries = ['Technology', 'Healthcare', 'Finance', 'Retail', 'Manufacturing'];
-  const statuses = ['Active', 'Inactive', 'Pending'];
-  
-  return Array.from({ length: 20 }, (_, i) => ({
-    id: i + 1,
-    name: `Client ${String.fromCharCode(65 + i % 26)}${i + 1}`,
-    industry: industries[Math.floor(Math.random() * industries.length)],
-    revenue: Math.floor(Math.random() * 500000) + 50000,
-    proposals: Math.floor(Math.random() * 20) + 1,
-    successRate: Math.floor(Math.random() * 40) + 60,
-    lastActivity: dayjs().subtract(Math.floor(Math.random() * 30), 'day').format('YYYY-MM-DD'),
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    growth: Math.floor(Math.random() * 60) - 20,
-  }));
+type ProposalRow = {
+  id: string;
+  title: string;
+  client: string;
+  value: number;
+  stage: string;
+  category?: string;
+  createdDate: string;
+  dueDate?: string;
+  winProbability: number;
 };
-
-const generateProposalData = () => {
-  const stages = ['Draft', 'Sent', 'Under Review', 'Accepted', 'Rejected'];
-  const categories = ['Web Development', 'Mobile App', 'Consulting', 'Design', 'Marketing'];
-  
-  return Array.from({ length: 15 }, (_, i) => ({
-    id: `PROP-${String(1000 + i)}`,
-    title: `Proposal ${i + 1}`,
-    client: `Client ${String.fromCharCode(65 + i % 10)}`,
-    value: Math.floor(Math.random() * 100000) + 10000,
-    stage: stages[Math.floor(Math.random() * stages.length)],
-    category: categories[Math.floor(Math.random() * categories.length)],
-    createdDate: dayjs().subtract(Math.floor(Math.random() * 60), 'day').format('YYYY-MM-DD'),
-    dueDate: dayjs().add(Math.floor(Math.random() * 30), 'day').format('YYYY-MM-DD'),
-    winProbability: Math.floor(Math.random() * 100),
-  }));
-};
-
-const generateTransactionData = () => {
-  const types = ['Income', 'Expense'];
-  const categories = ['Sales', 'Services', 'Subscriptions', 'Salaries', 'Office', 'Marketing'];
-  const statuses = ['Completed', 'Pending', 'Failed'];
-  
-  return Array.from({ length: 25 }, (_, i) => ({
-    id: `TXN-${String(10000 + i)}`,
-    date: dayjs().subtract(Math.floor(Math.random() * 90), 'day').format('YYYY-MM-DD'),
-    description: `Transaction ${i + 1}`,
-    type: types[Math.floor(Math.random() * types.length)],
-    category: categories[Math.floor(Math.random() * categories.length)],
-    amount: Math.floor(Math.random() * 50000) + 1000,
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    reference: `REF-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-  }));
+type TransactionRow = {
+  id: string;
+  date: string;
+  description: string;
+  type: 'Income' | 'Expense';
+  category: string;
+  amount: number;
+  status: 'Completed' | 'Pending' | 'Failed';
+  reference?: string;
 };
 
 // User activity data will be fetched from the API
@@ -192,6 +141,10 @@ function ReportsContent() {
   const [revenuePeriod, setRevenuePeriod] = useState('monthly');
   const [clientFilter, setClientFilter] = useState('all');
   const [proposalFilter, setProposalFilter] = useState('all');
+  const [revenueData, setRevenueData] = useState<RevenuePoint[]>([]);
+  const [clientData, setClientData] = useState<ClientRow[]>([]);
+  const [proposalData, setProposalData] = useState<ProposalRow[]>([]);
+  const [transactionData, setTransactionData] = useState<TransactionRow[]>([]);
   const [userActivityData, setUserActivityData] = useState<any[]>([]);
   const [activityStats, setActivityStats] = useState<any>(null);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -205,15 +158,200 @@ function ReportsContent() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds default
 
+  // Initial and dependent data fetches
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 1500);
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchRevenueData(),
+        fetchClientsAndProposals(),
+        fetchTransactionData(),
+      ]);
+      setLoading(false);
+    };
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const revenueData = useMemo(() => generateRevenueData(revenuePeriod), [revenuePeriod]);
-  const clientData = useMemo(() => generateClientData(), []);
-  const proposalData = useMemo(() => generateProposalData(), []);
-  const transactionData = useMemo(() => generateTransactionData(), []);
+  useEffect(() => {
+    // refresh when date range changes
+    const refetch = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchRevenueData(),
+        fetchClientsAndProposals(),
+        fetchTransactionData(),
+      ]);
+      setLoading(false);
+    };
+    refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
+
+  useEffect(() => {
+    // revenue period switch
+    fetchRevenueData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revenuePeriod]);
+
+  const fetchRevenueData = async () => {
+    try {
+      const start = (dateRange[0] || dayjs().subtract(30, 'day')).toISOString();
+      const end = (dateRange[1] || dayjs()).toISOString();
+
+      if (revenuePeriod === 'daily') {
+        const params = new URLSearchParams({ startDate: start, endDate: end, limit: '5000' });
+        const resp = await fetch(`/api/transactions?${params.toString()}`);
+        if (!resp.ok) throw new Error('Failed to fetch transactions');
+        const data = await resp.json();
+        const txns = data.transactions || [];
+        const dayMap = new Map<string, { revenue: number; expenses: number }>();
+        txns.forEach((t: any) => {
+          const key = dayjs(t.txnDate || t.date).format('MMM DD');
+          const isCredit = (t.direction || t.type) === 'credit' || (t.type === 'income');
+          const entry = dayMap.get(key) || { revenue: 0, expenses: 0 };
+          if (isCredit) entry.revenue += t.amount || 0; else entry.expenses += t.amount || 0;
+          dayMap.set(key, entry);
+        });
+        const series = Array.from(dayMap.entries())
+          .map(([date, v]) => ({ date, revenue: v.revenue, expenses: v.expenses, profit: v.revenue - v.expenses }))
+          .sort((a, b) => dayjs(a.date, 'MMM DD').unix() - dayjs(b.date, 'MMM DD').unix());
+        setRevenueData(series);
+      } else {
+        const resp = await fetch('/api/accounting/overview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startDate: start, endDate: end, reportType: 'summary' }),
+        });
+        if (!resp.ok) throw new Error('Failed to fetch accounting summary');
+        const data = await resp.json();
+        const report = data.report || {};
+        const byMonth: any[] = report.byMonth || [];
+        // Build monthly base
+        const monthly = byMonth.map((m: any) => {
+          const dt = dayjs(`${m._id.year}-${String(m._id.month).padStart(2, '0')}-01`);
+          const date = dt.format('MMM YYYY');
+          const revenue = m.income || 0;
+          const expenses = m.expenses || 0;
+          return { date, revenue, expenses, profit: revenue - expenses } as RevenuePoint;
+        });
+
+        if (revenuePeriod === 'monthly') {
+          setRevenueData(monthly);
+        } else if (revenuePeriod === 'quarterly') {
+          const qMap = new Map<string, { revenue: number; expenses: number }>();
+          monthly.forEach(m => {
+            const d = dayjs(m.date, 'MMM YYYY');
+            const q = `Q${d.quarter()} ${d.year()}`;
+            const entry = qMap.get(q) || { revenue: 0, expenses: 0 };
+            entry.revenue += m.revenue; entry.expenses += m.expenses;
+            qMap.set(q, entry);
+          });
+          const series = Array.from(qMap.entries()).map(([date, v]) => ({ date, revenue: v.revenue, expenses: v.expenses, profit: v.revenue - v.expenses }));
+          setRevenueData(series);
+        } else if (revenuePeriod === 'yearly') {
+          const yMap = new Map<string, { revenue: number; expenses: number }>();
+          monthly.forEach(m => {
+            const y = dayjs(m.date, 'MMM YYYY').year().toString();
+            const entry = yMap.get(y) || { revenue: 0, expenses: 0 };
+            entry.revenue += m.revenue; entry.expenses += m.expenses;
+            yMap.set(y, entry);
+          });
+          const series = Array.from(yMap.entries()).map(([date, v]) => ({ date, revenue: v.revenue, expenses: v.expenses, profit: v.revenue - v.expenses }));
+          setRevenueData(series);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading revenue data', err);
+      setRevenueData([]);
+    }
+  };
+
+  const fetchClientsAndProposals = async () => {
+    try {
+      const [clientsResp, proposalsResp] = await Promise.all([
+        fetch('/api/clients?limit=500'),
+        fetch('/api/proposals?limit=500'),
+      ]);
+      if (!clientsResp.ok) throw new Error('Failed to fetch clients');
+      if (!proposalsResp.ok) throw new Error('Failed to fetch proposals');
+      const clientsJson = await clientsResp.json();
+      const proposalsJson = await proposalsResp.json();
+      const clients = clientsJson.clients || [];
+      const proposals = proposalsJson.proposals || [];
+
+      const proposalsByClient = new Map<string, any[]>();
+      proposals.forEach((p: any) => {
+        const clientId = typeof p.client === 'object' && p.client?._id ? p.client._id : p.client;
+        if (!clientId) return;
+        const list = proposalsByClient.get(clientId) || [];
+        list.push(p);
+        proposalsByClient.set(clientId, list);
+      });
+
+      const mappedClients: ClientRow[] = clients.map((c: any) => {
+        const cId = c._id?.toString();
+        const pList = proposalsByClient.get(cId) || [];
+        const finalized = pList.filter((p: any) => p.status === 'finalized').length;
+        const successRate = pList.length > 0 ? (finalized / pList.length) * 100 : 0;
+        return {
+          id: cId,
+          name: c.organization,
+          industry: c.industry || '—',
+          revenue: c.estimatedValue || 0,
+          proposals: pList.length,
+          successRate,
+          lastActivity: (c.updatedAt || c.createdAt) ? dayjs(c.updatedAt || c.createdAt).format('YYYY-MM-DD') : undefined,
+          status: (c.status || 'active').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          growth: 0,
+        };
+      });
+      setClientData(mappedClients);
+
+      const mappedProposals: ProposalRow[] = proposals.map((p: any, idx: number) => ({
+        id: p._id?.toString() || `PROP-${idx + 1}`,
+        title: (p.selectedServices && p.selectedServices.length > 0) ? p.selectedServices[0] : 'Proposal',
+        client: typeof p.client === 'object' && p.client?.organization ? p.client.organization : (p.client?.toString?.() || 'Unknown'),
+        value: p.clientRate || 0,
+        stage: (p.status || 'draft').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        category: (p.selectedServices && p.selectedServices.length > 0) ? p.selectedServices[0] : undefined,
+        createdDate: p.createdAt || new Date().toISOString(),
+        dueDate: p.createdAt || new Date().toISOString(),
+        winProbability: 0,
+      }));
+      setProposalData(mappedProposals);
+    } catch (err) {
+      console.error('Error loading clients/proposals', err);
+      setClientData([]);
+      setProposalData([]);
+    }
+  };
+
+  const fetchTransactionData = async () => {
+    try {
+      const start = (dateRange[0] || dayjs().subtract(30, 'day')).toISOString();
+      const end = (dateRange[1] || dayjs()).toISOString();
+      const params = new URLSearchParams({ startDate: start, endDate: end, limit: '500' });
+      const resp = await fetch(`/api/transactions?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch transactions');
+      const data = await resp.json();
+      const txns = data.transactions || [];
+      const mapped: TransactionRow[] = txns.map((t: any, i: number) => ({
+        id: t._id?.toString() || `TXN-${i + 1}`,
+        date: t.txnDate || t.date,
+        description: t.description || '—',
+        type: (t.direction === 'credit' || t.type === 'income') ? 'Income' : 'Expense',
+        category: t.category || 'Uncategorized',
+        amount: t.amount || 0,
+        status: 'Completed',
+        reference: t.checkNo || undefined,
+      }));
+      setTransactionData(mapped);
+    } catch (err) {
+      console.error('Error loading transactions', err);
+      setTransactionData([]);
+    }
+  };
   // Fetch user activity data from API
   useEffect(() => {
     if (activeTab === 'activity') {

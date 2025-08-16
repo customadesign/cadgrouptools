@@ -81,7 +81,7 @@ export async function processStatementOCR(statementId: string, buffer: Buffer, m
 // Fallback PDF text extraction using pdfjs-dist legacy build for Node.js
 async function extractTextFromPdfWithPdfJs(buffer: Buffer): Promise<string> {
   // Use legacy build to avoid DOM dependencies like DOMMatrix in Node
-  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.js');
+  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const loadingTask = pdfjs.getDocument({ data: buffer });
   const pdf = await loadingTask.promise;
   let combinedText = '';
