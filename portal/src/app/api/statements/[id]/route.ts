@@ -6,6 +6,7 @@ import { Statement } from '@/models/Statement';
 import { Transaction } from '@/models/Transaction';
 import { File } from '@/models/File';
 import { Types } from 'mongoose';
+import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 
 // GET: Fetch a single statement with its details
 export async function GET(
@@ -185,7 +186,7 @@ export async function DELETE(
     }
 
     // Find the statement first to get file reference
-    const statement = await Statement.findById(id);
+    const statement = await Statement.findById(id).populate('sourceFile');
 
     if (!statement) {
       return NextResponse.json(
@@ -199,9 +200,35 @@ export async function DELETE(
       statement: statement._id,
     });
 
-    // Delete associated file if exists
+    // Delete file from Supabase storage and database
     if (statement.sourceFile) {
-      await File.findByIdAndDelete(statement.sourceFile);
+      const fileDoc = statement.sourceFile as any;
+      
+      // Delete from Supabase storage if it's stored there
+      if (fileDoc.storageProvider === 'supabase' && fileDoc.path && supabaseAdmin) {
+        try {
+          console.log(`Attempting to delete file from Supabase: ${fileDoc.path}`);
+          
+          const { error: deleteError } = await supabaseAdmin
+            .storage
+            .from(STORAGE_BUCKET)
+            .remove([fileDoc.path]);
+          
+          if (deleteError) {
+            console.error('Supabase file deletion error:', deleteError);
+            // Continue with deletion even if Supabase deletion fails
+            // This prevents orphaned database records
+          } else {
+            console.log(`Successfully deleted file from Supabase: ${fileDoc.path}`);
+          }
+        } catch (supabaseError) {
+          console.error('Error deleting from Supabase storage:', supabaseError);
+          // Continue with database deletion
+        }
+      }
+      
+      // Delete file record from database
+      await File.findByIdAndDelete(statement.sourceFile._id || statement.sourceFile);
     }
 
     // Delete the statement

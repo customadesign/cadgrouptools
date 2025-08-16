@@ -1,7 +1,8 @@
 import { Statement } from '@/models/Statement';
 import { Transaction } from '@/models/Transaction';
 import { Types } from 'mongoose';
-import { ocrService, ExtractedTransaction } from '@/lib/ocr';
+// Use server-optimized OCR service for production environments
+import { ocrService, ExtractedTransaction } from '@/lib/ocr-server';
 
 // Shared OCR processor used by upload and retry endpoints
 export async function processStatementOCR(statementId: string, buffer: Buffer, mimeType: string) {
@@ -38,8 +39,22 @@ export async function processStatementOCR(statementId: string, buffer: Buffer, m
         }
       }
     } else {
-      // Images: try Google Vision then fallback to Tesseract
+      // Images: try Google Vision (server-side OCR)
       const ocrResult = await ocrService.extractTextFromImage(buffer, mimeType);
+      
+      // Check if OCR failed due to no service available
+      if (ocrResult.error && ocrResult.provider === 'none') {
+        await Statement.findByIdAndUpdate(statementId, {
+          status: 'failed',
+          processingErrors: [
+            'OCR service not available for images',
+            'Please configure Google Vision API or upload PDF files with embedded text',
+            ocrResult.error
+          ],
+        });
+        return;
+      }
+      
       extractedText = ocrResult.text;
       ocrProvider = (ocrResult.provider as any);
       confidence = ocrResult.confidence;

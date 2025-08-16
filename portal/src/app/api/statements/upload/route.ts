@@ -11,8 +11,9 @@ import { File } from '@/models/File';
 import { Transaction } from '@/models/Transaction';
 import { Types } from 'mongoose';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
-import { ocrService } from '@/lib/ocr';
-import type { ExtractedTransaction } from '@/lib/ocr';
+// Use server-optimized OCR service for production environments
+import { ocrService } from '@/lib/ocr-server';
+import type { ExtractedTransaction } from '@/lib/ocr-server';
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
