@@ -215,37 +215,106 @@ export async function DELETE(
         path: fileDoc.path
       });
 
-      if (fileDoc.storageProvider === 'supabase' && fileDoc.path && supabaseAdmin) {
-        log('Deleting from Supabase storage...');
-        try {
-          const { error } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .remove([fileDoc.path]);
-
-          if (error) {
-            log('Supabase deletion error', { error: error.message });
-            fileDeleteStatus = 'supabase_delete_failed';
-            storageDeleteResult = {
-              success: false,
-              provider: 'supabase',
-              error: error.message
-            };
-          } else {
-            log('Supabase deletion successful');
-            fileDeleteStatus = 'supabase_deleted';
-            storageDeleteResult = {
-              success: true,
-              provider: 'supabase'
-            };
-          }
-        } catch (supabaseError: any) {
-          log('Supabase deletion exception', { error: supabaseError.message });
-          fileDeleteStatus = 'supabase_delete_failed';
+      if (fileDoc.storageProvider === 'supabase' && fileDoc.path) {
+        if (!supabaseAdmin) {
+          log('ERROR: Supabase admin client not initialized!', {
+            status: SUPABASE_STATUS,
+            bucket: STORAGE_BUCKET
+          });
+          fileDeleteStatus = 'supabase_not_initialized';
           storageDeleteResult = {
             success: false,
             provider: 'supabase',
-            error: supabaseError.message
+            error: 'Supabase admin client not initialized'
           };
+        } else {
+          log('Attempting Supabase deletion...', {
+            bucket: STORAGE_BUCKET,
+            path: fileDoc.path,
+            fullPath: `${STORAGE_BUCKET}/${fileDoc.path}`
+          });
+          
+          try {
+            // First, check if file exists
+            const { data: fileExists, error: checkError } = await supabaseAdmin.storage
+              .from(STORAGE_BUCKET)
+              .download(fileDoc.path);
+            
+            if (checkError && checkError.message.includes('not found')) {
+              log('WARNING: File not found in Supabase', {
+                path: fileDoc.path,
+                bucket: STORAGE_BUCKET,
+                error: checkError.message
+              });
+              fileDeleteStatus = 'file_not_found';
+              storageDeleteResult = {
+                success: false,
+                provider: 'supabase',
+                error: 'File not found in storage'
+              };
+            } else if (checkError) {
+              log('Error checking file existence', {
+                error: checkError.message
+              });
+            } else {
+              log('File exists, proceeding with deletion');
+              
+              // Now delete the file
+              const { error: deleteError } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .remove([fileDoc.path]);
+
+              if (deleteError) {
+                log('Supabase deletion error', { 
+                  error: deleteError.message,
+                  errorDetails: deleteError
+                });
+                fileDeleteStatus = 'supabase_delete_failed';
+                storageDeleteResult = {
+                  success: false,
+                  provider: 'supabase',
+                  error: deleteError.message,
+                  details: deleteError
+                };
+              } else {
+                // Verify deletion
+                const { error: verifyError } = await supabaseAdmin.storage
+                  .from(STORAGE_BUCKET)
+                  .download(fileDoc.path);
+                
+                if (verifyError && verifyError.message.includes('not found')) {
+                  log('Supabase deletion verified - file successfully removed');
+                  fileDeleteStatus = 'supabase_deleted';
+                  storageDeleteResult = {
+                    success: true,
+                    provider: 'supabase',
+                    verified: true
+                  };
+                } else {
+                  log('WARNING: File may still exist after deletion attempt', {
+                    verifyError: verifyError?.message
+                  });
+                  fileDeleteStatus = 'supabase_delete_uncertain';
+                  storageDeleteResult = {
+                    success: false,
+                    provider: 'supabase',
+                    error: 'File may still exist after deletion'
+                  };
+                }
+              }
+            }
+          } catch (supabaseError: any) {
+            log('Supabase deletion exception', { 
+              error: supabaseError.message,
+              stack: supabaseError.stack
+            });
+            fileDeleteStatus = 'supabase_exception';
+            storageDeleteResult = {
+              success: false,
+              provider: 'supabase',
+              error: supabaseError.message
+            };
+          }
         }
       } else {
         log('File storage provider not recognized or no path', { 

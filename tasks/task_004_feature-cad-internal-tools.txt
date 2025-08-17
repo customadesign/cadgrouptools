@@ -1,5 +1,5 @@
 # Task ID: 4
-# Title: OCR Ingestion Pipeline (AWS Textract)
+# Title: OCR Ingestion Pipeline (Claude Code via OpenRouter)
 # Status: pending
 # Dependencies: None
 # Priority: high

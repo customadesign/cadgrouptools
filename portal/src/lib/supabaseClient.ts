@@ -14,4 +14,4 @@ export const supabase = createClient(
 );
 
 // Get the bucket name (prefer public env var for client-side)
-export const STORAGE_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'cadgroup-uploads';
+export const STORAGE_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'cadgroupmgt';

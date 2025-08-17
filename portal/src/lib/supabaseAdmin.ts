@@ -39,7 +39,7 @@ export const supabaseAdmin =
     : null;
 
 // Get the bucket name from server env
-export const STORAGE_BUCKET = process.env.SUPABASE_BUCKET || 'cadgroup-uploads';
+export const STORAGE_BUCKET = process.env.SUPABASE_BUCKET || 'cadgroupmgt';
 
 // Export initialization status for debugging
 export const SUPABASE_STATUS = {

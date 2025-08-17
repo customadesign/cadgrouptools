@@ -25,8 +25,8 @@ Non-Goals (Phase 1)
 - Auth: NextAuth (credentials provider), bcrypt for password hashing, JWT session or DB sessions
 - Backend: Next.js API routes (or a small Node/Nest API if preferred), background jobs with BullMQ + Redis
 - Database: MongoDB Atlas (Mongoose ODM). Collections for users, files, statements, transactions, proposals, clients
-- Storage: S3-compatible bucket for file uploads (bank statements, screenshots, attachments)
-- OCR: AWS Textract (default) or Google Document AI (pluggable via provider adapter). Fallback: Tesseract for PDFs/images
+- Storage: Supabase Storage for file uploads (bank statements, screenshots, attachments)
+- OCR: Claude Code via OpenRouter (default) or Google Document AI (pluggable via provider adapter). Fallback: Tesseract for PDFs/images
 - Research: CrewAI pipeline service (Node/Python microservice) with HTTP webhook from portal
 - SEO Overview: Two modes
   - Direct SEMrush API integration (configurable)

@@ -57,13 +57,13 @@
     ]
   },
   {
-    "id": 13,
-    "title": "Complete Supabase storage migration",
-    "description": "Fully migrate all file storage operations from S3 to Supabase Storage.",
+    "id": 61,
+    "title": "Fully migrate all file storage operations to Supabase Storage",
+    "description": "Complete the migration of statement uploads and proposal assets to Supabase, remove all S3 dependencies, and implement cleanup processes.",
     "details": "Complete the migration of statement uploads and proposal assets to Supabase, remove S3 dependencies, and implement cleanup processes.",
     "testStrategy": "Test all file upload scenarios, verify migration of existing files, ensure no S3 dependencies remain.",
     "priority": "high",
-    "dependencies": [11],
+    "dependencies": [],
     "status": "pending",
     "subtasks": [
       {
@@ -73,7 +73,7 @@
         "details": "Update upload endpoints and client-side logic for statements",
         "status": "pending",
         "dependencies": [],
-        "parentTaskId": 13
+        "parentTaskId": 61
       },
       {
         "id": 2,
@@ -82,16 +82,17 @@
         "details": "Update proposal generation and asset management",
         "status": "pending",
         "dependencies": [],
-        "parentTaskId": 13
+        "parentTaskId": 61
       },
       {
         "id": 3,
         "title": "Remove S3 envs and dead code",
         "description": "Clean up all S3-related code and environment variables",
         "details": "Remove AWS SDK dependencies, S3 client code, and related configs",
+        "testStrategy": "Verify no S3 references remain in codebase, check package.json for AWS dependencies, ensure clean build",
         "status": "pending",
         "dependencies": [],
-        "parentTaskId": 13
+        "parentTaskId": 61
       },
       {
         "id": 4,
@@ -100,7 +101,7 @@
         "details": "Create cron job to identify and remove files not referenced in database",
         "status": "pending",
         "dependencies": [],
-        "parentTaskId": 13
+        "parentTaskId": 61
       },
       {
         "id": 5,
@@ -109,7 +110,7 @@
         "details": "Update setup guides, remove S3 references, update Render variables",
         "status": "pending",
         "dependencies": [],
-        "parentTaskId": 13
+        "parentTaskId": 61
       }
     ]
   },

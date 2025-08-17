@@ -6,7 +6,7 @@
 # Description: Render HTML proposals to PDF and store versioned copies.
 # Details:
 - Use Puppeteer to render HTML to PDF with consistent margins/fonts
-- Upload PDF to S3 and link pdfKey on proposal
+- Upload PDF to Supabase Storage and link pdfKey on proposal
 - Provide download and preview endpoints
 
 # Test Strategy:

@@ -1,9 +1,9 @@
 # Task ID: 3
-# Title: Implement File Uploads to S3
-# Status: pending
+# Title: Implement File Uploads to Supabase Storage
+# Status: done
 # Dependencies: None
-# Priority: medium
-# Description: Enable secure uploads for statements and proposal assets to S3-compatible storage.
+# Priority: high
+# Description: Enable secure uploads for statements and proposal assets to Supabase Storage.
 # Details:
 - Generate pre-signed URLs server-side
 - Validate file types and sizes (statements: PDF/JPG/PNG; proposals: images)
