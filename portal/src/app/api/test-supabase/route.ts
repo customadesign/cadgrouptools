@@ -1,193 +1,222 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 
-export async function GET() {
-  // Check environment variables
-  const envCheck = {
-    SUPABASE_URL: !!process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE: !!process.env.SUPABASE_SERVICE_ROLE,
-    SUPABASE_BUCKET: !!process.env.SUPABASE_BUCKET,
-    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  };
+export async function GET(request: NextRequest) {
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  // Check if Supabase client was created
-  const clientCreated = !!supabaseAdmin;
+    const tests: any = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE,
+        hasPublicUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        bucket: STORAGE_BUCKET,
+        supabaseUrl: process.env.SUPABASE_URL ? 
+          process.env.SUPABASE_URL.substring(0, 30) + '...' : 
+          'NOT SET',
+      },
+      client: {
+        isInitialized: !!supabaseAdmin,
+        type: supabaseAdmin ? 'service-role' : 'not-initialized'
+      },
+      tests: []
+    };
 
-  // Try to list buckets if client exists
-  let bucketsStatus = 'not attempted';
-  let bucketExists = false;
-  let bucketDetails = null;
+    if (!supabaseAdmin) {
+      tests.error = 'Supabase admin client not initialized';
+      tests.recommendation = 'Check SUPABASE_URL and SUPABASE_SERVICE_ROLE environment variables';
+      return NextResponse.json(tests);
+    }
 
-  if (supabaseAdmin) {
+    // Test 1: List buckets
     try {
       const { data: buckets, error } = await supabaseAdmin.storage.listBuckets();
-      
-      if (error) {
-        bucketsStatus = `error: ${error.message}`;
-      } else {
-        bucketsStatus = `found ${buckets?.length || 0} buckets`;
-        
-        // Check if our specific bucket exists
-        if (buckets && buckets.length > 0) {
-          const ourBucket = buckets.find(b => b.name === STORAGE_BUCKET);
-          if (ourBucket) {
-            bucketExists = true;
-            bucketDetails = {
-              name: ourBucket.name,
-              public: ourBucket.public,
-              created_at: ourBucket.created_at,
-              updated_at: ourBucket.updated_at,
-            };
-          }
+      tests.tests.push({
+        name: 'List Buckets',
+        success: !error,
+        data: error ? { error: error.message } : { 
+          bucketCount: buckets?.length || 0,
+          buckets: buckets?.map(b => ({ 
+            name: b.name, 
+            public: b.public,
+            created_at: b.created_at 
+          }))
         }
-      }
-    } catch (error) {
-      bucketsStatus = `exception: ${error instanceof Error ? error.message : 'unknown'}`;
-    }
-  }
-
-  // Try to test upload permissions if bucket exists
-  let uploadTestStatus = 'not attempted';
-  if (supabaseAdmin && bucketExists) {
-    try {
-      const testFileName = `test/test-${Date.now()}.txt`;
-      const testContent = 'Test upload from API';
-      
-      const { data, error } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .upload(testFileName, Buffer.from(testContent), {
-          contentType: 'text/plain',
-          upsert: true,
-        });
-
-      if (error) {
-        uploadTestStatus = `upload error: ${error.message}`;
-      } else {
-        uploadTestStatus = 'upload successful';
-        
-        // Try to delete the test file
-        const { error: deleteError } = await supabaseAdmin.storage
-          .from(STORAGE_BUCKET)
-          .remove([testFileName]);
-          
-        if (deleteError) {
-          uploadTestStatus += ` (cleanup failed: ${deleteError.message})`;
-        } else {
-          uploadTestStatus += ' (cleanup successful)';
-        }
-      }
-    } catch (error) {
-      uploadTestStatus = `exception: ${error instanceof Error ? error.message : 'unknown'}`;
-    }
-  }
-
-  return NextResponse.json({
-    envVariables: envCheck,
-    allEnvConfigured: Object.values(envCheck).every(v => v === true),
-    supabaseClient: clientCreated ? 'created' : 'not created',
-    bucketName: STORAGE_BUCKET,
-    bucketsStatus,
-    targetBucketExists: bucketExists,
-    bucketDetails,
-    uploadTestStatus,
-    debug: {
-      SUPABASE_URL: process.env.SUPABASE_URL ? 'SET (hidden)' : 'NOT SET',
-      SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || STORAGE_BUCKET,
-    }
-  });
-}
-
-// POST method for testing actual file uploads
-export async function POST(request: NextRequest) {
-  try {
-    // Check if Supabase is configured
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { 
-          error: 'Storage service not configured',
-          details: {
-            SUPABASE_URL: !!process.env.SUPABASE_URL,
-            SUPABASE_SERVICE_ROLE: !!process.env.SUPABASE_SERVICE_ROLE,
-            SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || STORAGE_BUCKET,
-          }
-        },
-        { status: 503 }
-      );
-    }
-
-    // Get the form data
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
-    }
-
-    // Generate test filename
-    const timestamp = Date.now();
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `test/test-upload-${timestamp}.${fileExt}`;
-
-    // Convert File to ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Upload to Supabase
-    const { data, error } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .upload(fileName, buffer, {
-        contentType: file.type,
-        upsert: true,
       });
-
-    if (error) {
-      return NextResponse.json(
-        { 
-          error: `Upload failed: ${error.message}`,
-          details: {
-            bucket: STORAGE_BUCKET,
-            fileName,
-            fileSize: file.size,
-            fileType: file.type,
-            errorDetails: error
-          }
-        },
-        { status: 500 }
-      );
+    } catch (e: any) {
+      tests.tests.push({
+        name: 'List Buckets',
+        success: false,
+        error: e.message
+      });
     }
 
-    // Get public URL
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(fileName);
+    // Test 2: Check specific bucket
+    try {
+      const { data: bucketData, error } = await supabaseAdmin.storage.getBucket(STORAGE_BUCKET);
+      tests.tests.push({
+        name: `Check Bucket: ${STORAGE_BUCKET}`,
+        success: !error,
+        data: error ? { error: error.message } : {
+          exists: !!bucketData,
+          public: bucketData?.public,
+          created_at: bucketData?.created_at
+        }
+      });
+    } catch (e: any) {
+      tests.tests.push({
+        name: `Check Bucket: ${STORAGE_BUCKET}`,
+        success: false,
+        error: e.message
+      });
+    }
 
-    // Try to clean up the test file
-    const { error: deleteError } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .remove([fileName]);
+    // Test 3: List files in bucket
+    try {
+      const { data: files, error } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .list('statements', { limit: 5 });
+      
+      tests.tests.push({
+        name: 'List Files in statements/',
+        success: !error,
+        data: error ? { error: error.message } : {
+          fileCount: files?.length || 0,
+          sampleFiles: files?.slice(0, 3).map(f => ({
+            name: f.name,
+            size: f.metadata?.size,
+            created_at: f.created_at
+          }))
+        }
+      });
+    } catch (e: any) {
+      tests.tests.push({
+        name: 'List Files in statements/',
+        success: false,
+        error: e.message
+      });
+    }
 
+    // Test 4: Create and delete test file
+    try {
+      const testPath = `test/delete-test-${Date.now()}.txt`;
+      const testContent = new Blob(['Test file for deletion'], { type: 'text/plain' });
+      
+      // Upload test file
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .upload(testPath, testContent);
+      
+      if (uploadError) {
+        tests.tests.push({
+          name: 'Upload/Delete Test',
+          success: false,
+          stage: 'upload',
+          error: uploadError.message
+        });
+      } else {
+        // Try to delete the test file
+        const { data: deleteData, error: deleteError } = await supabaseAdmin.storage
+          .from(STORAGE_BUCKET)
+          .remove([testPath]);
+        
+        if (deleteError) {
+          tests.tests.push({
+            name: 'Upload/Delete Test',
+            success: false,
+            stage: 'delete',
+            error: deleteError.message,
+            uploadedPath: testPath
+          });
+        } else {
+          // Verify deletion
+          const { error: verifyError } = await supabaseAdmin.storage
+            .from(STORAGE_BUCKET)
+            .download(testPath);
+          
+          tests.tests.push({
+            name: 'Upload/Delete Test',
+            success: true,
+            data: {
+              uploaded: true,
+              deleted: true,
+              verified: !!verifyError && verifyError.message.includes('not found')
+            }
+          });
+        }
+      }
+    } catch (e: any) {
+      tests.tests.push({
+        name: 'Upload/Delete Test',
+        success: false,
+        error: e.message
+      });
+    }
+
+    // Test 5: Check service role permissions
+    try {
+      // Service role should be able to bypass RLS
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+      tests.tests.push({
+        name: 'Service Role Permissions',
+        success: !error,
+        data: error ? { error: error.message } : {
+          hasAdminAccess: true,
+          userCount: data?.users?.length || 0
+        }
+      });
+    } catch (e: any) {
+      tests.tests.push({
+        name: 'Service Role Permissions',
+        success: false,
+        error: e.message,
+        note: 'This might indicate using anon key instead of service role key'
+      });
+    }
+
+    // Calculate summary
+    const summary = {
+      totalTests: tests.tests.length,
+      passed: tests.tests.filter((t: any) => t.success).length,
+      failed: tests.tests.filter((t: any) => !t.success).length,
+      successRate: Math.round((tests.tests.filter((t: any) => t.success).length / tests.tests.length) * 100)
+    };
+
+    tests.summary = summary;
+
+    // Add recommendations
+    if (summary.failed > 0) {
+      tests.recommendations = [];
+      
+      if (!tests.environment.hasSupabaseUrl || !tests.environment.hasServiceRole) {
+        tests.recommendations.push('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE environment variables');
+      }
+      
+      const bucketTest = tests.tests.find((t: any) => t.name.includes('Check Bucket'));
+      if (bucketTest && !bucketTest.success) {
+        tests.recommendations.push(`Create bucket "${STORAGE_BUCKET}" in Supabase Storage`);
+      }
+      
+      const permTest = tests.tests.find((t: any) => t.name === 'Service Role Permissions');
+      if (permTest && !permTest.success) {
+        tests.recommendations.push('Ensure using SERVICE_ROLE key, not ANON key');
+      }
+    }
+
+    return NextResponse.json(tests);
+  } catch (error: any) {
     return NextResponse.json({
-      success: true,
-      message: 'Test upload successful',
-      publicUrl: publicUrlData.publicUrl,
-      fileName,
-      bucket: STORAGE_BUCKET,
-      cleaned: !deleteError,
-      cleanupError: deleteError?.message
-    });
-
-  } catch (error) {
-    console.error('Test upload error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Test upload failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+      error: 'Test suite failed',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }

@@ -539,7 +539,13 @@ export default function BankStatementUploadPage() {
                   onOk: async () => {
                     try {
                       const id = (record as any)._id || record.id;
-                      console.log(`Deleting statement with ID: ${id}`);
+                      console.log(`[Frontend] Initiating delete for statement ID: ${id}`);
+                      
+                      message.loading({ 
+                        content: 'Deleting statement and associated files...', 
+                        key: `delete-${id}`,
+                        duration: 0 
+                      });
                       
                       const res = await fetch(`/api/statements/${id}`, { 
                         method: 'DELETE',
@@ -549,21 +555,83 @@ export default function BankStatementUploadPage() {
                       });
                       
                       const data = await res.json();
+                      console.log('[Frontend] Delete response:', data);
                       
                       if (res.ok && data.success) {
-                        message.success(`Statement deleted successfully. ${data.deletedTransactions || 0} transactions removed.`);
+                        // Build detailed success message
+                        let successMsg = `Statement deleted successfully.`;
+                        
+                        if (data.deletedTransactions > 0) {
+                          successMsg += ` ${data.deletedTransactions} transaction${data.deletedTransactions > 1 ? 's' : ''} removed.`;
+                        }
+                        
+                        if (data.fileDeleteStatus) {
+                          if (data.fileDeleteStatus === 'supabase_deleted') {
+                            successMsg += ' File removed from cloud storage.';
+                          } else if (data.fileDeleteStatus === 's3_deleted') {
+                            successMsg += ' File removed from S3 storage.';
+                          } else if (data.fileDeleteStatus === 'no_file') {
+                            // No file to delete
+                          } else if (data.fileDeleteStatus.includes('failed')) {
+                            successMsg += ' (Warning: File may not have been deleted from storage)';
+                          }
+                        }
+                        
+                        message.success({ 
+                          content: successMsg, 
+                          key: `delete-${id}`,
+                          duration: 5 
+                        });
+                        
                         // Update the UI by removing the deleted statement
                         setRecentUploads(prev => prev.filter(u => {
                           const uploadId = (u as any)._id || u.id;
                           return uploadId !== id;
                         }));
+                        
+                        // Log debug info if available
+                        if (data.debugInfo) {
+                          console.log('[Frontend] Delete debug info:', {
+                            totalTime: `${data.debugInfo.totalTime}ms`,
+                            steps: data.debugInfo.steps,
+                            storage: {
+                              supabase: data.debugInfo.hasSupabaseClient ? 'configured' : 'not configured',
+                              s3: data.debugInfo.hasS3Client ? 'configured' : 'not configured',
+                            }
+                          });
+                        }
                       } else {
-                        console.error('Delete failed:', data);
-                        message.error(data.error || data.details || 'Failed to delete statement');
+                        console.error('[Frontend] Delete failed:', data);
+                        
+                        // Build detailed error message
+                        let errorMsg = data.error || 'Failed to delete statement';
+                        
+                        if (data.details) {
+                          errorMsg += `: ${data.details}`;
+                        }
+                        
+                        // Add recommendations if available
+                        if (data.debugLog && data.debugLog.length > 0) {
+                          const lastLog = data.debugLog[data.debugLog.length - 1];
+                          if (lastLog.message.includes('ERROR')) {
+                            errorMsg += `. Check console for details.`;
+                            console.error('[Frontend] Debug log:', data.debugLog);
+                          }
+                        }
+                        
+                        message.error({ 
+                          content: errorMsg, 
+                          key: `delete-${id}`,
+                          duration: 8 
+                        });
                       }
                     } catch (e: any) {
-                      console.error('Delete error:', e);
-                      message.error(e.message || 'Failed to delete statement');
+                      console.error('[Frontend] Delete exception:', e);
+                      message.error({ 
+                        content: `Network error: ${e.message || 'Failed to delete statement'}`, 
+                        key: `delete-${record.id}`,
+                        duration: 5 
+                      });
                     }
                   },
                 });
