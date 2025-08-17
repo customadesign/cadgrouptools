@@ -15,3 +15,9 @@
 **/yarn-debug.log*
 **/yarn-error.log*
 **/pnpm-debug.log*
+
+# Documentation - Ignore all markdown files
+*.md
+README.md
+docs/*.md
+**/*.md

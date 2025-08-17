@@ -13,6 +13,7 @@ import { Types } from 'mongoose';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 // Use server-optimized OCR service for production environments
 import { ocrService } from '@/lib/ocr-server';
+import { tesseractOCRService } from '@/lib/ocr-tesseract';
 import type { ExtractedTransaction } from '@/lib/ocr-server';
 
 // Maximum file size: 10MB
@@ -162,6 +163,7 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
     let extractedText = '';
     let ocrProvider = 'tesseract';
     let confidence: number | undefined;
+    let useTesseractFallback = false;
 
     // Handle PDFs
     if (mimeType === 'application/pdf') {
@@ -177,44 +179,74 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
             const fallbackText = await extractTextFromPdfWithPdfJs(buffer);
             extractedText = fallbackText;
             ocrProvider = 'pdfjs-dist';
+            
+            // If still no meaningful text, flag for Tesseract OCR
+            if (!extractedText || extractedText.trim().length < 50) {
+              console.log('PDF appears to be scanned, will use Tesseract OCR');
+              useTesseractFallback = true;
+            }
           } catch (fallbackErr) {
-            console.warn('pdfjs-dist fallback failed, marking needs_review:', fallbackErr);
-            await Statement.findByIdAndUpdate(statementId, {
-              status: 'needs_review',
-              ocrProvider: 'pdf-parse',
-              extractedData: {
-                rawText: extractedText || '',
-                message: 'PDF appears to be scanned. Manual OCR processing may be required.',
-              },
-            });
-            return;
+            console.warn('pdfjs-dist fallback failed, will use Tesseract OCR:', fallbackErr);
+            useTesseractFallback = true;
           }
         }
       } catch (error) {
-        console.error('PDF processing error, attempting pdfjs-dist fallback:', error);
-        try {
-          const fallbackText = await extractTextFromPdfWithPdfJs(buffer);
-          extractedText = fallbackText;
-          ocrProvider = 'pdfjs-dist';
-        } catch (fallbackErr) {
-          console.error('PDF fallback (pdfjs) also failed:', fallbackErr);
+        console.error('PDF processing error, will use Tesseract OCR:', error);
+        useTesseractFallback = true;
+      }
+      
+      // Use Tesseract OCR for scanned PDFs
+      if (useTesseractFallback) {
+        console.log('Using Tesseract OCR for PDF processing...');
+        const tesseractResult = await tesseractOCRService.extractTextFromPDF(buffer);
+        
+        if (tesseractResult.error) {
+          console.error('Tesseract OCR failed:', tesseractResult.error);
           await Statement.findByIdAndUpdate(statementId, {
             status: 'failed',
-            processingErrors: ['PDF processing failed', `Fallback failed: ${(fallbackErr as Error).message}`],
+            processingErrors: ['OCR processing failed', tesseractResult.error],
           });
           return;
         }
+        
+        extractedText = tesseractResult.text;
+        ocrProvider = tesseractResult.provider;
+        confidence = tesseractResult.confidence;
       }
     } else {
       // Process images with OCR
+      // First try Google Vision if available
       const ocrResult = await ocrService.extractTextFromImage(buffer, mimeType);
-      extractedText = ocrResult.text;
-      ocrProvider = ocrResult.provider;
-      confidence = ocrResult.confidence;
+      
+      // If Google Vision is not available or fails, use Tesseract
+      if (!ocrResult.text || ocrResult.error) {
+        console.log('Google Vision not available or failed, using Tesseract OCR for image...');
+        const tesseractResult = await tesseractOCRService.extractTextFromImage(buffer, mimeType);
+        
+        if (tesseractResult.error) {
+          console.error('Tesseract OCR failed:', tesseractResult.error);
+          await Statement.findByIdAndUpdate(statementId, {
+            status: 'failed',
+            processingErrors: ['OCR processing failed', tesseractResult.error],
+          });
+          return;
+        }
+        
+        extractedText = tesseractResult.text;
+        ocrProvider = tesseractResult.provider;
+        confidence = tesseractResult.confidence;
+      } else {
+        extractedText = ocrResult.text;
+        ocrProvider = ocrResult.provider;
+        confidence = ocrResult.confidence;
+      }
     }
 
     // Parse bank statement data
-    const statementData = ocrService.parseBankStatement(extractedText);
+    // Use the appropriate parser based on which OCR service was used
+    const statementData = ocrProvider === 'tesseract' 
+      ? tesseractOCRService.parseBankStatement(extractedText)
+      : ocrService.parseBankStatement(extractedText);
 
     // Update statement with extracted data
     await Statement.findByIdAndUpdate(statementId, {
