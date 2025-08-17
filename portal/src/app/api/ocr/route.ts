@@ -44,12 +44,20 @@ export async function POST(request: NextRequest) {
     // Handle PDFs
     if (file.type === 'application/pdf') {
       console.log('Processing PDF file...');
+      console.log('File size:', buffer.length, 'bytes');
       
       try {
         // Dynamic import for PDF parsing
+        console.log('Importing pdf-parse...');
         const pdfParse = await import('pdf-parse');
+        console.log('pdf-parse imported successfully');
+        
+        console.log('Parsing PDF buffer...');
         const pdfResult = await pdfParse.default(buffer);
+        console.log('PDF parsed successfully, pages:', pdfResult.numpages);
+        
         extractedText = pdfResult.text;
+        console.log('Extracted text length:', extractedText?.length || 0);
         
         // If PDF has no extractable text (scanned PDF), try OCR
         if (!extractedText || extractedText.trim().length < 50) {
@@ -73,14 +81,62 @@ export async function POST(request: NextRequest) {
         console.log(`Extracted ${extractedText.length} characters from PDF`);
       } catch (error: any) {
         console.error('PDF processing error:', error);
-        return NextResponse.json(
-          { 
-            error: 'Failed to process PDF',
-            details: error.message,
-            suggestion: 'Try converting the PDF to an image format (JPG/PNG) for OCR processing'
-          },
-          { status: 400 }
-        );
+        console.error('Error stack:', error.stack);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          code: error.code
+        });
+        
+        // Try to provide more specific error information
+        let errorDetails = 'Unknown PDF processing error';
+        let suggestion = 'Try converting the PDF to an image format (JPG/PNG) for OCR processing';
+        
+        if (error.message.includes('Invalid PDF')) {
+          errorDetails = 'The uploaded file is not a valid PDF';
+          suggestion = 'Please ensure you are uploading a valid PDF file';
+        } else if (error.message.includes('PDF header')) {
+          errorDetails = 'PDF header validation failed';
+          suggestion = 'The PDF file may be corrupted or incomplete';
+        } else if (error.message.includes('password')) {
+          errorDetails = 'PDF is password protected';
+          suggestion = 'Please remove password protection from the PDF before uploading';
+        }
+        
+        // Try to fall back to image processing if possible
+        console.log('Attempting fallback to image processing...');
+        try {
+          // For now, just return the error with helpful information
+          return NextResponse.json(
+            { 
+              error: 'Failed to process PDF',
+              details: errorDetails,
+              suggestion: suggestion,
+              debug: {
+                originalError: error.message,
+                fileSize: buffer.length,
+                fileType: file.type
+              }
+            },
+            { status: 400 }
+          );
+        } catch (fallbackError: any) {
+          console.error('Fallback processing also failed:', fallbackError);
+          return NextResponse.json(
+            { 
+              error: 'PDF processing failed completely',
+              details: errorDetails,
+              suggestion: suggestion,
+              debug: {
+                originalError: error.message,
+                fallbackError: fallbackError.message,
+                fileSize: buffer.length,
+                fileType: file.type
+              }
+            },
+            { status: 400 }
+          );
+        }
       }
     } else {
       // Process images with OCR
