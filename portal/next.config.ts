@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   // Ensure proper handling of environment variables in production
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || '',
   },
   // Optimize for production
   poweredByHeader: false,
@@ -19,6 +20,31 @@ const nextConfig: NextConfig = {
   // Handle image optimization
   images: {
     unoptimized: true, // Disable Next.js image optimization for Render
+  },
+  // External packages that should not be bundled by Next.js
+  serverExternalPackages: [
+    'socket.io',
+    'pdfjs-dist',
+    'pdf-parse',
+    'tesseract.js',
+    'pdf2pic',
+    'canvas'
+  ],
+  // Webpack configuration for PDF.js and other packages
+  webpack: (config, { isServer }) => {
+    // Handle pdfjs-dist worker issues
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Force pdfjs-dist to use the build without workers in Node.js
+      'pdfjs-dist/build/pdf.worker.entry': false,
+    };
+
+    // Ignore optional canvas dependency warnings
+    if (isServer) {
+      config.externals = [...(config.externals || []), 'canvas'];
+    }
+
+    return config;
   },
 };
 

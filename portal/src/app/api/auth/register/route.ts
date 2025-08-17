@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import pushNotificationService from '@/services/pushNotificationService';
+import { notificationService } from '@/services/notificationService';
 import { validators, passwordPolicy } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
@@ -71,7 +72,20 @@ export async function POST(request: NextRequest) {
       });
     } catch (notificationError) {
       // Log error but don't fail the registration
-      console.error('Failed to send notification for new user registration:', notificationError);
+      console.error('Failed to send push notification for new user registration:', notificationError);
+    }
+
+    // Send real-time notification to admins
+    try {
+      await notificationService.notifyUserRegistration({
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (notificationError) {
+      // Log error but don't fail the registration
+      console.error('Failed to send real-time notification for new user registration:', notificationError);
     }
 
     // Return user data (without password)

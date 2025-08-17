@@ -11,10 +11,10 @@ import { File } from '@/models/File';
 import { Transaction } from '@/models/Transaction';
 import { Types } from 'mongoose';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
-// Use server-optimized OCR service for production environments
-import { ocrService } from '@/lib/ocr-server';
+// Use Tesseract OCR service for all OCR processing
 import { tesseractOCRService } from '@/lib/ocr-tesseract';
-import type { ExtractedTransaction } from '@/lib/ocr-server';
+import type { ExtractedTransaction } from '@/lib/ocr-tesseract';
+import { notificationService } from '@/services/notificationService';
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -133,6 +133,20 @@ export async function POST(request: NextRequest) {
       console.error('Background OCR processing failed:', error);
     });
 
+    // Send real-time notification about statement upload
+    try {
+      await notificationService.notifyStatementUpload({
+        statementId: statement._id.toString(),
+        accountName,
+        month,
+        year,
+        uploadedBy: session.user.id,
+        uploadedByName: session.user.name,
+      });
+    } catch (notificationError) {
+      console.error('Failed to send notification for statement upload:', notificationError);
+    }
+
     // Populate the file reference for response
     const populatedStatement = await Statement
       .findById(statement._id)
@@ -163,41 +177,39 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
     let extractedText = '';
     let ocrProvider = 'tesseract';
     let confidence: number | undefined;
-    let useTesseractFallback = false;
 
     // Handle PDFs
     if (mimeType === 'application/pdf') {
       try {
+        // First try to extract embedded text with pdf-parse
         const pdfParse = require('pdf-parse');
         const pdfResult = await pdfParse(buffer);
-        extractedText = pdfResult.text;
-        ocrProvider = 'pdf-parse';
-
-        // If PDF has no extractable text, try a robust fallback with pdfjs textContent
-        if (!extractedText || extractedText.trim().length < 50) {
-          try {
-            const fallbackText = await extractTextFromPdfWithPdfJs(buffer);
-            extractedText = fallbackText;
-            ocrProvider = 'pdfjs-dist';
-            
-            // If still no meaningful text, flag for Tesseract OCR
-            if (!extractedText || extractedText.trim().length < 50) {
-              console.log('PDF appears to be scanned, will use Tesseract OCR');
-              useTesseractFallback = true;
-            }
-          } catch (fallbackErr) {
-            console.warn('pdfjs-dist fallback failed, will use Tesseract OCR:', fallbackErr);
-            useTesseractFallback = true;
+        
+        // If we get substantial text, use it
+        if (pdfResult.text && pdfResult.text.trim().length > 100) {
+          console.log('PDF has embedded text, using pdf-parse');
+          extractedText = pdfResult.text;
+          ocrProvider = 'pdf-parse';
+        } else {
+          // PDF appears to be scanned or has minimal text, use Tesseract OCR directly
+          console.log('PDF has minimal embedded text, using Tesseract OCR');
+          const tesseractResult = await tesseractOCRService.extractTextFromPDF(buffer);
+          
+          if (tesseractResult.error) {
+            console.error('Tesseract OCR failed:', tesseractResult.error);
+            await Statement.findByIdAndUpdate(statementId, {
+              status: 'failed',
+              processingErrors: ['OCR processing failed', tesseractResult.error],
+            });
+            return;
           }
+          
+          extractedText = tesseractResult.text;
+          ocrProvider = tesseractResult.provider;
+          confidence = tesseractResult.confidence;
         }
       } catch (error) {
-        console.error('PDF processing error, will use Tesseract OCR:', error);
-        useTesseractFallback = true;
-      }
-      
-      // Use Tesseract OCR for scanned PDFs
-      if (useTesseractFallback) {
-        console.log('Using Tesseract OCR for PDF processing...');
+        console.error('PDF processing error, using Tesseract OCR:', error);
         const tesseractResult = await tesseractOCRService.extractTextFromPDF(buffer);
         
         if (tesseractResult.error) {
@@ -214,39 +226,26 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
         confidence = tesseractResult.confidence;
       }
     } else {
-      // Process images with OCR
-      // First try Google Vision if available
-      const ocrResult = await ocrService.extractTextFromImage(buffer, mimeType);
+      // Process images with Tesseract OCR
+      console.log('Processing image with Tesseract OCR...');
+      const tesseractResult = await tesseractOCRService.extractTextFromImage(buffer, mimeType);
       
-      // If Google Vision is not available or fails, use Tesseract
-      if (!ocrResult.text || ocrResult.error) {
-        console.log('Google Vision not available or failed, using Tesseract OCR for image...');
-        const tesseractResult = await tesseractOCRService.extractTextFromImage(buffer, mimeType);
-        
-        if (tesseractResult.error) {
-          console.error('Tesseract OCR failed:', tesseractResult.error);
-          await Statement.findByIdAndUpdate(statementId, {
-            status: 'failed',
-            processingErrors: ['OCR processing failed', tesseractResult.error],
-          });
-          return;
-        }
-        
-        extractedText = tesseractResult.text;
-        ocrProvider = tesseractResult.provider;
-        confidence = tesseractResult.confidence;
-      } else {
-        extractedText = ocrResult.text;
-        ocrProvider = ocrResult.provider;
-        confidence = ocrResult.confidence;
+      if (tesseractResult.error) {
+        console.error('Tesseract OCR failed:', tesseractResult.error);
+        await Statement.findByIdAndUpdate(statementId, {
+          status: 'failed',
+          processingErrors: ['OCR processing failed', tesseractResult.error],
+        });
+        return;
       }
+      
+      extractedText = tesseractResult.text;
+      ocrProvider = tesseractResult.provider;
+      confidence = tesseractResult.confidence;
     }
 
-    // Parse bank statement data
-    // Use the appropriate parser based on which OCR service was used
-    const statementData = ocrProvider === 'tesseract' 
-      ? tesseractOCRService.parseBankStatement(extractedText)
-      : ocrService.parseBankStatement(extractedText);
+    // Parse bank statement data using Tesseract's parser
+    const statementData = tesseractOCRService.parseBankStatement(extractedText);
 
     // Update statement with extracted data
     await Statement.findByIdAndUpdate(statementId, {
@@ -277,32 +276,71 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
   }
 }
 
-// Fallback PDF text extraction using pdfjs-dist legacy build for Node.js
+// Fallback PDF text extraction using pdfjs-dist
 async function extractTextFromPdfWithPdfJs(buffer: Buffer): Promise<string> {
-  // Use legacy build to avoid DOM dependencies like DOMMatrix in Node
-  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  
-  // Disable worker to avoid module loading issues in production
-  pdfjs.GlobalWorkerOptions.workerSrc = false;
-  
-  // Convert Buffer to Uint8Array for pdfjs-dist
-  const uint8Array = new Uint8Array(buffer);
-  const loadingTask = pdfjs.getDocument({ 
-    data: uint8Array, 
-    disableWorker: true,
-    useSystemFonts: true,
-    standardFontDataUrl: undefined
-  });
-  const pdf = await loadingTask.promise;
-  let combinedText = '';
-  const maxPages = Math.min(pdf.numPages || 1, 20);
-  for (let i = 1; i <= maxPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = (textContent.items || []).map((it: any) => it.str).join(' ');
-    combinedText += `\n${pageText}`;
+  try {
+    // For now, we'll skip pdfjs-dist due to worker issues and rely on pdf-parse and Tesseract
+    // This function will just return empty string to trigger Tesseract OCR
+    console.log('Skipping pdfjs-dist due to worker configuration issues, will use Tesseract OCR');
+    return '';
+    
+    /* Original pdfjs-dist code commented out due to workerSrc issues
+    // Use legacy build for Node.js environment to avoid DOM dependencies
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    
+    // Convert Buffer to Uint8Array for pdfjs-dist
+    const uint8Array = new Uint8Array(buffer);
+    
+    // Load the PDF document with proper options for Node.js
+    const loadingTask = pdfjsLib.getDocument({
+      data: uint8Array,
+      // Disable worker completely for Node.js environment
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+      disableAutoFetch: true,
+      disableStream: true,
+      disableFontFace: true,
+    });
+    
+    const pdf = await loadingTask.promise;
+    let combinedText = '';
+    const maxPages = Math.min(pdf.numPages || 1, 20);
+    
+    for (let i = 1; i <= maxPages; i++) {
+      try {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => {
+            // Handle both TextItem and TextMarkedContent types
+            if ('str' in item) {
+              return item.str;
+            }
+            return '';
+          })
+          .filter((text: string) => text.length > 0)
+          .join(' ');
+        
+        if (pageText) {
+          combinedText += `\n${pageText}`;
+        }
+      } catch (pageError) {
+        console.warn(`Failed to extract text from page ${i}:`, pageError);
+        // Continue with other pages even if one fails
+      }
+    }
+    
+    // Clean up the document
+    await loadingTask.destroy();
+    
+    return combinedText.trim();
+    */
+  } catch (error) {
+    console.error('PDF.js text extraction failed:', error);
+    // Return empty string to trigger Tesseract OCR fallback
+    return '';
   }
-  return combinedText.trim();
 }
 
 // Helper function to create transactions from OCR data with deduplication

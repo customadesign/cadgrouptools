@@ -1,8 +1,9 @@
 import { Statement } from '@/models/Statement';
 import { Transaction } from '@/models/Transaction';
 import { Types } from 'mongoose';
-// Use server-optimized OCR service for production environments
-import { ocrService, ExtractedTransaction } from '@/lib/ocr-server';
+// Use Tesseract OCR service
+import { tesseractOCRService } from '@/lib/ocr-tesseract';
+import type { ExtractedTransaction } from '@/lib/ocr-tesseract';
 
 // Shared OCR processor used by upload and retry endpoints
 export async function processStatementOCR(statementId: string, buffer: Buffer, mimeType: string) {
@@ -39,16 +40,15 @@ export async function processStatementOCR(statementId: string, buffer: Buffer, m
         }
       }
     } else {
-      // Images: try Google Vision (server-side OCR)
-      const ocrResult = await ocrService.extractTextFromImage(buffer, mimeType);
+      // Images: use Tesseract OCR
+      const ocrResult = await tesseractOCRService.extractTextFromImage(buffer, mimeType);
       
-      // Check if OCR failed due to no service available
-      if (ocrResult.error && ocrResult.provider === 'none') {
+      // Check if OCR failed
+      if (ocrResult.error) {
         await Statement.findByIdAndUpdate(statementId, {
           status: 'failed',
           processingErrors: [
-            'OCR service not available for images',
-            'Please configure Google Vision API or upload PDF files with embedded text',
+            'OCR processing failed',
             ocrResult.error
           ],
         });
@@ -56,12 +56,12 @@ export async function processStatementOCR(statementId: string, buffer: Buffer, m
       }
       
       extractedText = ocrResult.text;
-      ocrProvider = (ocrResult.provider as any);
+      ocrProvider = 'tesseract';
       confidence = ocrResult.confidence;
     }
 
     // Parse bank statement text
-    const statementData = ocrService.parseBankStatement(extractedText);
+    const statementData = tesseractOCRService.parseBankStatement(extractedText);
 
     // Update statement
     await Statement.findByIdAndUpdate(statementId, {

@@ -13,18 +13,34 @@ class ActivityWebSocketService {
     }
 
     // Initialize socket connection
-    this.socket = io(process.env.NEXT_PUBLIC_WEBSOCKET_URL || '', {
+    // In production, use the same origin. In development, use localhost
+    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 
+                  (typeof window !== 'undefined' ? window.location.origin : '');
+    
+    this.socket = io(wsUrl, {
       transports: ['websocket', 'polling'],
       query: { userId },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: this.reconnectDelay,
+      // Additional options for production
+      ...(process.env.NODE_ENV === 'production' && {
+        path: '/socket.io/',
+        secure: true,
+        rejectUnauthorized: false
+      })
     });
 
     // Set up event listeners
     this.socket.on('connect', () => {
       console.log('Connected to activity websocket');
       this.reconnectAttempts = 0;
+      
+      // Send authentication event if userId is provided
+      if (userId) {
+        this.socket?.emit('authenticate', { userId });
+      }
+      
       this.emit('connected', { userId });
     });
 

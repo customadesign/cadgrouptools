@@ -6,6 +6,9 @@ services:
     buildCommand: apt-get update && apt-get install -y imagemagick && npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health/push
+    # Enable WebSocket support (required for Socket.io)
+    features:
+      - websockets
     envVars:
       - key: NODE_ENV
         value: production
@@ -50,17 +53,22 @@ services:
       - key: NOTIFICATION_RATE_LIMIT_WINDOW_MS
         value: "900000" # Rate limit window (15 minutes)
       
+      # WebSocket Configuration
+      - key: NEXT_PUBLIC_WEBSOCKET_URL
+        sync: false # Set to your Render URL (e.g., https://cadgrouptools.onrender.com)
+      - key: WEBSOCKET_ENABLED
+        value: "true"
+      - key: WEBSOCKET_PING_INTERVAL
+        value: "25000" # Ping interval in milliseconds
+      - key: WEBSOCKET_PING_TIMEOUT
+        value: "60000" # Ping timeout in milliseconds
+      - key: HOSTNAME
+        value: "0.0.0.0" # Bind to all interfaces for Render
+      
       # Optional Services
       - key: SEMRUSH_API_KEY
         sync: false # Optional
-      - key: GOOGLE_API_KEY
-        sync: false # Optional
-      
-      # Google Cloud Vision OCR
-      - key: GOOGLE_PROJECT_ID
-        sync: false # Set in dashboard
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        sync: false # Path to service account JSON
+      # OCR is now handled by Tesseract.js (no API keys required)
       
       # Supabase Storage Configuration (Primary storage solution)
       - key: SUPABASE_URL

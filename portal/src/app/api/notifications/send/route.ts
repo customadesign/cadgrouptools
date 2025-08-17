@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pushNotificationService from '@/services/pushNotificationService';
+import { emitNotification, isWebSocketAvailable } from '@/lib/websocket';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send notification
+    // Send notification via push service
     const result = await pushNotificationService.sendCustomNotification(
       targetUsers,
       title,
@@ -43,9 +44,23 @@ export async function POST(request: NextRequest) {
       session.user.id
     );
 
+    // Also emit via WebSocket for real-time delivery if available
+    if (isWebSocketAvailable()) {
+      targetUsers.forEach((userId: string) => {
+        emitNotification(userId, {
+          title,
+          body: notificationBody,
+          data,
+          timestamp: new Date().toISOString(),
+          from: session.user.id,
+        });
+      });
+    }
+
     return NextResponse.json({
       success: true,
       ...result,
+      websocketDelivered: isWebSocketAvailable(),
     });
   } catch (error) {
     console.error('Error sending notification:', error);

@@ -240,25 +240,6 @@ export default function BankStatementUploadPage() {
     setTimeout(checkStatus, 2000);
   };
 
-  const handleDeleteStatement = async (statementId: string) => {
-    try {
-      const response = await fetch(`/api/statements/${statementId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setRecentUploads(recentUploads.filter(u => u._id !== statementId && u.id !== statementId));
-        message.success('Statement deleted successfully');
-      } else {
-        message.error(data.error || 'Failed to delete statement');
-      }
-    } catch (error) {
-      console.error('Error deleting statement:', error);
-      message.error('Failed to delete statement');
-    }
-  };
 
   const handleViewStatement = async (statement: StatementUpload) => {
     try {
@@ -552,21 +533,36 @@ export default function BankStatementUploadPage() {
               onClick={() => {
                 Modal.confirm({
                   title: 'Delete Upload',
-                  content: 'Are you sure you want to delete this upload? This will also delete all associated transactions.',
+                  content: 'Are you sure you want to delete this upload? This will also delete the file from storage and all associated transactions.',
                   okText: 'Delete',
                   okType: 'danger',
                   onOk: async () => {
                     try {
                       const id = (record as any)._id || record.id;
-                      const res = await fetch(`/api/statements/${id}`, { method: 'DELETE' });
+                      console.log(`Deleting statement with ID: ${id}`);
+                      
+                      const res = await fetch(`/api/statements/${id}`, { 
+                        method: 'DELETE',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                      });
+                      
                       const data = await res.json();
-                      if (res.ok) {
-                        message.success('Statement deleted successfully');
-                        setRecentUploads(prev => prev.filter(u => (u as any)._id !== id && u.id !== id));
+                      
+                      if (res.ok && data.success) {
+                        message.success(`Statement deleted successfully. ${data.deletedTransactions || 0} transactions removed.`);
+                        // Update the UI by removing the deleted statement
+                        setRecentUploads(prev => prev.filter(u => {
+                          const uploadId = (u as any)._id || u.id;
+                          return uploadId !== id;
+                        }));
                       } else {
-                        message.error(data.error || 'Failed to delete statement');
+                        console.error('Delete failed:', data);
+                        message.error(data.error || data.details || 'Failed to delete statement');
                       }
                     } catch (e: any) {
+                      console.error('Delete error:', e);
                       message.error(e.message || 'Failed to delete statement');
                     }
                   },

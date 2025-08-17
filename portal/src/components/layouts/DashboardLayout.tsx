@@ -38,6 +38,7 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 
 const { Header, Sider, Content } = Layout;
 
@@ -363,14 +364,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
                 size={isMobile ? 'small' : 'default'}
               />
               
-              <Badge count={5} size="small">
-                <Button
-                  type="text"
-                  shape="circle"
-                  icon={<BellOutlined style={{ fontSize: isMobile ? 16 : 18 }} />}
-                  style={{ width: isMobile ? 36 : 40, height: isMobile ? 36 : 40 }}
-                />
-              </Badge>
+              <NotificationDropdown isMobile={isMobile} />
 
               <Dropdown 
                 menu={{ items: userMenuItems }} 

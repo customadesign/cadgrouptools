@@ -3,6 +3,9 @@ import { connectToDatabase } from '@/lib/db';
 import { Proposal } from '@/models/Proposal';
 import { Client } from '@/models/Client';
 import { requireAuth } from '@/lib/auth';
+import { notificationService } from '@/services/notificationService';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 
 // GET /api/proposals - List all proposals
 export const GET = requireAuth(async (request: NextRequest) => {
@@ -121,6 +124,20 @@ export const POST = requireAuth(async (request: NextRequest) => {
 
     // Populate client data before returning
     await proposal.populate('client', 'organization website industry');
+
+    // Send real-time notification about proposal creation
+    try {
+      const session = await getServerSession(authOptions);
+      await notificationService.notifyProposalCreation({
+        proposalId: proposal._id.toString(),
+        clientName: client.organization,
+        createdBy: session?.user?.id || 'system',
+        createdByName: session?.user?.name,
+        services: selectedServices,
+      });
+    } catch (notificationError) {
+      console.error('Failed to send notification for proposal creation:', notificationError);
+    }
 
     return NextResponse.json({ proposal }, { status: 201 });
   } catch (error) {

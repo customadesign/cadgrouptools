@@ -1,10 +1,9 @@
-import vision from '@google-cloud/vision';
 import Tesseract from 'tesseract.js';
 
 interface OCRResult {
   text: string;
   confidence?: number;
-  provider: 'google-vision' | 'tesseract';
+  provider: 'tesseract';
   error?: string;
 }
 
@@ -28,65 +27,12 @@ interface BankStatementData {
 }
 
 class OCRService {
-  private googleVisionClient: vision.ImageAnnotatorClient | null = null;
-
   constructor() {
-    // Initialize Google Vision client if credentials are available
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_PROJECT_ID) {
-      try {
-        this.googleVisionClient = new vision.ImageAnnotatorClient({
-          projectId: process.env.GOOGLE_PROJECT_ID,
-          keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-        });
-      } catch (error) {
-        console.warn('Google Vision client initialization failed, will use Tesseract as fallback:', error);
-      }
-    }
+    console.log('OCR Service initialized with Tesseract.js');
   }
 
   async extractTextFromImage(imageBuffer: Buffer, mimeType: string): Promise<OCRResult> {
-    // Try Google Vision first if available
-    if (this.googleVisionClient) {
-      try {
-        const result = await this.extractWithGoogleVision(imageBuffer);
-        return result;
-      } catch (error) {
-        console.error('Google Vision OCR failed, falling back to Tesseract:', error);
-      }
-    }
-
-    // Fallback to Tesseract
     return await this.extractWithTesseract(imageBuffer, mimeType);
-  }
-
-  private async extractWithGoogleVision(imageBuffer: Buffer): Promise<OCRResult> {
-    if (!this.googleVisionClient) {
-      throw new Error('Google Vision client not initialized');
-    }
-
-    try {
-      const [result] = await this.googleVisionClient.documentTextDetection({
-        image: {
-          content: imageBuffer.toString('base64'),
-        },
-      });
-
-      const fullText = result.fullTextAnnotation?.text || '';
-      
-      // Calculate confidence from Google Vision response
-      let confidence = 0;
-      if (result.fullTextAnnotation?.pages?.[0]?.confidence) {
-        confidence = result.fullTextAnnotation.pages[0].confidence;
-      }
-
-      return {
-        text: fullText,
-        confidence,
-        provider: 'google-vision',
-      };
-    } catch (error: any) {
-      throw new Error(`Google Vision OCR failed: ${error.message}`);
-    }
   }
 
   private async extractWithTesseract(imageBuffer: Buffer, mimeType: string): Promise<OCRResult> {
@@ -113,7 +59,11 @@ class OCRService {
         provider: 'tesseract',
       };
     } catch (error: any) {
-      throw new Error(`Tesseract OCR failed: ${error.message}`);
+      return {
+        text: '',
+        provider: 'tesseract',
+        error: `Tesseract OCR failed: ${error.message}`,
+      };
     }
   }
 
@@ -127,7 +77,7 @@ class OCRService {
     let openingBalance: number | undefined;
     let closingBalance: number | undefined;
 
-    // Common bank name patterns
+    // Enhanced bank name patterns
     const bankPatterns = [
       /chase/i,
       /bank of america/i,
@@ -137,6 +87,18 @@ class OCRService {
       /pnc/i,
       /td bank/i,
       /us bank/i,
+      /jpmorgan/i,
+      /truist/i,
+      /fifth third/i,
+      /huntington/i,
+      /regions bank/i,
+      /keybank/i,
+      /citizens bank/i,
+      /m&t bank/i,
+      /ally bank/i,
+      /discover bank/i,
+      /synchrony/i,
+      /american express/i,
     ];
 
     // Parse each line

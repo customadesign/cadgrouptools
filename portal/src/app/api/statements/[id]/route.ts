@@ -207,28 +207,71 @@ export async function DELETE(
       // Delete from Supabase storage if it's stored there
       if (fileDoc.storageProvider === 'supabase' && fileDoc.path && supabaseAdmin) {
         try {
-          console.log(`Attempting to delete file from Supabase: ${fileDoc.path}`);
+          console.log(`[DELETE] Attempting to delete file from Supabase:`);
+          console.log(`  - Bucket: ${STORAGE_BUCKET}`);
+          console.log(`  - Path: ${fileDoc.path}`);
+          console.log(`  - Original Name: ${fileDoc.originalName}`);
           
-          const { error: deleteError } = await supabaseAdmin
+          // First, check if the file exists
+          const { data: downloadCheck, error: checkError } = await supabaseAdmin
             .storage
             .from(STORAGE_BUCKET)
-            .remove([fileDoc.path]);
+            .download(fileDoc.path);
           
-          if (deleteError) {
-            console.error('Supabase file deletion error:', deleteError);
-            // Continue with deletion even if Supabase deletion fails
-            // This prevents orphaned database records
+          if (checkError) {
+            console.log(`[DELETE] File not found in Supabase (may already be deleted): ${checkError.message}`);
           } else {
-            console.log(`Successfully deleted file from Supabase: ${fileDoc.path}`);
+            console.log(`[DELETE] File exists in Supabase, proceeding with deletion...`);
+            
+            // Delete the file
+            const { data: deleteData, error: deleteError } = await supabaseAdmin
+              .storage
+              .from(STORAGE_BUCKET)
+              .remove([fileDoc.path]);
+            
+            if (deleteError) {
+              console.error('[DELETE] Supabase file deletion error:', deleteError);
+              console.error('[DELETE] Error details:', {
+                message: deleteError.message,
+                status: (deleteError as any).status,
+                statusCode: (deleteError as any).statusCode,
+              });
+              // Continue with deletion even if Supabase deletion fails
+              // This prevents orphaned database records
+            } else {
+              console.log(`[DELETE] Successfully deleted file from Supabase: ${fileDoc.path}`);
+              
+              // Verify deletion
+              const { data: verifyData, error: verifyError } = await supabaseAdmin
+                .storage
+                .from(STORAGE_BUCKET)
+                .download(fileDoc.path);
+              
+              if (verifyError && verifyError.message.includes('not found')) {
+                console.log('[DELETE] Deletion verified - file no longer exists in Supabase');
+              } else {
+                console.warn('[DELETE] Warning: File may still exist after deletion attempt');
+              }
+            }
           }
-        } catch (supabaseError) {
-          console.error('Error deleting from Supabase storage:', supabaseError);
+        } catch (supabaseError: any) {
+          console.error('[DELETE] Unexpected error deleting from Supabase storage:', supabaseError);
+          console.error('[DELETE] Error stack:', supabaseError.stack);
           // Continue with database deletion
         }
+      } else {
+        console.log('[DELETE] File not stored in Supabase or missing path/admin client');
+        console.log(`[DELETE] Storage provider: ${fileDoc.storageProvider}`);
+        console.log(`[DELETE] Has path: ${!!fileDoc.path}`);
+        console.log(`[DELETE] Has admin client: ${!!supabaseAdmin}`);
       }
       
       // Delete file record from database
+      console.log('[DELETE] Deleting file record from database...');
       await File.findByIdAndDelete(statement.sourceFile._id || statement.sourceFile);
+      console.log('[DELETE] File record deleted from database');
+    } else {
+      console.log('[DELETE] No source file associated with this statement');
     }
 
     // Delete the statement
