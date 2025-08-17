@@ -588,11 +588,40 @@ export default function BankStatementUploadPage() {
                         
                         console.log('[Frontend] Response status:', res.status);
                         console.log('[Frontend] Response ok:', res.ok);
+                        console.log('[Frontend] Response headers:', Object.fromEntries(res.headers.entries()));
+                        
+                        if (!res.ok) {
+                          const errorText = await res.text();
+                          console.error('[Frontend] Error response text:', errorText);
+                          throw new Error(`HTTP ${res.status}: ${errorText}`);
+                        }
                         
                         const data = await res.json();
                         console.log('[Frontend] Delete response:', data);
                         
-                        if (res.ok && data.success) {
+                        if (data.success) {
+                          // Show detailed success information
+                          let successMsg = `Statement deleted successfully!\n\n`;
+                          successMsg += `Transactions removed: ${data.deletedTransactions || 0}\n`;
+                          successMsg += `File status: ${data.fileDeleteStatus || 'unknown'}\n`;
+                          
+                          if (data.storageDeleteResult) {
+                            successMsg += `Storage: ${data.storageDeleteResult.success ? 'Success' : 'Failed'}\n`;
+                            if (data.storageDeleteResult.error) {
+                              successMsg += `Error: ${data.storageDeleteResult.error}\n`;
+                            }
+                          }
+                          
+                          if (data.debugInfo) {
+                            successMsg += `\nDebug Info:\n`;
+                            successMsg += `Total time: ${data.debugInfo.totalTime}ms\n`;
+                            successMsg += `Steps: ${data.debugInfo.steps}\n`;
+                            successMsg += `Supabase bucket: ${data.debugInfo.supabaseBucket}\n`;
+                            successMsg += `Has Supabase client: ${data.debugInfo.hasSupabaseClient}\n`;
+                          }
+                          
+                          alert(successMsg);
+                          
                           message.success({ 
                             content: 'Statement deleted successfully!', 
                             key: `delete-${id}`,
@@ -604,9 +633,18 @@ export default function BankStatementUploadPage() {
                             const uploadId = u._id || u.id;
                             return uploadId !== id;
                           }));
+                          
+                          // Log all debug information
+                          console.log('[Frontend] Full delete response:', data);
+                          console.log('[Frontend] Debug log:', data.debugLog);
+                          
                         } else {
+                          const errorMsg = `Delete failed: ${data.error || 'Unknown error'}`;
+                          console.error('[Frontend] Delete failed:', data);
+                          alert(errorMsg);
+                          
                           message.error({ 
-                            content: `Delete failed: ${data.error || 'Unknown error'}`, 
+                            content: errorMsg, 
                             key: `delete-${id}`,
                             duration: 5 
                           });
