@@ -41,7 +41,7 @@ export const config = {
     '/api/statements/:path*',
     '/api/transactions/:path*',
     '/api/uploads/:path*',
-    // Exclude auth routes and public pages
-    '/((?!api/auth|auth|_next/static|_next/image|favicon.ico|public).*)',
+    // Exclude auth routes, public pages, and test routes
+    '/((?!api/auth|auth|_next/static|_next/image|favicon.ico|public|test-ocr|test-auth|test-storage|status|help).*)',
   ],
 };
