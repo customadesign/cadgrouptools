@@ -1,0 +1,86 @@
+/* Styles for accounting upload page */
+
+/* Row styling for files missing from storage */
+.file-missing-row {
+  background-color: rgba(255, 77, 79, 0.05) !important;
+  position: relative;
+}
+
+.file-missing-row:hover {
+  background-color: rgba(255, 77, 79, 0.08) !important;
+}
+
+.file-missing-row td {
+  position: relative;
+}
+
+/* Add a subtle left border to indicate problematic rows */
+.file-missing-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #ff4d4f;
+}
+
+/* Disabled download button styling */
+.ant-btn[disabled] .anticon-download {
+  color: #d9d9d9 !important;
+}
+
+/* File verification badge animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.file-verifying {
+  animation: pulse 1.5s infinite;
+}
+
+/* Status indicator positioning */
+.file-status-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+/* Alert banner improvements */
+.ant-alert-with-description {
+  margin-bottom: 24px;
+}
+
+.ant-alert-warning {
+  border-left: 4px solid #faad14;
+}
+
+/* Cleanup button hover effect */
+.cleanup-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Table header styling for file status column */
+.ant-table-thead > tr > th {
+  font-weight: 600;
+}
+
+/* Orphaned file count badge */
+.orphaned-count-badge {
+  background-color: #ff4d4f;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-left: 8px;
+}

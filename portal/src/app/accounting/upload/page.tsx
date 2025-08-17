@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, useRef } from 'react';
+import '@/styles/accounting-upload.css';
 import {
   Card,
   Upload,
@@ -78,6 +79,10 @@ interface StatementUpload {
   transactionsImported?: number;
   errors?: string[];
   processingTime?: number;
+  fileExists?: boolean; // Track if file exists in storage
+  fileVerified?: boolean; // Track if file has been verified
+  storageProvider?: string; // Track storage provider
+  filePath?: string; // File path in storage
 }
 
 export default function BankStatementUploadPage() {
@@ -92,12 +97,120 @@ export default function BankStatementUploadPage() {
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [accounts, setAccounts] = useState<Array<{ _id: string; name: string; bankName: string }>>([]);
+  const [verifyingFiles, setVerifyingFiles] = useState(false);
+  const [orphanedFiles, setOrphanedFiles] = useState<string[]>([]);
+  const [cleanupModalVisible, setCleanupModalVisible] = useState(false);
 
   // Fetch statements and accounts from API on component mount
   React.useEffect(() => {
-    fetchStatements();
+    fetchStatements().then(() => {
+      // Auto-verify files after loading
+      setTimeout(() => {
+        if (recentUploads.length > 0) {
+          verifyFileExistence();
+        }
+      }, 500);
+    });
     fetchAccounts();
   }, []);
+  
+  // Auto-verify when recentUploads changes (but not on initial empty state)
+  React.useEffect(() => {
+    if (recentUploads.length > 0 && recentUploads.some(u => !u.fileVerified)) {
+      verifyFileExistence();
+    }
+  }, [recentUploads.length]);
+
+  // Verify files exist in storage
+  const verifyFileExistence = async () => {
+    if (recentUploads.length === 0) {
+      message.info('No files to verify');
+      return;
+    }
+    
+    setVerifyingFiles(true);
+    
+    try {
+      // Use batch verification for better performance
+      const statementIds = recentUploads.map(u => u._id || u.id);
+      const response = await fetch('/api/files/verify-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statementIds }),
+      });
+      
+      if (response.ok) {
+        const { results, summary } = await response.json();
+        
+        // Create a map for quick lookup
+        const verificationMap = new Map(
+          results.map((r: any) => [r.statementId, r])
+        );
+        
+        // Update uploads with verification results
+        const updatedUploads = recentUploads.map(upload => {
+          const verification = verificationMap.get(upload._id || upload.id);
+          if (verification) {
+            return {
+              ...upload,
+              fileExists: verification.exists,
+              fileVerified: true,
+            };
+          }
+          return upload;
+        });
+        
+        setRecentUploads(updatedUploads);
+        setOrphanedFiles(summary.orphaned || []);
+        
+        if (summary.missing > 0) {
+          message.warning(`Found ${summary.missing} file(s) missing from storage`);
+        } else {
+          message.success(`All ${summary.total} files verified successfully`);
+        }
+      } else {
+        throw new Error('Verification failed');
+      }
+    } catch (error) {
+      console.error('Failed to verify files:', error);
+      message.error('Failed to verify files');
+    } finally {
+      setVerifyingFiles(false);
+    }
+  };
+
+  // Clean up orphaned records
+  const handleCleanupOrphaned = async () => {
+    if (orphanedFiles.length === 0) {
+      message.info('No orphaned files to clean up');
+      return;
+    }
+    
+    setCleanupModalVisible(true);
+  };
+
+  const confirmCleanup = async () => {
+    try {
+      const response = await fetch('/api/statements', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: orphanedFiles }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        message.success(`Cleaned up ${result.deletedCount} orphaned records`);
+        setRecentUploads(prev => prev.filter(u => !orphanedFiles.includes(u._id || u.id)));
+        setOrphanedFiles([]);
+        setCleanupModalVisible(false);
+      } else {
+        throw new Error('Failed to cleanup orphaned records');
+      }
+    } catch (error) {
+      console.error('Cleanup error:', error);
+      message.error('Failed to cleanup orphaned records');
+    }
+  };
 
   const fetchStatements = async () => {
     try {
@@ -126,6 +239,10 @@ export default function BankStatementUploadPage() {
           transactionsImported: statement.transactionsImported,
           processingTime: statement.processingTime,
           errors: statement.processingErrors,
+          storageProvider: statement.sourceFile?.storageProvider,
+          filePath: statement.sourceFile?.path,
+          fileExists: undefined, // Will be verified separately
+          fileVerified: false,
         }));
         
         setRecentUploads(transformedData);
@@ -427,12 +544,42 @@ export default function BankStatementUploadPage() {
       title: 'File Name',
       dataIndex: 'fileName',
       key: 'fileName',
-      render: (fileName: string, record: StatementUpload) => (
-        <Space>
-          {fileName.endsWith('.pdf') ? <FilePdfOutlined /> : <FileImageOutlined />}
-          <Text>{fileName}</Text>
-        </Space>
-      ),
+      render: (fileName: string, record: StatementUpload) => {
+        const isMissing = record.fileVerified && !record.fileExists;
+        const isUnverified = !record.fileVerified;
+        
+        return (
+          <Space>
+            {fileName.endsWith('.pdf') ? (
+              <FilePdfOutlined style={{ color: isMissing ? '#ff4d4f' : undefined }} />
+            ) : (
+              <FileImageOutlined style={{ color: isMissing ? '#ff4d4f' : undefined }} />
+            )}
+            <Text style={{ 
+              color: isMissing ? '#ff4d4f' : undefined,
+              textDecoration: isMissing ? 'line-through' : undefined
+            }}>
+              {fileName}
+            </Text>
+            {isMissing && (
+              <Tooltip title="File not found in storage">
+                <Badge status="error" />
+                <WarningOutlined style={{ color: '#ff4d4f', marginLeft: 4 }} />
+              </Tooltip>
+            )}
+            {isUnverified && (
+              <Tooltip title="File not yet verified">
+                <QuestionCircleOutlined style={{ color: '#faad14', marginLeft: 4 }} />
+              </Tooltip>
+            )}
+            {record.fileVerified && record.fileExists && (
+              <Tooltip title="File verified and available">
+                <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 4 }} />
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: 'Account',
@@ -459,11 +606,22 @@ export default function BankStatementUploadPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag icon={getStatusIcon(status)} color={getStatusColor(status)}>
-          {status.toUpperCase()}
-        </Tag>
-      ),
+      render: (status: string, record: StatementUpload) => {
+        const isMissing = record.fileVerified && !record.fileExists;
+        
+        return (
+          <Space>
+            <Tag icon={getStatusIcon(status)} color={getStatusColor(status)}>
+              {status.toUpperCase()}
+            </Tag>
+            {isMissing && (
+              <Tag icon={<WarningOutlined />} color="error">
+                FILE MISSING
+              </Tag>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: 'Transactions',
@@ -499,13 +657,48 @@ export default function BankStatementUploadPage() {
             />
           </Tooltip>
           {record.status === 'completed' && (
-            <Tooltip title="View Transactions">
-              <Button
-                type="text"
-                icon={<DollarOutlined />}
-                onClick={() => router.push(`/accounting/transactions?statement=${record._id || record.id}`)}
-              />
-            </Tooltip>
+            <>
+              <Tooltip title="View Transactions">
+                <Button
+                  type="text"
+                  icon={<DollarOutlined />}
+                  onClick={() => router.push(`/accounting/transactions?statement=${record._id || record.id}`)}
+                />
+              </Tooltip>
+              <Tooltip title={record.fileExists === false ? "File missing - Download unavailable" : "Download Statement"}>
+                <Button
+                  type="text"
+                  icon={<DownloadOutlined />}
+                  disabled={record.fileExists === false}
+                  onClick={async () => {
+                    if (record.fileExists === false) {
+                      message.error('Cannot download: File is missing from storage');
+                      return;
+                    }
+                    
+                    try {
+                      // Implement download logic here
+                      const response = await fetch(`/api/files/download/${record._id || record.id}`);
+                      if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = record.fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                      } else {
+                        throw new Error('Download failed');
+                      }
+                    } catch (error) {
+                      message.error('Failed to download file');
+                    }
+                  }}
+                />
+              </Tooltip>
+            </>
           )}
           {record.status === 'failed' && (
             <Tooltip title="Retry">
@@ -650,7 +843,7 @@ export default function BankStatementUploadPage() {
 
       {/* Upload Statistics */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="Statements Processed"
@@ -660,18 +853,32 @@ export default function BankStatementUploadPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="Total Transactions"
-              value={recentUploads
-                .filter(u => u.status === 'completed')
-                .reduce((sum, u) => sum + (u.transactionsImported || 0), 0)}
-              prefix={<DollarOutlined />}
+              title="Files Available"
+              value={recentUploads.filter(u => u.fileExists === true).length}
+              prefix={<CheckCircleOutlined />}
+              suffix={`/ ${recentUploads.filter(u => u.fileVerified).length}`}
+              valueStyle={{ 
+                color: orphanedFiles.length > 0 ? '#fa8c16' : '#52c41a'
+              }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Missing Files"
+              value={orphanedFiles.length}
+              prefix={<WarningOutlined />}
+              valueStyle={{ 
+                color: orphanedFiles.length > 0 ? '#ff4d4f' : '#52c41a'
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="Success Rate"
@@ -691,6 +898,34 @@ export default function BankStatementUploadPage() {
           </Card>
         </Col>
       </Row>
+      
+      {/* File Status Alert */}
+      {orphanedFiles.length > 0 && (
+        <Alert
+          message="File Storage Issues Detected"
+          description={
+            <div>
+              <p>{orphanedFiles.length} statement file(s) are missing from storage and cannot be downloaded.</p>
+              <p style={{ marginTop: 8 }}>
+                You can clean up these orphaned records using the "Clean Up" button in the Recent Uploads section below.
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          style={{ marginBottom: 24 }}
+          action={
+            <Button 
+              size="small" 
+              danger
+              onClick={handleCleanupOrphaned}
+            >
+              Clean Up Now
+            </Button>
+          }
+        />
+      )}
 
       {/* Upload Area */}
       <Card
@@ -772,6 +1007,22 @@ export default function BankStatementUploadPage() {
         title="Recent Uploads"
         extra={
           <Space>
+            <Button
+              icon={<SafetyOutlined />}
+              onClick={verifyFileExistence}
+              loading={verifyingFiles}
+            >
+              Verify Files
+            </Button>
+            {orphanedFiles.length > 0 && (
+              <Button
+                icon={<DeleteOutlined />}
+                danger
+                onClick={handleCleanupOrphaned}
+              >
+                Clean Up ({orphanedFiles.length})
+              </Button>
+            )}
             <Select 
               defaultValue="all" 
               style={{ width: 120 }}
@@ -812,6 +1063,12 @@ export default function BankStatementUploadPage() {
             dataSource={recentUploads}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            rowClassName={(record) => {
+              if (record.fileVerified && !record.fileExists) {
+                return 'file-missing-row';
+              }
+              return '';
+            }}
           />
         ) : (
           <Empty
@@ -1006,6 +1263,33 @@ export default function BankStatementUploadPage() {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Cleanup Confirmation Modal */}
+      <Modal
+        title="Clean Up Orphaned Records"
+        open={cleanupModalVisible}
+        onOk={confirmCleanup}
+        onCancel={() => setCleanupModalVisible(false)}
+        okText="Clean Up"
+        okType="danger"
+      >
+        <Alert
+          message="Confirm Cleanup"
+          description={
+            <div>
+              <p>You are about to remove {orphanedFiles.length} orphaned record(s) from the database.</p>
+              <p style={{ marginTop: 8 }}>
+                These records reference files that no longer exist in storage and cannot be recovered.
+              </p>
+              <p style={{ marginTop: 8, fontWeight: 'bold' }}>
+                This action cannot be undone.
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+        />
       </Modal>
     </DashboardLayout>
   );

@@ -6,6 +6,7 @@ import { Statement } from '@/models/Statement';
 import { File } from '@/models/File';
 import { Types } from 'mongoose';
 import { withActivityTracking } from '@/middleware/activityTracking';
+import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 
 // GET: Fetch statements with pagination and filtering
 export const GET = withActivityTracking(async (request: NextRequest) => {
@@ -24,6 +25,7 @@ export const GET = withActivityTracking(async (request: NextRequest) => {
     const accountName = searchParams.get('account');
     const year = searchParams.get('year');
     const month = searchParams.get('month');
+    const verifyFiles = searchParams.get('verifyFiles') === 'true';
 
     // Build filter
     const filter: any = {};
@@ -43,6 +45,40 @@ export const GET = withActivityTracking(async (request: NextRequest) => {
       .limit(limit)
       .skip((page - 1) * limit)
       .lean();
+
+    // Optionally verify file existence in Supabase
+    if (verifyFiles && supabaseAdmin) {
+      for (const statement of statements) {
+        if (statement.sourceFile) {
+          const file = statement.sourceFile as any;
+          const filePath = file.path || file.fileName;
+          
+          if (filePath) {
+            // Quick check if file exists
+            const { data, error } = await supabaseAdmin
+              .storage
+              .from(STORAGE_BUCKET)
+              .download(filePath)
+              .then(result => ({ data: result.data, error: result.error }))
+              .catch(err => ({ data: null, error: err }));
+            
+            // Add file verification status to response
+            (statement as any).fileVerified = !error;
+            (statement as any).fileExists = !error;
+            
+            if (error) {
+              console.warn(`File missing for statement ${statement._id}: ${filePath}`);
+            }
+          } else {
+            (statement as any).fileVerified = false;
+            (statement as any).fileExists = false;
+          }
+        } else {
+          (statement as any).fileVerified = false;
+          (statement as any).fileExists = false;
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
