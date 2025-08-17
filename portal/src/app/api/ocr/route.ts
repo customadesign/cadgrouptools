@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
       
       try {
         // Dynamic import for PDF parsing
-        const pdfParse = require('pdf-parse/lib/pdf-parse');
-        const pdfResult = await pdfParse(buffer);
+        const pdfParse = await import('pdf-parse');
+        const pdfResult = await pdfParse.default(buffer);
         extractedText = pdfResult.text;
         
         // If PDF has no extractable text (scanned PDF), try OCR
