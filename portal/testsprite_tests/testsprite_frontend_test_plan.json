@@ -1,0 +1,395 @@
+[
+  {
+    "id": "TC001",
+    "title": "User Signup and Login via Supabase Auth",
+    "description": "Verify that users can successfully sign up and log in using Supabase Auth with valid credentials, and sessions are correctly maintained.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the signup page"
+      },
+      {
+        "type": "action",
+        "description": "Provide valid email and password"
+      },
+      {
+        "type": "action",
+        "description": "Submit signup form"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm signup success and redirect to dream submission interface"
+      },
+      {
+        "type": "action",
+        "description": "Log out from the session"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to login page"
+      },
+      {
+        "type": "action",
+        "description": "Provide the same valid email and password"
+      },
+      {
+        "type": "action",
+        "description": "Submit login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm login success and session is maintained"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Dream Submission and Interpretation API Success",
+    "description": "Verify that users can submit dream text and receive a valid, schema-compliant interpreted JSON response that renders correctly in the UI.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as a valid user and navigate to dream submission interface"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid dream text in submission form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the dream text"
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the interpretation API returns a valid JSON response including themes, emotional tone, symbols, personal insights, and guidance"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the UI correctly displays all sections of the interpreted dream report"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Dream Submission Interpretation API Error Handling and Retry",
+    "description": "Validate the system's behavior when the interpretation API returns an error or invalid response, including retry mechanisms and user notifications.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Submit a dream text that triggers an interpretation API failure (simulate API error)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system retries the API call the configured number of times"
+      },
+      {
+        "type": "assertion",
+        "description": "Check that after retries, a user-friendly error message is shown"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Free Interpretation Quota Enforcement and Paywall Trigger",
+    "description": "Ensure the server enforces free interpretation quotas and triggers the paywall correctly when the quota is exceeded.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a free user with zero or maxed-out free report usage"
+      },
+      {
+        "type": "action",
+        "description": "Submit a dream text for interpretation"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the system blocks the interpretation with a paywall prompt"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify options to subscribe or purchase credits are displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Credit Purchase and Usage Flow Validation",
+    "description": "Test purchasing interpretation credits via Stripe and verify credits decrement correctly on dream submission.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a user with insufficient free quota"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to credits purchase page"
+      },
+      {
+        "type": "action",
+        "description": "Purchase credits via Stripe checkout"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm Stripe webhook processing updates user credits successfully"
+      },
+      {
+        "type": "action",
+        "description": "Submit a dream interpretation request"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the credits are decremented accordingly and interpretation is served"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Subscription Purchase and Feature Access Control",
+    "description": "Validate multi-tier subscription plans (Basic, Pro) purchases, billing via Stripe, and access to premium features.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a free user"
+      },
+      {
+        "type": "action",
+        "description": "Select and purchase Basic subscription plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Validate Stripe processes payment and webhook confirmation marks user as subscribed"
+      },
+      {
+        "type": "assertion",
+        "description": "Check access to enhanced report depth and PDF export features"
+      },
+      {
+        "type": "action",
+        "description": "Upgrade subscription to Pro plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify additional Pro features such as voice journaling and advanced analytics are enabled"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Dream History and Journaling with User Opt-in and Deletion",
+    "description": "Verify users can enable dream history recording, view past submissions, and delete history data respecting privacy controls.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in and enable dream history opt-in"
+      },
+      {
+        "type": "action",
+        "description": "Submit multiple dream interpretations"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm dream history is saved and accessible in user’s history view"
+      },
+      {
+        "type": "action",
+        "description": "Request deletion of all saved dream history"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all user dream history data is fully deleted from the database"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Multi-language UI Rendering in English and Spanish",
+    "description": "Ensure all user-facing UI and content renders correctly in both English and Spanish with seamless language switching.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Set user language preference to English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all UI text including forms, labels, messages, and buttons display in English"
+      },
+      {
+        "type": "action",
+        "description": "Change language preference to Spanish"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm all UI elements update to Spanish translations appropriately"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Admin Dashboard Access and Role-based Access Control",
+    "description": "Verify that admin users can log in, access the dashboard, view and manage users, payments, dream data, and configure feature flags with proper permissions.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as an admin user"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm access to admin dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to view user metrics, payments, and dream submissions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify accurate data is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Try modifying user roles and feature flags"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm changes are accepted and saved with appropriate audit logging"
+      },
+      {
+        "type": "action",
+        "description": "Log in as a non-admin user and attempt to access admin dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied and proper error is shown"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "PDF Export of Dream Interpretation Reports for Premium Users",
+    "description": "Verify that premium users can export dream interpretation reports as correctly formatted PDFs and free users are restricted.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a free user and submit dream for interpretation"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm PDF export option is not available"
+      },
+      {
+        "type": "action",
+        "description": "Log in as a Pro or Basic subscribed user"
+      },
+      {
+        "type": "action",
+        "description": "Submit dream and open interpretation report"
+      },
+      {
+        "type": "action",
+        "description": "Trigger PDF export"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify PDF file is generated with accurate formatting and complete interpretation content"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Accessibility Compliance WCAG AA Verification",
+    "description": "Ensure the platform meets WCAG AA accessibility standards including keyboard navigability and semantic roles.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate through all main UI flows using only keyboard controls"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify logical tab order and ability to fully operate all features without mouse"
+      },
+      {
+        "type": "action",
+        "description": "Use accessibility tools to inspect semantic element roles and ARIA attributes"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm compliance with WCAG AA requirements"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Event Tracking and Analytics Instrumentation Validation",
+    "description": "Verify that key user actions and system events are correctly tracked and logged for analytics including funnel and retention analysis.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform actions: signup, login, dream submission, subscription purchase"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify corresponding events are sent to analytics backend with correct payload and timestamps"
+      },
+      {
+        "type": "assertion",
+        "description": "Check analytics reports reflect accurate funnel progression and retention metrics"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Security and Privacy Compliance including Data Exposure Prevention",
+    "description": "Validate that no sensitive secrets or user personal data are exposed beyond intended scope, and security mechanisms like rate limiting and abuse detection are active.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to access user data or secrets via unauthorized API calls or UI"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied and no data leak occurs"
+      },
+      {
+        "type": "action",
+        "description": "Simulate high frequency or abusive request patterns"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm rate limiting triggers and abuse detection logs the events"
+      },
+      {
+        "type": "action",
+        "description": "Review logs and storage access to ensure PII is anonymized as per compliance"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no PII exposure beyond privacy scope"
+      }
+    ]
+  }
+]

@@ -1,0 +1,164 @@
+{
+  "meta": {
+    "project": "Day Dream Dictionary",
+    "date": "2025-08-17",
+    "prepared_by": "Software Development Manager"
+  },
+  "product_overview": "Day Dream Dictionary (DDD) is a web-first platform that allows users to submit dreams and receive structured, insightful interpretations featuring themes, emotional tone, symbols, personal insights, and guidance. It aims to blend mystical interpretation with wellness journaling, analytics, and privacy-conscious data management for both free and paying users.",
+  "core_goals": [
+    "Provide accurate and structured dream interpretations with a mystical yet supportive tone to encourage user engagement.",
+    "Build repeat usage habit loops such as journaling, reminders, and timelines to increase user retention.",
+    "Monetize through a hybrid model including freemium features, paid subscriptions, credits, and add-ons while maintaining a privacy-conscious approach.",
+    "Enable admin oversight capabilities for users, payments, dream submissions, and analytics to manage platform health and user support."
+  ],
+  "key_features": [
+    "Dream submission interface with AI-powered structured interpretation including main themes, emotional tone, symbols, personal insight, and guidance.",
+    "Free interpretation quota with server-enforced paywalls and credit-based purchase system.",
+    "Multi-tier subscription plans (Basic, Pro) offering enhanced report depth, analytics, PDF exports, and voice journaling features.",
+    "History and journaling capabilities with user opt-in and data deletion controls for privacy.",
+    "Multi-language support launching with English and Spanish, with extensible internationalization.",
+    "Admin dashboard for user, payments, and dream data management with role-based access control.",
+    "Integration with Stripe for billing, Supabase Auth for authentication, and MongoDB for data storage.",
+    "Secure, compliant handling of user data with opt-in aggregation and anonymization, plus deletion capabilities.",
+    "PDF export of dream interpretation reports for premium users.",
+    "Feature flags and A/B testing capabilities for pricing, quotas, and feature rollouts."
+  ],
+  "user_flow_summary": [
+    "User signs up or logs in via Supabase Auth and lands on the dream submission interface.",
+    "User submits dream text which is sent to the interpretation API that returns structured JSON for display.",
+    "User views interpreted dream report with sections: themes, emotional tone, dream symbols, personal insights, and guidance.",
+    "If free report quota exhausted, user encounters paywall with options to subscribe or purchase credits to continue.",
+    "User can opt to save dream history, view past submissions, and export reports as PDF if subscribed.",
+    "Admin can log into admin dashboard to view user metrics, manage payments and refunds, oversee dream submissions (if permitted), and configure feature flags.",
+    "Billing processes payments through Stripe with subscription and credit management, triggered by backend webhook processing."
+  ],
+  "validation_criteria": [
+    "User authentication and session management works reliably via Supabase Auth.",
+    "Dream interpretation API returns valid, schema-compliant JSON responses consistently with retry on error.",
+    "Server enforces free interpretation quotas and correctly triggers paywalls and credit-based gating.",
+    "Subscription and credit purchases process successfully through Stripe with webhook confirmation and error handling.",
+    "Dream data storage respects user opt-in for history and provides deletion functionality.",
+    "Multi-language support accurately renders UI and content in English and Spanish.",
+    "Admin dashboard provides accurate metrics, user management, and role-based access control.",
+    "PDF export generates correct formatted reports available to authorized premium users.",
+    "Platform meets WCAG AA accessibility standards and supports keyboard and semantic roles.",
+    "Event tracking and analytics instrumentation accurately capture key user and system events for funnel and retention analysis.",
+    "Security and privacy compliance ensured with no exposure of secrets or user data beyond scope, including rate limiting and abuse detection mechanisms."
+  ],
+  "code_summary": {
+    "tech_stack": [
+      "TypeScript",
+      "Next.js 15 (App Router)",
+      "React 19",
+      "Ant Design 5",
+      "MongoDB + Mongoose",
+      "NextAuth",
+      "Supabase Storage",
+      "pdf-parse",
+      "pdfjs-dist (legacy, server no-worker)",
+      "Google Cloud Vision API",
+      "Tesseract.js",
+      "Pino"
+    ],
+    "features": [
+      {
+        "name": "Accounting Upload UI",
+        "description": "Client page to upload bank statements, start OCR, and monitor processing status.",
+        "files": [
+          "src/app/accounting/upload/page.tsx",
+          "src/app/accounting/page.tsx",
+          "src/app/accounting/transactions/page.tsx"
+        ]
+      },
+      {
+        "name": "Statement Upload API",
+        "description": "Receives multipart uploads, stores file in Supabase, creates DB record, and triggers async OCR.",
+        "files": [
+          "src/app/api/statements/upload/route.ts",
+          "src/lib/supabaseAdmin.ts",
+          "src/lib/db.ts"
+        ]
+      },
+      {
+        "name": "Statement Retry OCR API",
+        "description": "Downloads original file and re-runs server OCR pipeline for an existing statement.",
+        "files": [
+          "src/app/api/statements/[id]/retry/route.ts",
+          "src/lib/ocr/processStatement.ts"
+        ]
+      },
+      {
+        "name": "Statements CRUD APIs",
+        "description": "List, get, and modify statements with pagination and filtering.",
+        "files": [
+          "src/app/api/statements/route.ts",
+          "src/app/api/statements/[id]/route.ts"
+        ]
+      },
+      {
+        "name": "Transactions API",
+        "description": "Create and manage transactions parsed from OCR results.",
+        "files": [
+          "src/app/api/transactions/route.ts"
+        ]
+      },
+      {
+        "name": "Server OCR Service",
+        "description": "Server-optimized OCR: Google Vision (API key or service account) with fallbacks; parses bank statement text into structured data.",
+        "files": [
+          "src/lib/ocr-server.ts"
+        ]
+      },
+      {
+        "name": "OCR Fallback (pdfjs-dist)",
+        "description": "PDF text extraction using pdfjs-dist legacy build with disableWorker=true for Node environments.",
+        "files": [
+          "src/app/api/statements/upload/route.ts",
+          "src/lib/ocr/processStatement.ts",
+          "src/types/pdfjs-legacy.d.ts"
+        ]
+      },
+      {
+        "name": "PDF Text Extraction (pdf-parse)",
+        "description": "Primary path for extracting embedded text from PDFs.",
+        "files": [
+          "src/lib/pdf-processor.ts",
+          "src/app/api/ocr/route.ts",
+          "src/app/api/statements/upload/route.ts"
+        ]
+      },
+      {
+        "name": "Supabase Storage Integration",
+        "description": "Server-side upload/download of files to Supabase Storage buckets.",
+        "files": [
+          "src/lib/supabaseAdmin.ts",
+          "src/lib/supabaseClient.ts"
+        ]
+      },
+      {
+        "name": "Database Models",
+        "description": "Mongoose models for statements, files, accounts, and transactions.",
+        "files": [
+          "src/models/Statement.ts",
+          "src/models/File.ts",
+          "src/models/Account.ts",
+          "src/models/Transaction.ts"
+        ]
+      },
+      {
+        "name": "Auth & Session",
+        "description": "NextAuth integration used by API routes (getServerSession).",
+        "files": [
+          "src/lib/auth-config.ts"
+        ]
+      },
+      {
+        "name": "Utilities & Observability",
+        "description": "DB connector and logging (pino).",
+        "files": [
+          "src/lib/db.ts"
+        ]
+      }
+    ]
+  }
+}

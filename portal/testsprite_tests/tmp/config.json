@@ -4,5 +4,15 @@
   "scope": "codebase",
   "localEndpoint": "http://localhost:3000",
   "loginUser": "hpmurphy@icloud.com",
-  "loginPassword": "B5tccpbx"
+  "loginPassword": "B5tccpbx",
+  "executionArgs": {
+    "projectName": "CADGroupTools-Portal",
+    "projectPath": "/Users/harrymurphy/Library/Mobile Documents/com~apple~CloudDocs/Coding Projects/Cadgroupmgt.com Internal Tools/portal",
+    "testIds": [],
+    "additionalInstruction": "Focus flows: login, navigate to Accounting > Upload, upload sample PDF, verify no pdf.worker.mjs error in logs and that statement status transitions from 'uploaded' to 'extracted' or 'needs_review'. If Supabase env is missing, mock storage calls and assert API receives file. Capture console errors if any.",
+    "envs": {
+      "API_KEY": "sk-user-xon_W0HimW_AeIr-BvxJwzKZJMKf59FEDrUFiAJv7XLZbZag2wbnmF9RPV-7_26dcjHX9G9IeotYSfTo0B-hZ52BB-4Knf_tLi-wBiA_t11GBflzLhKMjvV9q7yH7upZqlk"
+    }
+  },
+  "proxy": "http://4bbb0346-2f60-4872-8412-a1ab28a3276e:dB6DcHH8hSfAciARTidw4reroNoaSVEW@tun.testsprite.com:8080"
 }
