@@ -29,55 +29,61 @@ interface BankStatementData {
 /**
  * Server-side OCR Service
  * This version is optimized for server environments like Render
- * It prioritizes Google Vision API and falls back to PDF text extraction
- * Tesseract.js is not used server-side as it requires browser environment
+ * Supports both Google Vision API key and Service Account authentication
+ * Falls back to PDF text extraction when Vision API is not available
  */
 class ServerOCRService {
-  private googleVisionClient: vision.ImageAnnotatorClient | null = null;
+  private googleVisionClient: InstanceType<typeof vision.ImageAnnotatorClient> | null = null;
+  private useApiKey: boolean = false;
+  private apiKey: string | null = null;
 
   constructor() {
-    // Initialize Google Vision client if credentials are available
-    const hasGoogleCreds = process.env.GOOGLE_PROJECT_ID || 
-                           process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-                           process.env.GOOGLE_VISION_API_KEY;
-    
-    if (hasGoogleCreds) {
+    // Check for Google Vision API Key first (simpler authentication method)
+    if (process.env.GOOGLE_VISION_API_KEY) {
+      this.apiKey = process.env.GOOGLE_VISION_API_KEY;
+      this.useApiKey = true;
+      console.log('Google Vision API initialized with API key');
+      console.log('Project ID:', process.env.GOOGLE_PROJECT_ID || 'Not set (will use default)');
+    } 
+    // Otherwise, try Service Account authentication
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       try {
-        // Try different authentication methods
         const authOptions: any = {};
         
         if (process.env.GOOGLE_PROJECT_ID) {
           authOptions.projectId = process.env.GOOGLE_PROJECT_ID;
         }
         
-        if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-          // If it's a path to a file
-          if (process.env.GOOGLE_APPLICATION_CREDENTIALS.startsWith('/') || 
-              process.env.GOOGLE_APPLICATION_CREDENTIALS.startsWith('./')) {
-            authOptions.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-          } else {
-            // If it's JSON content directly
-            try {
-              const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
-              authOptions.credentials = credentials;
-            } catch (e) {
-              console.warn('Could not parse GOOGLE_APPLICATION_CREDENTIALS as JSON');
-            }
+        // Check if it's JSON content (for Render environment variables)
+        if (process.env.GOOGLE_APPLICATION_CREDENTIALS.trim().startsWith('{')) {
+          try {
+            const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+            authOptions.credentials = credentials;
+            console.log('Using service account JSON from environment variable');
+          } catch (e) {
+            console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS as JSON:', e);
+            throw new Error('Invalid service account JSON in GOOGLE_APPLICATION_CREDENTIALS');
           }
-        }
-        
-        if (process.env.GOOGLE_VISION_API_KEY) {
-          authOptions.apiKey = process.env.GOOGLE_VISION_API_KEY;
+        } 
+        // Otherwise treat as file path (for local development)
+        else if (process.env.GOOGLE_APPLICATION_CREDENTIALS.startsWith('/') || 
+                 process.env.GOOGLE_APPLICATION_CREDENTIALS.startsWith('./')) {
+          authOptions.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+          console.log('Using service account key file:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+        } else {
+          throw new Error('GOOGLE_APPLICATION_CREDENTIALS must be either JSON content or a file path');
         }
         
         this.googleVisionClient = new vision.ImageAnnotatorClient(authOptions);
-        console.log('Google Vision client initialized successfully');
+        console.log('Google Vision client initialized with service account');
       } catch (error) {
-        console.warn('Google Vision client initialization failed:', error);
+        console.error('Google Vision service account initialization failed:', error);
         console.log('OCR will fall back to basic text extraction for PDFs only');
       }
     } else {
-      console.log('Google Vision credentials not found. OCR will only work for PDFs with embedded text.');
+      console.log('No Google Vision credentials found.');
+      console.log('Set either GOOGLE_VISION_API_KEY or GOOGLE_APPLICATION_CREDENTIALS');
+      console.log('OCR will only work for PDFs with embedded text.');
     }
   }
 
@@ -92,11 +98,17 @@ class ServerOCRService {
     }
 
     // Try Google Vision for images
-    if (this.googleVisionClient) {
+    if (this.useApiKey && this.apiKey) {
       try {
-        return await this.extractWithGoogleVision(imageBuffer);
+        return await this.extractWithGoogleVisionAPIKey(imageBuffer);
       } catch (error) {
-        console.error('Google Vision OCR failed:', error);
+        console.error('Google Vision API Key OCR failed:', error);
+      }
+    } else if (this.googleVisionClient) {
+      try {
+        return await this.extractWithGoogleVisionServiceAccount(imageBuffer);
+      } catch (error) {
+        console.error('Google Vision Service Account OCR failed:', error);
       }
     }
 
@@ -104,11 +116,87 @@ class ServerOCRService {
     return {
       text: '',
       provider: 'none',
-      error: 'No OCR service available for images. Please configure Google Vision API or upload PDF files with embedded text.'
+      error: 'No OCR service available for images. Please configure Google Vision API (set GOOGLE_VISION_API_KEY or GOOGLE_APPLICATION_CREDENTIALS) or upload PDF files with embedded text.'
     };
   }
 
-  private async extractWithGoogleVision(imageBuffer: Buffer): Promise<OCRResult> {
+  /**
+   * Extract text using Google Vision API Key authentication
+   * This method makes direct REST API calls to Google Vision
+   */
+  private async extractWithGoogleVisionAPIKey(imageBuffer: Buffer): Promise<OCRResult> {
+    if (!this.apiKey) {
+      throw new Error('Google Vision API key not configured');
+    }
+
+    try {
+      const base64Image = imageBuffer.toString('base64');
+      
+      // Construct the API URL
+      const url = `https://vision.googleapis.com/v1/images:annotate?key=${this.apiKey}`;
+      
+      // Prepare the request body
+      const requestBody = {
+        requests: [
+          {
+            image: {
+              content: base64Image
+            },
+            features: [
+              {
+                type: 'DOCUMENT_TEXT_DETECTION',
+                maxResults: 1
+              }
+            ]
+          }
+        ]
+      };
+
+      // Make the API call
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Vision API error: ${errorData.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Extract text from response
+      const fullTextAnnotation = data.responses?.[0]?.fullTextAnnotation;
+      const fullText = fullTextAnnotation?.text || '';
+      
+      // Calculate confidence
+      let confidence = 0;
+      if (fullTextAnnotation?.pages?.[0]?.confidence) {
+        confidence = fullTextAnnotation.pages[0].confidence;
+      }
+
+      if (!fullText || fullText.trim().length === 0) {
+        throw new Error('No text detected in image');
+      }
+
+      return {
+        text: fullText,
+        confidence,
+        provider: 'google-vision',
+      };
+    } catch (error: any) {
+      throw new Error(`Google Vision API Key OCR failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text using Google Vision Service Account authentication
+   * This method uses the Google Cloud client library
+   */
+  private async extractWithGoogleVisionServiceAccount(imageBuffer: Buffer): Promise<OCRResult> {
     if (!this.googleVisionClient) {
       throw new Error('Google Vision client not initialized');
     }
@@ -138,7 +226,7 @@ class ServerOCRService {
         provider: 'google-vision',
       };
     } catch (error: any) {
-      throw new Error(`Google Vision OCR failed: ${error.message}`);
+      throw new Error(`Google Vision Service Account OCR failed: ${error.message}`);
     }
   }
 

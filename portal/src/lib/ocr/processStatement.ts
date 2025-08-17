@@ -97,7 +97,9 @@ export async function processStatementOCR(statementId: string, buffer: Buffer, m
 async function extractTextFromPdfWithPdfJs(buffer: Buffer): Promise<string> {
   // Use legacy build to avoid DOM dependencies like DOMMatrix in Node
   const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const loadingTask = pdfjs.getDocument({ data: buffer });
+  // Convert Buffer to Uint8Array for pdfjs-dist
+  const uint8Array = new Uint8Array(buffer);
+  const loadingTask = pdfjs.getDocument({ data: uint8Array });
   const pdf = await loadingTask.promise;
   let combinedText = '';
   const maxPages = Math.min(pdf.numPages || 1, 20);
