@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       mimeType: file.type,
       size: file.size,
       uploadedBy: new Types.ObjectId(session.user.id),
-      storageProvider: 'supabase',
+      storageProvider: 's3', // Using S3 since it's properly configured
       url: publicUrl,
       bucket: STORAGE_BUCKET,
       path: fileName,

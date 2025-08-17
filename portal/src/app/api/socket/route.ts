@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServer } from 'http';
-import { socketServer } from '@/lib/socketServer';
 
-// This endpoint initializes Socket.io server
-// Note: In production, you might want to initialize this in a custom server setup
+// This endpoint checks Socket.io server status
 export async function GET(request: NextRequest) {
-  // Check if Socket.io is already initialized
-  if (socketServer.getIO()) {
+  // Check if Socket.io is initialized via global
+  const io = (global as any).io;
+  
+  if (io) {
     return NextResponse.json({
       status: 'already_initialized',
       message: 'Socket.io server is already running',
-      onlineUsers: socketServer.getOnlineUsersCount(),
+      // Can't get online users count without the socketServer class
+      // But we know it's running
     });
   }
 
@@ -30,9 +30,8 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'status':
         return NextResponse.json({
-          initialized: !!socketServer.getIO(),
-          onlineUsers: socketServer.getOnlineUsersCount(),
-          onlineUserIds: socketServer.getOnlineUserIds(),
+          initialized: !!(global as any).io,
+          // Can't get detailed user info without socketServer class
         });
 
       case 'broadcast':
@@ -44,8 +43,15 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        socketServer.emitToAll(event, data);
-        return NextResponse.json({ success: true, message: 'Broadcast sent' });
+        if ((global as any).emitToAll) {
+          (global as any).emitToAll(event, data);
+          return NextResponse.json({ success: true, message: 'Broadcast sent' });
+        } else {
+          return NextResponse.json(
+            { error: 'Socket.io not initialized' },
+            { status: 503 }
+          );
+        }
 
       default:
         return NextResponse.json(

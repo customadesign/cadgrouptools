@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import Notification, { INotification } from '@/models/Notification';
 import User from '@/models/User';
 import { connectToDatabase } from '@/lib/db';
-import { socketServer } from '@/lib/socketServer';
+// WebSocket will be handled by global.io when available
 
 export interface NotificationPayload {
   userId?: string | Types.ObjectId;
@@ -36,7 +36,7 @@ class NotificationService {
 
     // Emit real-time notification if user is online
     if (payload.userId) {
-      socketServer.emitToUser(payload.userId.toString(), 'notification:new', {
+      (global as any).emitToUser?.(payload.userId.toString(), 'notification:new', {
         id: notification._id,
         type: notification.type,
         title: notification.title,
@@ -49,7 +49,7 @@ class NotificationService {
 
       // Also emit unread count update
       const unreadCount = await this.getUnreadCount(payload.userId.toString());
-      socketServer.emitToUser(payload.userId.toString(), 'notification:unread-count', unreadCount);
+      (global as any).emitToUser?.(payload.userId.toString(), 'notification:unread-count', unreadCount);
     }
 
     return notification;
