@@ -66,11 +66,13 @@ const { Option } = Select;
 
 interface StatementUpload {
   id: string;
+  _id?: string; // Add _id field for MongoDB compatibility
   fileName: string;
   fileSize: number;
   uploadDate: string;
   status: 'processing' | 'completed' | 'failed' | 'pending';
   account: string;
+  accountName?: string; // Add accountName field for compatibility
   period: string;
   transactionsFound?: number;
   transactionsImported?: number;
@@ -112,11 +114,13 @@ export default function BankStatementUploadPage() {
         // Transform API data to match component's StatementUpload interface
         const transformedData = result.data.map((statement: any) => ({
           id: statement._id,
+          _id: statement._id, // Ensure _id is included
           fileName: statement.sourceFile?.originalName || statement.sourceFile?.filename || 'Unknown file',
           fileSize: statement.sourceFile?.size || 0,
           uploadDate: statement.createdAt,
           status: statement.status || 'pending',
           account: statement.accountName,
+          accountName: statement.accountName, // Ensure accountName is included
           period: `${getMonthName(statement.month)} ${statement.year}`,
           transactionsFound: statement.transactionsFound,
           transactionsImported: statement.transactionsImported,
@@ -173,7 +177,7 @@ export default function BankStatementUploadPage() {
           if (statement.status === 'extracted' || statement.status === 'completed') {
             // Update UI with success
             setRecentUploads(prev => prev.map(upload => 
-              upload.id === statementId 
+              upload._id === statementId 
                 ? {
                     ...upload,
                     status: 'completed' as const,
@@ -188,7 +192,7 @@ export default function BankStatementUploadPage() {
           } else if (statement.status === 'failed') {
             // Update UI with failure
             setRecentUploads(prev => prev.map(upload => 
-              upload.id === statementId 
+              upload._id === statementId 
                 ? {
                     ...upload,
                     status: 'failed' as const,
@@ -201,7 +205,7 @@ export default function BankStatementUploadPage() {
           } else if (statement.status === 'needs_review') {
             // Update UI with needs review status
             setRecentUploads(prev => prev.map(upload => 
-              upload.id === statementId 
+              upload._id === statementId 
                 ? {
                     ...upload,
                     status: 'completed' as const,
@@ -224,7 +228,7 @@ export default function BankStatementUploadPage() {
       } else {
         // Timeout - mark as needs review
         setRecentUploads(prev => prev.map(upload => 
-          upload.id === statementId 
+          upload._id === statementId 
             ? {
                 ...upload,
                 status: 'completed' as const,
@@ -344,11 +348,13 @@ export default function BankStatementUploadPage() {
               // Add to UI immediately
               const newUpload: StatementUpload = {
                 id: statementId,
+                _id: statementId, // Ensure _id is included
                 fileName: file.name,
                 fileSize: file.size || 0,
                 uploadDate: new Date().toISOString(),
                 status: 'processing' as const,
                 account: values.account,
+                accountName: values.account.split(' - ')[0], // Add accountName
                 period: values.period.format('MMMM YYYY'),
               };
               
@@ -434,7 +440,7 @@ export default function BankStatementUploadPage() {
       key: 'account',
       render: (account: string, record: StatementUpload) => (
         <Tag icon={<BankOutlined />} color="blue">
-          {account || record.accountName}
+          {record.accountName || account}
         </Tag>
       ),
     },
@@ -531,6 +537,10 @@ export default function BankStatementUploadPage() {
               danger
               icon={<DeleteOutlined />}
               onClick={() => {
+                alert(`Delete button clicked for: ${record.fileName} (ID: ${record._id || record.id})`);
+                console.log('[Frontend] Delete button clicked for record:', record);
+                console.log('[Frontend] Record ID:', record._id || record.id);
+                
                 Modal.confirm({
                   title: 'Delete Upload',
                   content: 'Are you sure you want to delete this upload? This will also delete the file from storage and all associated transactions.',
@@ -538,8 +548,16 @@ export default function BankStatementUploadPage() {
                   okType: 'danger',
                   onOk: async () => {
                     try {
-                      const id = (record as any)._id || record.id;
+                      const id = record._id || record.id;
                       console.log(`[Frontend] Initiating delete for statement ID: ${id}`);
+                      
+                      if (!id) {
+                        message.error('Cannot delete: Statement ID not found');
+                        return;
+                      }
+                      
+                      // Test the API call first
+                      console.log('[Frontend] Making DELETE request to:', `/api/statements/${id}`);
                       
                       message.loading({ 
                         content: 'Deleting statement and associated files...', 
@@ -554,82 +572,36 @@ export default function BankStatementUploadPage() {
                         },
                       });
                       
+                      console.log('[Frontend] Response status:', res.status);
+                      console.log('[Frontend] Response ok:', res.ok);
+                      
                       const data = await res.json();
                       console.log('[Frontend] Delete response:', data);
                       
                       if (res.ok && data.success) {
-                        // Build detailed success message
-                        let successMsg = `Statement deleted successfully.`;
-                        
-                        if (data.deletedTransactions > 0) {
-                          successMsg += ` ${data.deletedTransactions} transaction${data.deletedTransactions > 1 ? 's' : ''} removed.`;
-                        }
-                        
-                        if (data.fileDeleteStatus) {
-                          if (data.fileDeleteStatus === 'supabase_deleted') {
-                            successMsg += ' File removed from cloud storage.';
-                          } else if (data.fileDeleteStatus === 's3_deleted') {
-                            successMsg += ' File removed from S3 storage.';
-                          } else if (data.fileDeleteStatus === 'no_file') {
-                            // No file to delete
-                          } else if (data.fileDeleteStatus.includes('failed')) {
-                            successMsg += ' (Warning: File may not have been deleted from storage)';
-                          }
-                        }
-                        
                         message.success({ 
-                          content: successMsg, 
+                          content: 'Statement deleted successfully!', 
                           key: `delete-${id}`,
                           duration: 5 
                         });
                         
                         // Update the UI by removing the deleted statement
                         setRecentUploads(prev => prev.filter(u => {
-                          const uploadId = (u as any)._id || u.id;
+                          const uploadId = u._id || u.id;
                           return uploadId !== id;
                         }));
-                        
-                        // Log debug info if available
-                        if (data.debugInfo) {
-                          console.log('[Frontend] Delete debug info:', {
-                            totalTime: `${data.debugInfo.totalTime}ms`,
-                            steps: data.debugInfo.steps,
-                            storage: {
-                              supabase: data.debugInfo.hasSupabaseClient ? 'configured' : 'not configured',
-                              s3: data.debugInfo.hasS3Client ? 'configured' : 'not configured',
-                            }
-                          });
-                        }
                       } else {
-                        console.error('[Frontend] Delete failed:', data);
-                        
-                        // Build detailed error message
-                        let errorMsg = data.error || 'Failed to delete statement';
-                        
-                        if (data.details) {
-                          errorMsg += `: ${data.details}`;
-                        }
-                        
-                        // Add recommendations if available
-                        if (data.debugLog && data.debugLog.length > 0) {
-                          const lastLog = data.debugLog[data.debugLog.length - 1];
-                          if (lastLog.message.includes('ERROR')) {
-                            errorMsg += `. Check console for details.`;
-                            console.error('[Frontend] Debug log:', data.debugLog);
-                          }
-                        }
-                        
                         message.error({ 
-                          content: errorMsg, 
+                          content: `Delete failed: ${data.error || 'Unknown error'}`, 
                           key: `delete-${id}`,
-                          duration: 8 
+                          duration: 5 
                         });
                       }
                     } catch (e: any) {
                       console.error('[Frontend] Delete exception:', e);
                       message.error({ 
                         content: `Network error: ${e.message || 'Failed to delete statement'}`, 
-                        key: `delete-${record.id}`,
+                        key: `delete-${record._id || record.id}`,
                         duration: 5 
                       });
                     }
