@@ -540,19 +540,9 @@ export default function BankStatementUploadPage() {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // SUPER DEBUG - This should ALWAYS show
-                alert(`🚨 DELETE BUTTON CLICKED! 🚨\nFile: ${record.fileName}\nID: ${record._id || record.id}\nStatus: ${record.status}`);
+                console.log('[Frontend] Delete button clicked for:', record._id || record.id);
                 
-                console.log('=== DELETE BUTTON DEBUG ===');
-                console.log('Event:', e);
-                console.log('Record:', record);
-                console.log('Record ID:', record._id || record.id);
-                console.log('Record type:', typeof record);
-                console.log('Record keys:', Object.keys(record));
-                console.log('==========================');
-                
-                // Try to show the modal
-                try {
+                // Show the confirmation modal
                   Modal.confirm({
                     title: 'Delete Upload',
                     content: 'Are you sure you want to delete this upload? This will also delete the file from storage and all associated transactions.',
@@ -600,27 +590,6 @@ export default function BankStatementUploadPage() {
                         console.log('[Frontend] Delete response:', data);
                         
                         if (data.success) {
-                          // Show detailed success information
-                          let successMsg = `Statement deleted successfully!\n\n`;
-                          successMsg += `Transactions removed: ${data.deletedTransactions || 0}\n`;
-                          successMsg += `File status: ${data.fileDeleteStatus || 'unknown'}\n`;
-                          
-                          if (data.storageDeleteResult) {
-                            successMsg += `Storage: ${data.storageDeleteResult.success ? 'Success' : 'Failed'}\n`;
-                            if (data.storageDeleteResult.error) {
-                              successMsg += `Error: ${data.storageDeleteResult.error}\n`;
-                            }
-                          }
-                          
-                          if (data.debugInfo) {
-                            successMsg += `\nDebug Info:\n`;
-                            successMsg += `Total time: ${data.debugInfo.totalTime}ms\n`;
-                            successMsg += `Steps: ${data.debugInfo.steps}\n`;
-                            successMsg += `Supabase bucket: ${data.debugInfo.supabaseBucket}\n`;
-                            successMsg += `Has Supabase client: ${data.debugInfo.hasSupabaseClient}\n`;
-                          }
-                          
-                          alert(successMsg);
                           
                           message.success({ 
                             content: 'Statement deleted successfully!', 
@@ -641,7 +610,6 @@ export default function BankStatementUploadPage() {
                         } else {
                           const errorMsg = `Delete failed: ${data.error || 'Unknown error'}`;
                           console.error('[Frontend] Delete failed:', data);
-                          alert(errorMsg);
                           
                           message.error({ 
                             content: errorMsg, 
@@ -659,10 +627,6 @@ export default function BankStatementUploadPage() {
                       }
                     },
                   });
-                } catch (modalError) {
-                  console.error('Modal error:', modalError);
-                  alert(`Modal failed to show: ${modalError}`);
-                }
               }}
             />
           </Tooltip>
