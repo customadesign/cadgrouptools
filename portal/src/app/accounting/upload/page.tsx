@@ -536,77 +536,95 @@ export default function BankStatementUploadPage() {
               type="text"
               danger
               icon={<DeleteOutlined />}
-              onClick={() => {
-                alert(`Delete button clicked for: ${record.fileName} (ID: ${record._id || record.id})`);
-                console.log('[Frontend] Delete button clicked for record:', record);
-                console.log('[Frontend] Record ID:', record._id || record.id);
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 
-                Modal.confirm({
-                  title: 'Delete Upload',
-                  content: 'Are you sure you want to delete this upload? This will also delete the file from storage and all associated transactions.',
-                  okText: 'Delete',
-                  okType: 'danger',
-                  onOk: async () => {
-                    try {
-                      const id = record._id || record.id;
-                      console.log(`[Frontend] Initiating delete for statement ID: ${id}`);
+                // SUPER DEBUG - This should ALWAYS show
+                alert(`🚨 DELETE BUTTON CLICKED! 🚨\nFile: ${record.fileName}\nID: ${record._id || record.id}\nStatus: ${record.status}`);
+                
+                console.log('=== DELETE BUTTON DEBUG ===');
+                console.log('Event:', e);
+                console.log('Record:', record);
+                console.log('Record ID:', record._id || record.id);
+                console.log('Record type:', typeof record);
+                console.log('Record keys:', Object.keys(record));
+                console.log('==========================');
+                
+                // Try to show the modal
+                try {
+                  Modal.confirm({
+                    title: 'Delete Upload',
+                    content: 'Are you sure you want to delete this upload? This will also delete the file from storage and all associated transactions.',
+                    okText: 'Delete',
+                    okType: 'danger',
+                    onOk: async () => {
+                      console.log('Modal OK clicked - proceeding with delete');
                       
-                      if (!id) {
-                        message.error('Cannot delete: Statement ID not found');
-                        return;
-                      }
-                      
-                      // Test the API call first
-                      console.log('[Frontend] Making DELETE request to:', `/api/statements/${id}`);
-                      
-                      message.loading({ 
-                        content: 'Deleting statement and associated files...', 
-                        key: `delete-${id}`,
-                        duration: 0 
-                      });
-                      
-                      const res = await fetch(`/api/statements/${id}`, { 
-                        method: 'DELETE',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                      });
-                      
-                      console.log('[Frontend] Response status:', res.status);
-                      console.log('[Frontend] Response ok:', res.ok);
-                      
-                      const data = await res.json();
-                      console.log('[Frontend] Delete response:', data);
-                      
-                      if (res.ok && data.success) {
-                        message.success({ 
-                          content: 'Statement deleted successfully!', 
+                      try {
+                        const id = record._id || record.id;
+                        console.log(`[Frontend] Initiating delete for statement ID: ${id}`);
+                        
+                        if (!id) {
+                          message.error('Cannot delete: Statement ID not found');
+                          return;
+                        }
+                        
+                        // Test the API call first
+                        console.log('[Frontend] Making DELETE request to:', `/api/statements/${id}`);
+                        
+                        message.loading({ 
+                          content: 'Deleting statement and associated files...', 
                           key: `delete-${id}`,
-                          duration: 5 
+                          duration: 0 
                         });
                         
-                        // Update the UI by removing the deleted statement
-                        setRecentUploads(prev => prev.filter(u => {
-                          const uploadId = u._id || u.id;
-                          return uploadId !== id;
-                        }));
-                      } else {
+                        const res = await fetch(`/api/statements/${id}`, { 
+                          method: 'DELETE',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                        });
+                        
+                        console.log('[Frontend] Response status:', res.status);
+                        console.log('[Frontend] Response ok:', res.ok);
+                        
+                        const data = await res.json();
+                        console.log('[Frontend] Delete response:', data);
+                        
+                        if (res.ok && data.success) {
+                          message.success({ 
+                            content: 'Statement deleted successfully!', 
+                            key: `delete-${id}`,
+                            duration: 5 
+                          });
+                          
+                          // Update the UI by removing the deleted statement
+                          setRecentUploads(prev => prev.filter(u => {
+                            const uploadId = u._id || u.id;
+                            return uploadId !== id;
+                          }));
+                        } else {
+                          message.error({ 
+                            content: `Delete failed: ${data.error || 'Unknown error'}`, 
+                            key: `delete-${id}`,
+                            duration: 5 
+                          });
+                        }
+                      } catch (e: any) {
+                        console.error('[Frontend] Delete exception:', e);
                         message.error({ 
-                          content: `Delete failed: ${data.error || 'Unknown error'}`, 
-                          key: `delete-${id}`,
+                          content: `Network error: ${e.message || 'Failed to delete statement'}`, 
+                          key: `delete-${record._id || record.id}`,
                           duration: 5 
                         });
                       }
-                    } catch (e: any) {
-                      console.error('[Frontend] Delete exception:', e);
-                      message.error({ 
-                        content: `Network error: ${e.message || 'Failed to delete statement'}`, 
-                        key: `delete-${record._id || record.id}`,
-                        duration: 5 
-                      });
-                    }
-                  },
-                });
+                    },
+                  });
+                } catch (modalError) {
+                  console.error('Modal error:', modalError);
+                  alert(`Modal failed to show: ${modalError}`);
+                }
               }}
             />
           </Tooltip>
