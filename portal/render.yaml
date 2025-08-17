@@ -81,17 +81,3 @@ services:
         sync: false # Same as SUPABASE_URL
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false # Your anon key (optional)
-      
-      # S3 Configuration (Legacy/Alternative - Optional)
-      - key: S3_REGION
-        sync: false
-      - key: S3_BUCKET_NAME
-        sync: false
-      - key: S3_ACCESS_KEY_ID
-        sync: false
-      - key: S3_SECRET_ACCESS_KEY
-        sync: false
-      - key: S3_ENDPOINT
-        sync: false
-      - key: S3_PUBLIC_READ
-        value: "true"

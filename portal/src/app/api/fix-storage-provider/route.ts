@@ -1,29 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 import { connectToDatabase } from '@/lib/db';
 import { File } from '@/models/File';
-import { getS3Client, BUCKET as S3_BUCKET } from '@/lib/s3';
 import { supabaseAdmin, SUPABASE_STATUS } from '@/lib/supabaseAdmin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     await connectToDatabase();
-    
-    // Check current storage configuration
-    const s3Configured = !!getS3Client();
-    const supabaseConfigured = SUPABASE_STATUS.initialized && !SUPABASE_STATUS.hasPlaceholders;
-    
+
+    // Check storage configuration
+    const supabaseConfigured = !!supabaseAdmin;
+
     // Find all files marked as 'supabase' storage
     const supabaseFiles = await File.find({ storageProvider: 'supabase' }).lean();
-    
-    // Find all files marked as 's3' storage
-    const s3Files = await File.find({ storageProvider: 's3' }).lean();
-    
+
     const analysis = {
-      configuration: {
-        s3: {
-          configured: s3Configured,
-          bucket: S3_BUCKET
-        },
+      storage: {
         supabase: {
           configured: supabaseConfigured,
           status: SUPABASE_STATUS
@@ -31,118 +29,98 @@ export async function GET() {
       },
       files: {
         markedAsSupabase: supabaseFiles.length,
-        markedAsS3: s3Files.length,
-        total: supabaseFiles.length + s3Files.length
-      },
-      recommendation: null as string | null,
-      needsFix: false
+        total: supabaseFiles.length
+      }
     };
-    
-    // Determine if we need to fix storage providers
-    if (s3Configured && !supabaseConfigured && supabaseFiles.length > 0) {
-      analysis.recommendation = 'S3 is configured but files are marked as Supabase. Run POST to fix.';
-      analysis.needsFix = true;
-    } else if (!s3Configured && supabaseConfigured && s3Files.length > 0) {
-      analysis.recommendation = 'Supabase is configured but files are marked as S3. Run POST to fix.';
-      analysis.needsFix = true;
-    } else if (!s3Configured && !supabaseConfigured) {
-      analysis.recommendation = 'No storage provider is properly configured!';
+
+    // Determine recommendation
+    if (!supabaseConfigured && supabaseFiles.length > 0) {
+      analysis.recommendation = 'Supabase is not configured but files are marked as Supabase. Please configure Supabase.';
+    } else if (supabaseConfigured && supabaseFiles.length === 0) {
+      analysis.recommendation = 'Supabase is configured but no files found. Ready for uploads.';
+    } else if (supabaseConfigured && supabaseFiles.length > 0) {
+      analysis.recommendation = 'Supabase is configured and files are properly marked. System is ready.';
     } else {
-      analysis.recommendation = 'Storage configuration appears correct.';
+      analysis.recommendation = 'No storage configured. Please configure Supabase.';
     }
-    
-    return NextResponse.json(analysis);
-    
-  } catch (error) {
-    console.error('[FIX-STORAGE] Error analyzing storage:', error);
-    return NextResponse.json({ 
-      error: 'Failed to analyze storage configuration',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+
+    return NextResponse.json({
+      success: true,
+      data: analysis
+    });
+
+  } catch (error: any) {
+    console.error('Error analyzing storage:', error);
+    return NextResponse.json(
+      { error: 'Failed to analyze storage', details: error.message },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
-    
-    const { dryRun = false } = await request.json().catch(() => ({ dryRun: false }));
-    
-    // Check current storage configuration
-    const s3Configured = !!getS3Client();
-    const supabaseConfigured = SUPABASE_STATUS.initialized && !SUPABASE_STATUS.hasPlaceholders;
-    
-    const results = {
-      configuration: {
-        s3: s3Configured,
-        supabase: supabaseConfigured
-      },
-      filesUpdated: 0,
-      errors: [] as string[],
-      dryRun
-    };
-    
-    // Determine which storage provider should be used
-    let targetProvider: 's3' | 'supabase' | null = null;
-    let wrongProvider: 's3' | 'supabase' | null = null;
-    
-    if (s3Configured && !supabaseConfigured) {
-      targetProvider = 's3';
-      wrongProvider = 'supabase';
-    } else if (!s3Configured && supabaseConfigured) {
-      targetProvider = 'supabase';
-      wrongProvider = 's3';
-    } else if (s3Configured && supabaseConfigured) {
-      // Both configured - prefer S3 since it's been tested
-      targetProvider = 's3';
-      wrongProvider = 'supabase';
-    } else {
-      return NextResponse.json({
-        error: 'No storage provider is properly configured',
-        configuration: results.configuration
-      }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Find files with wrong storage provider
-    const filesToFix = await File.find({ storageProvider: wrongProvider });
-    
+
+    await connectToDatabase();
+
+    // Check storage configuration
+    const supabaseConfigured = !!supabaseAdmin;
+
+    if (!supabaseConfigured) {
+      return NextResponse.json(
+        { error: 'Supabase is not configured. Cannot fix storage providers.' },
+        { status: 400 }
+      );
+    }
+
+    // Find files that need fixing
+    const filesToFix = await File.find({
+      $or: [
+        { storageProvider: { $exists: false } },
+        { storageProvider: 'local' }
+      ]
+    }).lean();
+
     if (filesToFix.length === 0) {
       return NextResponse.json({
-        message: 'No files need updating',
-        configuration: results.configuration,
-        targetProvider
+        success: true,
+        message: 'No files need fixing. All files are properly configured.',
+        filesFixed: 0
       });
     }
-    
-    if (!dryRun) {
-      // Update all files to use the correct storage provider
-      const updateResult = await File.updateMany(
-        { storageProvider: wrongProvider },
-        { $set: { storageProvider: targetProvider } }
-      );
-      
-      results.filesUpdated = updateResult.modifiedCount;
-      
-      console.log(`[FIX-STORAGE] Updated ${results.filesUpdated} files from ${wrongProvider} to ${targetProvider}`);
-    } else {
-      results.filesUpdated = filesToFix.length;
-    }
-    
+
+    // Update files to use Supabase
+    const updateResult = await File.updateMany(
+      {
+        $or: [
+          { storageProvider: { $exists: false } },
+          { storageProvider: 'local' }
+        ]
+      },
+      {
+        $set: {
+          storageProvider: 'supabase',
+          updatedAt: new Date()
+        }
+      }
+    );
+
     return NextResponse.json({
       success: true,
-      message: dryRun 
-        ? `Would update ${results.filesUpdated} files from ${wrongProvider} to ${targetProvider}`
-        : `Updated ${results.filesUpdated} files from ${wrongProvider} to ${targetProvider}`,
-      ...results,
-      targetProvider,
-      wrongProvider
+      message: `Fixed ${updateResult.modifiedCount} files to use Supabase storage`,
+      filesFixed: updateResult.modifiedCount,
+      totalFiles: filesToFix.length
     });
-    
-  } catch (error) {
-    console.error('[FIX-STORAGE] Error fixing storage providers:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fix storage providers',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+
+  } catch (error: any) {
+    console.error('Error fixing storage providers:', error);
+    return NextResponse.json(
+      { error: 'Failed to fix storage providers', details: error.message },
+      { status: 500 }
+    );
   }
 }

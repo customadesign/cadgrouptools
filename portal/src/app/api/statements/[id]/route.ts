@@ -7,8 +7,6 @@ import { Transaction } from '@/models/Transaction';
 import { File } from '@/models/File';
 import { Types } from 'mongoose';
 import { supabaseAdmin, STORAGE_BUCKET, SUPABASE_STATUS } from '@/lib/supabaseAdmin';
-import { getS3Client, BUCKET as S3_BUCKET } from '@/lib/s3';
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 // GET: Fetch a single statement with its details
 export async function GET(
@@ -108,6 +106,7 @@ export async function PUT(
     await connectToDatabase();
 
     const { id } = params;
+    const body = await request.json();
 
     // Validate MongoDB ObjectId
     if (!Types.ObjectId.isValid(id)) {
@@ -117,34 +116,14 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
-    const allowedUpdates = [
-      'accountName',
-      'bankName',
-      'currency',
-      'month',
-      'year',
-      'status',
-      'ocrProvider',
-      'pages',
-    ];
-
-    // Filter only allowed fields
-    const updates: any = {};
-    for (const key of allowedUpdates) {
-      if (body[key] !== undefined) {
-        updates[key] = body[key];
-      }
-    }
-
     // Update the statement
-    const statement = await Statement.findByIdAndUpdate(
+    const updatedStatement = await Statement.findByIdAndUpdate(
       id,
-      { $set: updates },
+      { ...body, updatedAt: new Date() },
       { new: true, runValidators: true }
     ).populate('sourceFile');
 
-    if (!statement) {
+    if (!updatedStatement) {
       return NextResponse.json(
         { error: 'Statement not found' },
         { status: 404 }
@@ -153,7 +132,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: statement,
+      data: updatedStatement,
     });
   } catch (error: any) {
     console.error('Error updating statement:', error);
@@ -164,7 +143,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Delete a single statement and its associated data
+// DELETE: Delete a statement and all associated data
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -173,260 +152,100 @@ export async function DELETE(
   const debugLog: any[] = [];
   
   const log = (message: string, data?: any) => {
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      elapsed: Date.now() - startTime,
-      message,
-      data
-    };
-    console.log(`[DELETE ${id}] ${message}`, data || '');
+    const timestamp = new Date().toISOString();
+    const logEntry = { timestamp, message, data };
     debugLog.push(logEntry);
+    console.log(`[${timestamp}] ${message}`, data || '');
   };
 
   try {
     log('=== Starting DELETE operation ===');
     
-    // Authentication check
-    log('Checking authentication...');
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      log('Authentication failed - no session');
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        debugLog 
-      }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    log('Authentication successful', { user: session.user.email });
 
-    // Database connection
-    log('Connecting to database...');
     await connectToDatabase();
-    log('Database connected');
-
     const { id } = params;
-    log('Processing statement ID', { id });
+
+    log('Connected to database', { statementId: id });
 
     // Validate MongoDB ObjectId
     if (!Types.ObjectId.isValid(id)) {
-      log('Invalid ObjectId format', { id });
       return NextResponse.json(
-        { 
-          error: 'Invalid statement ID format',
-          debugLog 
-        },
+        { error: 'Invalid statement ID format' },
         { status: 400 }
       );
     }
 
-    // Find the statement
-    log('Finding statement in database...');
+    // Fetch the statement with file details
     const statement = await Statement.findById(id).populate('sourceFile');
-
     if (!statement) {
-      log('Statement not found in database', { id });
       return NextResponse.json(
-        { 
-          error: 'Statement not found',
-          debugLog 
-        },
+        { error: 'Statement not found' },
         { status: 404 }
       );
     }
-    
-    log('Statement found', {
+
+    log('Statement found', { 
       id: statement._id,
-      hasSourceFile: !!statement.sourceFile,
-      accountName: statement.accountName,
-      month: statement.month,
-      year: statement.year
+      fileName: statement.sourceFile?.fileName,
+      storageProvider: statement.sourceFile?.storageProvider
     });
 
-    // Delete associated transactions
+    // Delete all associated transactions
     log('Deleting associated transactions...');
     const transactionDeleteResult = await Transaction.deleteMany({
-      statement: statement._id,
+      statement: new Types.ObjectId(id)
     });
-    log('Transactions deleted', { count: transactionDeleteResult.deletedCount });
+    log('Transactions deleted', { 
+      deletedCount: transactionDeleteResult.deletedCount 
+    });
 
-    // Handle file deletion
+    // Delete the source file from storage and database
     let fileDeleteStatus = 'no_file';
-    let storageDeleteResult = null;
-    
+    let storageDeleteResult: any = null;
+
     if (statement.sourceFile) {
-      const fileDoc = statement.sourceFile as any;
-      
-      log('Processing file deletion', {
+      const fileDoc = statement.sourceFile;
+      log('Processing file deletion', { 
         fileId: fileDoc._id,
-        originalName: fileDoc.originalName,
         storageProvider: fileDoc.storageProvider,
-        path: fileDoc.path,
-        hasSupabaseAdmin: !!supabaseAdmin,
-        supabaseStatus: SUPABASE_STATUS,
-        hasS3Client: !!getS3Client(),
-        s3Bucket: S3_BUCKET,
-        storageBucket: STORAGE_BUCKET
+        path: fileDoc.path
       });
-      
-      // Check if we should delete from Supabase
-      if (fileDoc.storageProvider === 'supabase') {
-        if (!supabaseAdmin) {
-          log('ERROR: Supabase admin client not initialized', {
-            hasUrl: !!process.env.SUPABASE_URL,
-            hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE,
-            urlValue: process.env.SUPABASE_URL?.substring(0, 30) + '...',
-          });
-          fileDeleteStatus = 'supabase_not_configured';
-        } else if (!fileDoc.path) {
-          log('ERROR: File path is missing', { fileDoc });
-          fileDeleteStatus = 'missing_path';
-        } else {
-          try {
-            log('Attempting Supabase deletion...');
-            
-            // First, list files to check if it exists
-            log('Listing files in bucket to verify existence...');
-            const { data: listData, error: listError } = await supabaseAdmin
-              .storage
-              .from(STORAGE_BUCKET)
-              .list(fileDoc.path.split('/').slice(0, -1).join('/'), {
-                limit: 100,
-                search: fileDoc.path.split('/').pop()
-              });
-            
-            if (listError) {
-              log('Error listing files', { error: listError });
-            } else {
-              log('Files in directory', { 
-                count: listData?.length || 0,
-                files: listData?.map(f => f.name) 
-              });
-            }
-            
-            // Attempt deletion regardless of list result
-            log('Executing Supabase delete operation...');
-            const { data: deleteData, error: deleteError } = await supabaseAdmin
-              .storage
-              .from(STORAGE_BUCKET)
-              .remove([fileDoc.path]);
-            
-            if (deleteError) {
-              log('Supabase deletion error', {
-                error: deleteError,
-                message: deleteError.message,
-                status: (deleteError as any).status,
-                statusCode: (deleteError as any).statusCode,
-                details: (deleteError as any).details
-              });
-              fileDeleteStatus = 'supabase_delete_failed';
-              storageDeleteResult = {
-                success: false,
-                error: deleteError.message
-              };
-            } else {
-              log('Supabase deletion response', { data: deleteData });
-              
-              // Verify deletion
-              log('Verifying file deletion...');
-              const { data: verifyData, error: verifyError } = await supabaseAdmin
-                .storage
-                .from(STORAGE_BUCKET)
-                .download(fileDoc.path);
-              
-              if (verifyError) {
-                if (verifyError.message.includes('not found') || 
-                    verifyError.message.includes('Object not found')) {
-                  log('Deletion verified - file no longer exists');
-                  fileDeleteStatus = 'supabase_deleted';
-                  storageDeleteResult = {
-                    success: true,
-                    verified: true
-                  };
-                } else {
-                  log('Unexpected verification error', { error: verifyError });
-                  fileDeleteStatus = 'supabase_delete_uncertain';
-                  storageDeleteResult = {
-                    success: true,
-                    verified: false,
-                    verifyError: verifyError.message
-                  };
-                }
-              } else {
-                log('WARNING: File still exists after deletion attempt');
-                fileDeleteStatus = 'supabase_delete_failed_still_exists';
-                storageDeleteResult = {
-                  success: false,
-                  error: 'File still exists after deletion'
-                };
-              }
-            }
-          } catch (supabaseError: any) {
-            log('Unexpected Supabase error', {
-              error: supabaseError.message,
-              stack: supabaseError.stack,
-              name: supabaseError.name
-            });
-            fileDeleteStatus = 'supabase_exception';
+
+      if (fileDoc.storageProvider === 'supabase' && fileDoc.path && supabaseAdmin) {
+        log('Deleting from Supabase storage...');
+        try {
+          const { error } = await supabaseAdmin.storage
+            .from(STORAGE_BUCKET)
+            .remove([fileDoc.path]);
+
+          if (error) {
+            log('Supabase deletion error', { error: error.message });
+            fileDeleteStatus = 'supabase_delete_failed';
             storageDeleteResult = {
               success: false,
-              error: supabaseError.message
+              provider: 'supabase',
+              error: error.message
             };
-          }
-        }
-      } else if (fileDoc.storageProvider === 's3' || (!supabaseAdmin && fileDoc.path)) {
-        // Try S3 deletion
-        log('Attempting S3 deletion...');
-        const s3Client = getS3Client();
-        
-        if (!s3Client) {
-          log('ERROR: S3 client not configured', {
-            hasBucket: !!S3_BUCKET,
-            hasRegion: !!process.env.S3_REGION,
-            hasAccessKey: !!process.env.S3_ACCESS_KEY_ID
-          });
-          fileDeleteStatus = 's3_not_configured';
-        } else if (!S3_BUCKET) {
-          log('ERROR: S3 bucket not configured');
-          fileDeleteStatus = 's3_bucket_missing';
-        } else {
-          try {
-            log('Executing S3 delete operation...', {
-              bucket: S3_BUCKET,
-              key: fileDoc.path
-            });
-            
-            const deleteCommand = new DeleteObjectCommand({
-              Bucket: S3_BUCKET,
-              Key: fileDoc.path
-            });
-            
-            const s3Response = await s3Client.send(deleteCommand);
-            
-            log('S3 deletion response', {
-              statusCode: s3Response.$metadata.httpStatusCode,
-              requestId: s3Response.$metadata.requestId
-            });
-            
-            // S3 delete always returns 204 even if object doesn't exist
-            fileDeleteStatus = 's3_deleted';
+          } else {
+            log('Supabase deletion successful');
+            fileDeleteStatus = 'supabase_deleted';
             storageDeleteResult = {
               success: true,
-              provider: 's3',
-              statusCode: s3Response.$metadata.httpStatusCode
-            };
-            
-          } catch (s3Error: any) {
-            log('S3 deletion error', {
-              error: s3Error.message,
-              code: s3Error.Code,
-              statusCode: s3Error.$metadata?.httpStatusCode
-            });
-            fileDeleteStatus = 's3_delete_failed';
-            storageDeleteResult = {
-              success: false,
-              provider: 's3',
-              error: s3Error.message
+              provider: 'supabase'
             };
           }
+        } catch (supabaseError: any) {
+          log('Supabase deletion exception', { error: supabaseError.message });
+          fileDeleteStatus = 'supabase_delete_failed';
+          storageDeleteResult = {
+            success: false,
+            provider: 'supabase',
+            error: supabaseError.message
+          };
         }
       } else {
         log('File storage provider not recognized or no path', { 
@@ -469,9 +288,7 @@ export async function DELETE(
         totalTime: Date.now() - startTime,
         steps: debugLog.length,
         supabaseBucket: STORAGE_BUCKET,
-        s3Bucket: S3_BUCKET,
         hasSupabaseClient: !!supabaseAdmin,
-        hasS3Client: !!getS3Client(),
         supabaseStatus: SUPABASE_STATUS
       }
     };

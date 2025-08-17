@@ -83,13 +83,6 @@ export const proposalApi = {
 export const uploadApi = {
   getPresignedUrl: (fileName: string, fileType: string) =>
     api.post('/uploads/presign', { fileName, fileType }),
-  uploadToS3: async (url: string, file: File) => {
-    return axios.put(url, file, {
-      headers: {
-        'Content-Type': file.type,
-      },
-    });
-  },
 };
 
 export default api;

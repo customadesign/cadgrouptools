@@ -15,6 +15,8 @@ import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabaseAdmin';
 import { tesseractOCRService } from '@/lib/ocr-tesseract';
 import type { ExtractedTransaction } from '@/lib/ocr-tesseract';
 import { notificationService } from '@/services/notificationService';
+import { withActivityTracking } from '@/middleware/activityTracking';
+import { claudeCodeOCRService } from '@/lib/ocr-claude';
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
       mimeType: file.type,
       size: file.size,
       uploadedBy: new Types.ObjectId(session.user.id),
-      storageProvider: 's3', // Using S3 since it's properly configured
+      storageProvider: 'supabase',
       url: publicUrl,
       bucket: STORAGE_BUCKET,
       path: fileName,
@@ -175,58 +177,74 @@ export async function POST(request: NextRequest) {
 async function processOCR(statementId: string, buffer: Buffer, mimeType: string) {
   try {
     let extractedText = '';
-    let ocrProvider = 'tesseract';
+    let ocrProvider = 'claude-code';
     let confidence: number | undefined;
+    let statementData: any = null;
 
-    // Handle PDFs
+    // Handle PDFs - Try Claude Code first, then fallback to Tesseract
     if (mimeType === 'application/pdf') {
       try {
-        // First try to extract embedded text with pdf-parse
-        const pdfParse = require('pdf-parse');
-        const pdfResult = await pdfParse(buffer);
-        
-        // If we get substantial text, use it
-        if (pdfResult.text && pdfResult.text.trim().length > 100) {
-          console.log('PDF has embedded text, using pdf-parse');
-          extractedText = pdfResult.text;
-          ocrProvider = 'pdf-parse';
-        } else {
-          // PDF appears to be scanned or has minimal text, use Tesseract OCR directly
-          console.log('PDF has minimal embedded text, using Tesseract OCR');
-          const tesseractResult = await tesseractOCRService.extractTextFromPDF(buffer);
+        // First try Claude Code OCR for best results
+        if (claudeCodeOCRService.isConfigured()) {
+          console.log('Using Claude Code OCR for PDF processing...');
+          const claudeResult = await claudeCodeOCRService.extractTextFromPDF(buffer);
           
-          if (tesseractResult.error) {
-            console.error('Tesseract OCR failed:', tesseractResult.error);
-            await Statement.findByIdAndUpdate(statementId, {
-              status: 'failed',
-              processingErrors: ['OCR processing failed', tesseractResult.error],
-            });
-            return;
+          if (!claudeResult.error && claudeResult.text) {
+            console.log('Claude Code OCR successful');
+            extractedText = claudeResult.text;
+            ocrProvider = 'claude-code';
+            confidence = claudeResult.confidence;
+            
+            // Parse the structured data from Claude
+            statementData = claudeCodeOCRService.parseBankStatement(extractedText);
+            
+            if (statementData.transactions.length > 0) {
+              console.log(`Claude Code extracted ${statementData.transactions.length} transactions`);
+            }
+          } else {
+            console.log('Claude Code OCR failed, falling back to Tesseract');
+            throw new Error('Claude Code OCR failed');
           }
-          
-          extractedText = tesseractResult.text;
-          ocrProvider = tesseractResult.provider;
-          confidence = tesseractResult.confidence;
+        } else {
+          console.log('Claude Code not configured, using Tesseract OCR');
+          throw new Error('Claude Code not configured');
         }
-      } catch (error) {
-        console.error('PDF processing error, using Tesseract OCR:', error);
-        const tesseractResult = await tesseractOCRService.extractTextFromPDF(buffer);
+      } catch (claudeError) {
+        console.log('Claude Code OCR failed, falling back to Tesseract:', claudeError);
         
-        if (tesseractResult.error) {
-          console.error('Tesseract OCR failed:', tesseractResult.error);
+        try {
+          // Fallback to pdf-parse for embedded text
+          const pdfParse = require('pdf-parse');
+          const pdfResult = await pdfParse(buffer);
+          
+          if (pdfResult.text && pdfResult.text.trim().length > 100) {
+            console.log('PDF has embedded text, using pdf-parse');
+            extractedText = pdfResult.text;
+            ocrProvider = 'pdf-parse';
+          } else {
+            // PDF appears to be scanned, use Tesseract OCR
+            console.log('PDF has minimal embedded text, using Tesseract OCR');
+            const tesseractResult = await tesseractOCRService.extractTextFromPDF(buffer);
+            
+            if (tesseractResult.error) {
+              throw new Error(`Tesseract OCR failed: ${tesseractResult.error}`);
+            }
+            
+            extractedText = tesseractResult.text;
+            ocrProvider = 'tesseract';
+            confidence = tesseractResult.confidence;
+          }
+        } catch (fallbackError) {
+          console.error('All OCR methods failed:', fallbackError);
           await Statement.findByIdAndUpdate(statementId, {
             status: 'failed',
-            processingErrors: ['OCR processing failed', tesseractResult.error],
+            processingErrors: ['All OCR methods failed', (fallbackError as Error).message],
           });
           return;
         }
-        
-        extractedText = tesseractResult.text;
-        ocrProvider = tesseractResult.provider;
-        confidence = tesseractResult.confidence;
       }
     } else {
-      // Process images with Tesseract OCR
+      // Process images with Tesseract OCR (Claude Code doesn't handle images directly)
       console.log('Processing image with Tesseract OCR...');
       const tesseractResult = await tesseractOCRService.extractTextFromImage(buffer, mimeType);
       
@@ -240,12 +258,18 @@ async function processOCR(statementId: string, buffer: Buffer, mimeType: string)
       }
       
       extractedText = tesseractResult.text;
-      ocrProvider = tesseractResult.provider;
+      ocrProvider = 'tesseract';
       confidence = tesseractResult.confidence;
     }
 
-    // Parse bank statement data using Tesseract's parser
-    const statementData = tesseractOCRService.parseBankStatement(extractedText);
+    // If we don't have structured data yet, parse the text
+    if (!statementData) {
+      if (ocrProvider === 'claude-code') {
+        statementData = claudeCodeOCRService.parseBankStatement(extractedText);
+      } else {
+        statementData = tesseractOCRService.parseBankStatement(extractedText);
+      }
+    }
 
     // Update statement with extracted data
     await Statement.findByIdAndUpdate(statementId, {

@@ -5,13 +5,9 @@ import { connectToDatabase } from '@/lib/db';
 import { Statement } from '@/models/Statement';
 import { File } from '@/models/File';
 import { supabaseAdmin, STORAGE_BUCKET, SUPABASE_STATUS } from '@/lib/supabaseAdmin';
-import { getS3Client, BUCKET as S3_BUCKET } from '@/lib/s3';
-import { DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
-// GET: Perform cleanup and report status
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,165 +15,52 @@ export async function GET(request: NextRequest) {
 
     await connectToDatabase();
 
-    const report: any = {
-      timestamp: new Date().toISOString(),
+    // Check storage configuration
+    const supabaseConfigured = !!supabaseAdmin;
+
+    // Find all files marked as 'supabase' storage
+    const supabaseFiles = await File.find({ storageProvider: 'supabase' }).lean();
+
+    const analysis = {
       storage: {
-        supabase: SUPABASE_STATUS,
-        s3: {
-          configured: !!getS3Client(),
-          bucket: S3_BUCKET
+        supabase: {
+          configured: supabaseConfigured,
+          status: SUPABASE_STATUS
         }
       },
-      database: {
-        statements: 0,
-        files: 0,
-        orphanedFiles: 0,
-        statementsWithoutFiles: 0,
-        filesWithoutStatements: 0
-      },
-      storageFiles: {
-        supabase: [],
-        s3: []
-      },
-      recommendations: []
+      files: {
+        markedAsSupabase: supabaseFiles.length,
+        total: supabaseFiles.length
+      }
     };
 
-    // 1. Database Analysis
-    const statements = await Statement.find({}).populate('sourceFile');
-    const files = await File.find({});
-    
-    report.database.statements = statements.length;
-    report.database.files = files.length;
-
-    // Find orphaned files (files not referenced by any statement)
-    const statementFileIds = statements
-      .filter(s => s.sourceFile)
-      .map(s => (s.sourceFile as any)._id?.toString());
-    
-    const orphanedFiles = files.filter(f => 
-      !statementFileIds.includes(f._id.toString())
-    );
-    
-    report.database.orphanedFiles = orphanedFiles.length;
-    report.database.statementsWithoutFiles = statements.filter(s => !s.sourceFile).length;
-    report.database.filesWithoutStatements = orphanedFiles.length;
-
-    // 2. Storage Analysis - Supabase
-    if (supabaseAdmin) {
-      try {
-        const { data: supabaseFiles, error } = await supabaseAdmin.storage
-          .from(STORAGE_BUCKET)
-          .list('statements', { limit: 1000 });
-        
-        if (!error && supabaseFiles) {
-          report.storageFiles.supabase = supabaseFiles.map(f => ({
-            name: f.name,
-            size: f.metadata?.size,
-            created_at: f.created_at,
-            path: `statements/${f.name}`
-          }));
-        }
-      } catch (e: any) {
-        report.storageFiles.supabaseError = e.message;
-      }
-    }
-
-    // 3. Storage Analysis - S3
-    const s3Client = getS3Client();
-    if (s3Client && S3_BUCKET) {
-      try {
-        const listCommand = new ListObjectsV2Command({
-          Bucket: S3_BUCKET,
-          Prefix: 'statements/',
-          MaxKeys: 1000
-        });
-        
-        const s3Response = await s3Client.send(listCommand);
-        
-        if (s3Response.Contents) {
-          report.storageFiles.s3 = s3Response.Contents.map(obj => ({
-            key: obj.Key,
-            size: obj.Size,
-            lastModified: obj.LastModified,
-            storageClass: obj.StorageClass
-          }));
-        }
-      } catch (e: any) {
-        report.storageFiles.s3Error = e.message;
-      }
-    }
-
-    // 4. Cross-reference analysis
-    const dbFilePaths = files.map(f => (f as any).path).filter(Boolean);
-    const supabasePaths = report.storageFiles.supabase.map((f: any) => f.path);
-    const s3Keys = report.storageFiles.s3.map((f: any) => f.key);
-
-    // Files in storage but not in database
-    const orphanedSupabaseFiles = supabasePaths.filter((path: string) => 
-      !dbFilePaths.includes(path)
-    );
-    const orphanedS3Files = s3Keys.filter((key: string) => 
-      !dbFilePaths.includes(key)
-    );
-
-    report.analysis = {
-      orphanedSupabaseFiles: orphanedSupabaseFiles.length,
-      orphanedS3Files: orphanedS3Files.length,
-      supabaseFilesNotInDb: orphanedSupabaseFiles,
-      s3FilesNotInDb: orphanedS3Files
-    };
-
-    // 5. Generate recommendations
-    if (orphanedFiles.length > 0) {
-      report.recommendations.push({
-        type: 'cleanup',
-        message: `Found ${orphanedFiles.length} orphaned file records in database`,
-        action: 'POST to /api/statements/cleanup to remove orphaned records'
-      });
-    }
-
-    if (orphanedSupabaseFiles.length > 0) {
-      report.recommendations.push({
-        type: 'storage_cleanup',
-        message: `Found ${orphanedSupabaseFiles.length} files in Supabase not tracked in database`,
-        action: 'These may be from failed uploads or deleted statements'
-      });
-    }
-
-    if (orphanedS3Files.length > 0) {
-      report.recommendations.push({
-        type: 'storage_cleanup',
-        message: `Found ${orphanedS3Files.length} files in S3 not tracked in database`,
-        action: 'These may be from failed uploads or deleted statements'
-      });
-    }
-
-    if (!supabaseAdmin && !s3Client) {
-      report.recommendations.push({
-        type: 'configuration',
-        message: 'No storage provider configured',
-        action: 'Configure either Supabase or S3 for file storage'
-      });
+    // Determine recommendation
+    if (!supabaseConfigured && supabaseFiles.length > 0) {
+      analysis.recommendation = 'Supabase is not configured but files are marked as Supabase. Please configure Supabase.';
+    } else if (supabaseConfigured && supabaseFiles.length === 0) {
+      analysis.recommendation = 'Supabase is configured but no files found. Ready for uploads.';
+    } else if (supabaseConfigured && supabaseFiles.length > 0) {
+      analysis.recommendation = 'Supabase is configured and files are properly marked. System is ready.';
+    } else {
+      analysis.recommendation = 'No storage configured. Please configure Supabase.';
     }
 
     return NextResponse.json({
       success: true,
-      report
+      data: analysis
     });
 
   } catch (error: any) {
-    console.error('Cleanup analysis error:', error);
-    return NextResponse.json({
-      error: 'Failed to analyze cleanup status',
-      details: error.message
-    }, { status: 500 });
+    console.error('Error analyzing storage:', error);
+    return NextResponse.json(
+      { error: 'Failed to analyze storage', details: error.message },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Perform actual cleanup
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -185,176 +68,60 @@ export async function POST(request: NextRequest) {
 
     await connectToDatabase();
 
-    const body = await request.json();
-    const { cleanupType = 'all', dryRun = true } = body;
+    // Check storage configuration
+    const supabaseConfigured = !!supabaseAdmin;
 
-    const results: any = {
-      timestamp: new Date().toISOString(),
-      dryRun,
-      cleanupType,
-      database: {
-        orphanedFilesRemoved: 0,
-        errors: []
-      },
-      storage: {
-        supabase: {
-          filesRemoved: 0,
-          errors: []
-        },
-        s3: {
-          filesRemoved: 0,
-          errors: []
-        }
-      }
-    };
-
-    // 1. Clean up orphaned database records
-    if (cleanupType === 'all' || cleanupType === 'database') {
-      const statements = await Statement.find({}).populate('sourceFile');
-      const files = await File.find({});
-      
-      const statementFileIds = statements
-        .filter(s => s.sourceFile)
-        .map(s => (s.sourceFile as any)._id?.toString());
-      
-      const orphanedFiles = files.filter(f => 
-        !statementFileIds.includes(f._id.toString())
+    if (!supabaseConfigured) {
+      return NextResponse.json(
+        { error: 'Supabase is not configured. Cannot fix storage providers.' },
+        { status: 400 }
       );
-
-      if (!dryRun) {
-        for (const file of orphanedFiles) {
-          try {
-            await File.findByIdAndDelete(file._id);
-            results.database.orphanedFilesRemoved++;
-          } catch (e: any) {
-            results.database.errors.push({
-              fileId: file._id,
-              error: e.message
-            });
-          }
-        }
-      } else {
-        results.database.orphanedFilesRemoved = orphanedFiles.length;
-        results.database.orphanedFiles = orphanedFiles.map(f => ({
-          id: f._id,
-          originalName: (f as any).originalName,
-          path: (f as any).path
-        }));
-      }
     }
 
-    // 2. Clean up orphaned storage files
-    if (cleanupType === 'all' || cleanupType === 'storage') {
-      const files = await File.find({});
-      const dbFilePaths = files.map(f => (f as any).path).filter(Boolean);
+    // Find files that need fixing
+    const filesToFix = await File.find({
+      $or: [
+        { storageProvider: { $exists: false } },
+        { storageProvider: 'local' }
+      ]
+    }).lean();
 
-      // Supabase cleanup
-      if (supabaseAdmin) {
-        try {
-          const { data: supabaseFiles, error } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .list('statements', { limit: 1000 });
-          
-          if (!error && supabaseFiles) {
-            const orphanedSupabaseFiles = supabaseFiles.filter(f => 
-              !dbFilePaths.includes(`statements/${f.name}`)
-            );
-
-            if (!dryRun) {
-              for (const file of orphanedSupabaseFiles) {
-                try {
-                  const { error: deleteError } = await supabaseAdmin.storage
-                    .from(STORAGE_BUCKET)
-                    .remove([`statements/${file.name}`]);
-                  
-                  if (!deleteError) {
-                    results.storage.supabase.filesRemoved++;
-                  } else {
-                    results.storage.supabase.errors.push({
-                      file: file.name,
-                      error: deleteError.message
-                    });
-                  }
-                } catch (e: any) {
-                  results.storage.supabase.errors.push({
-                    file: file.name,
-                    error: e.message
-                  });
-                }
-              }
-            } else {
-              results.storage.supabase.filesRemoved = orphanedSupabaseFiles.length;
-              results.storage.supabase.orphanedFiles = orphanedSupabaseFiles.map(f => f.name);
-            }
-          }
-        } catch (e: any) {
-          results.storage.supabase.errors.push({
-            type: 'list',
-            error: e.message
-          });
-        }
-      }
-
-      // S3 cleanup
-      const s3Client = getS3Client();
-      if (s3Client && S3_BUCKET) {
-        try {
-          const listCommand = new ListObjectsV2Command({
-            Bucket: S3_BUCKET,
-            Prefix: 'statements/',
-            MaxKeys: 1000
-          });
-          
-          const s3Response = await s3Client.send(listCommand);
-          
-          if (s3Response.Contents) {
-            const orphanedS3Files = s3Response.Contents.filter(obj => 
-              obj.Key && !dbFilePaths.includes(obj.Key)
-            );
-
-            if (!dryRun) {
-              for (const file of orphanedS3Files) {
-                if (!file.Key) continue;
-                
-                try {
-                  const deleteCommand = new DeleteObjectCommand({
-                    Bucket: S3_BUCKET,
-                    Key: file.Key
-                  });
-                  
-                  await s3Client.send(deleteCommand);
-                  results.storage.s3.filesRemoved++;
-                } catch (e: any) {
-                  results.storage.s3.errors.push({
-                    file: file.Key,
-                    error: e.message
-                  });
-                }
-              }
-            } else {
-              results.storage.s3.filesRemoved = orphanedS3Files.length;
-              results.storage.s3.orphanedFiles = orphanedS3Files.map(f => f.Key);
-            }
-          }
-        } catch (e: any) {
-          results.storage.s3.errors.push({
-            type: 'list',
-            error: e.message
-          });
-        }
-      }
+    if (filesToFix.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No files need fixing. All files are properly configured.',
+        filesFixed: 0
+      });
     }
+
+    // Update files to use Supabase
+    const updateResult = await File.updateMany(
+      {
+        $or: [
+          { storageProvider: { $exists: false } },
+          { storageProvider: 'local' }
+        ]
+      },
+      {
+        $set: {
+          storageProvider: 'supabase',
+          updatedAt: new Date()
+        }
+      }
+    );
 
     return NextResponse.json({
       success: true,
-      results
+      message: `Fixed ${updateResult.modifiedCount} files to use Supabase storage`,
+      filesFixed: updateResult.modifiedCount,
+      totalFiles: filesToFix.length
     });
 
   } catch (error: any) {
-    console.error('Cleanup execution error:', error);
-    return NextResponse.json({
-      error: 'Failed to execute cleanup',
-      details: error.message
-    }, { status: 500 });
+    console.error('Error fixing storage providers:', error);
+    return NextResponse.json(
+      { error: 'Failed to fix storage providers', details: error.message },
+      { status: 500 }
+    );
   }
 }

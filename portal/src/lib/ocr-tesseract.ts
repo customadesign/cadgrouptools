@@ -354,11 +354,17 @@ class TesseractOCRService {
           let date: string, description: string, amountStr: string, sign: string = '';
           
           // Handle different capture group arrangements
-          if (pattern.source.includes('(.+?)\\s+(')) {
-            // Alternative format (description at start)
+          // FIXED: The pattern.source.includes check was incorrectly identifying standard patterns
+          // Pattern 1: ^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s+(.+?)\s+([\d,]+\.?\d{2})\s*([+-]?)
+          // This is STANDARD format (date first), not alternative format
+          if (pattern.source.includes('^(\d{1,2}[\/\-]\d{1,2}')) {
+            // Standard format (date at start) - this is the most common
+            [, date, description, amountStr, sign] = match;
+          } else if (pattern.source.includes('(.+?)\\s+([\d,]+\.?\d{2})\s*([+-]?)\\s*(\\d{1,2}[\/\-]')) {
+            // Alternative format (description at start, date at end)
             [, description, amountStr, sign, date] = match;
           } else {
-            // Standard format (date at start)
+            // Default to standard format for safety
             [, date, description, amountStr, sign] = match;
           }
 

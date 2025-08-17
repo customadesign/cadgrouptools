@@ -233,7 +233,7 @@ export default function ProposalDetailPage() {
               <ul style="line-height: 1.8; color: #555;">
                 <li><strong>Web Application Development:</strong> Custom React-based frontend with responsive design</li>
                 <li><strong>Backend API Development:</strong> Node.js/Express RESTful API with MongoDB</li>
-                <li><strong>Cloud Infrastructure:</strong> AWS deployment with auto-scaling and monitoring</li>
+                <li><strong>Cloud Infrastructure:</strong> Supabase deployment with auto-scaling and monitoring</li>
                 <li><strong>UI/UX Design:</strong> Modern, intuitive interface design</li>
                 <li><strong>Quality Assurance:</strong> Comprehensive testing and optimization</li>
               </ul>

@@ -114,7 +114,6 @@ if [ $? -eq 0 ]; then
     echo "$cleanup_response" | jq '.report | {
         database: .database,
         storage_supabase: .storage.supabase.isConfigured,
-        storage_s3: .storage.s3.configured,
         recommendations: .recommendations
     }' 2>/dev/null || echo "$cleanup_response"
 else
