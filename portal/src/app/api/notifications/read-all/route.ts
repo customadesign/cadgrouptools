@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/lib/auth-config';
 
 // PUT /api/notifications/read-all - Mark all notifications as read
 export async function PUT(request: NextRequest) {

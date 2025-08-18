@@ -2,6 +2,9 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-config';
 import { NextRequest } from 'next/server';
 
+// Re-export authOptions for backward compatibility
+export { authOptions } from '@/lib/auth-config';
+
 export interface AuthUser {
   id: string;
   email: string;
