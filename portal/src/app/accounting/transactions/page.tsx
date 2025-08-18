@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Card,
@@ -157,11 +157,14 @@ function TransactionsContent() {
   const [accounts, setAccounts] = useState<Array<{ _id: string; name: string; bankName: string }>>([]);
 
   useEffect(() => {
+    console.log('Transactions useEffect triggered');
+    console.log('Current statementId:', statementId);
+    console.log('Current dateRange:', dateRange);
     fetchTransactions();
     fetchAccounts();
-  }, [statementId, dateRange, filterCategory, filterType, filterAccount]);
+  }, [fetchTransactions, fetchAccounts]);
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       const response = await fetch('/api/accounts?status=active');
       if (response.ok) {
@@ -171,9 +174,9 @@ function TransactionsContent() {
     } catch (error) {
       console.error('Error fetching accounts:', error);
     }
-  };
+  }, []);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     setLoading(true);
     try {
       // Build query parameters
@@ -190,6 +193,9 @@ function TransactionsContent() {
       const data = await response.json();
       
       if (response.ok && data.success) {
+        console.log('API Response:', data);
+        console.log('Transactions found:', data.data?.length || 0);
+        
         // Transform API data to match frontend interface
         const transformedTransactions = data.data.map((txn: any) => ({
           ...txn,
@@ -201,8 +207,11 @@ function TransactionsContent() {
           vendor: txn.description.split(' - ')[0] || txn.description,
           reconciled: false,
         }));
+        
+        console.log('Transformed transactions:', transformedTransactions.length);
         setTransactions(transformedTransactions);
       } else {
+        console.log('API Error:', data);
         // If no data from API, show empty state
         setTransactions([]);
       }
@@ -213,7 +222,7 @@ function TransactionsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statementId, dateRange, filterCategory, filterType, filterAccount, searchText]);
 
   const handleEdit = (record: Transaction) => {
     setSelectedTransaction(record);
