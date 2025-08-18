@@ -166,7 +166,19 @@ function TransactionsContent() {
 
   const fetchAccounts = async () => {
     try {
-      const response = await fetch('/api/accounts?status=active');
+      const response = await fetch('/api/accounts?status=active', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+      });
+      
+      if (response.status === 401) {
+        console.error('Authentication failed when fetching accounts');
+        return;
+      }
+      
       if (response.ok) {
         const data = await response.json();
         setAccounts(data.accounts || []);
@@ -189,8 +201,29 @@ function TransactionsContent() {
       if (filterCategory && filterCategory !== 'all') params.append('category', filterCategory);
       if (searchText) params.append('search', searchText);
       
-      const response = await fetch(`/api/transactions?${params.toString()}`);
+      console.log('[Transactions] Fetching with params:', params.toString());
+      
+      const response = await fetch(`/api/transactions?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Important: Include cookies for authentication
+        cache: 'no-store', // Ensure fresh data in production
+      });
+      
       const data = await response.json();
+      
+      // Handle authentication errors
+      if (response.status === 401) {
+        console.error('Authentication failed:', data);
+        message.error('Your session has expired. Please sign in again.');
+        // Redirect to sign-in page after a short delay
+        setTimeout(() => {
+          window.location.href = '/auth/signin?callbackUrl=' + encodeURIComponent(window.location.pathname + window.location.search);
+        }, 1500);
+        return;
+      }
       
       if (response.ok && data.success) {
         console.log('API Response:', data);

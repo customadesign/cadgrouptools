@@ -23,24 +23,35 @@ if (!globalForMongoose.mongooseCache) {
 
 export async function connectToDatabase(): Promise<typeof mongoose> {
   if (!MONGODB_URI) {
+    console.error('[MongoDB] MONGODB_URI is not configured');
     throw new Error('Missing MONGODB_URI in environment');
   }
+  
+  // Return existing connection if available
   if (cached.conn) {
     return cached.conn;
   }
 
   if (!cached.promise) {
     const uri = DB_NAME ? `${MONGODB_URI}/${DB_NAME}` : MONGODB_URI;
+    
+    console.log('[MongoDB] Attempting to connect to database...');
+    console.log('[MongoDB] Using database:', DB_NAME || 'default');
 
     cached.promise = mongoose
       .connect(uri, {
         // Mongoose 7+ uses stable defaults; keep options minimal
         maxPoolSize: 10,
         minPoolSize: 0,
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 10000, // Increased for production
+        socketTimeoutMS: 45000, // Increased for production
       })
-      .then((m) => m)
+      .then((m) => {
+        console.log('[MongoDB] Successfully connected to database');
+        return m;
+      })
       .catch((err) => {
+        console.error('[MongoDB] Connection failed:', err.message);
         cached.promise = null;
         throw err;
       });

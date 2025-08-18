@@ -8,11 +8,24 @@ import { Types } from 'mongoose';
 import { withActivityTracking } from '@/middleware/activityTracking';
 
 // GET: Fetch transactions with filtering and pagination
-export const GET = withActivityTracking(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   try {
+    // Get session with proper Next.js App Router handling
     const session = await getServerSession(authOptions);
+    
+    // Debug logging
+    console.log('[Transactions API] Session check:', {
+      hasSession: !!session,
+      user: session?.user?.email,
+      timestamp: new Date().toISOString()
+    });
+    
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error('[Transactions API] No valid session found');
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in to access transactions' },
+        { status: 401 }
+      );
     }
 
     await connectToDatabase();
@@ -111,13 +124,13 @@ export const GET = withActivityTracking(async (request: NextRequest) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching transactions:', error);
+    console.error('[Transactions API] Error fetching transactions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch transactions', details: error.message },
       { status: 500 }
     );
   }
-});
+}
 
 // POST: Create new transactions (bulk support)
 export async function POST(request: NextRequest) {

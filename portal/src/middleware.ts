@@ -1,8 +1,21 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export default withAuth(
   function middleware(req) {
+    const token = req.nextauth.token;
+    
+    // Debug logging for authentication issues
+    const pathname = req.nextUrl.pathname;
+    console.log('[Middleware] Request:', {
+      path: pathname,
+      hasToken: !!token,
+      user: token?.email,
+      role: token?.role,
+      timestamp: new Date().toISOString()
+    });
+    
     // Admin-only routes
     const adminOnlyPaths = [
       '/admin',
@@ -11,10 +24,11 @@ export default withAuth(
     ];
     
     const isAdminRoute = adminOnlyPaths.some(path => 
-      req.nextUrl.pathname.startsWith(path)
+      pathname.startsWith(path)
     );
     
-    if (isAdminRoute && req.nextauth.token?.role !== 'admin') {
+    if (isAdminRoute && token?.role !== 'admin') {
+      console.log('[Middleware] Admin access denied for:', token?.email);
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
     
@@ -22,26 +36,46 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+        
+        // Allow public routes
+        if (pathname.startsWith('/auth/') || 
+            pathname === '/' ||
+            pathname.startsWith('/api/auth/') ||
+            pathname === '/api/health/push') {
+          return true;
+        }
+        
+        // Check if user has valid token
+        const isAuthorized = !!token;
+        
+        if (!isAuthorized) {
+          console.log('[Middleware] Unauthorized access attempt to:', pathname);
+        }
+        
+        return isAuthorized;
+      },
     },
+    pages: {
+      signIn: '/auth/signin',
+      error: '/auth/error',
+    }
   }
 );
 
 // Configure which routes require authentication
 export const config = {
   matcher: [
-    // Protected routes - require authentication
-    '/dashboard/:path*',
-    '/accounting/:path*',
-    '/proposals/:path*',
-    '/clients/:path*',
-    '/settings/:path*',
-    '/api/clients/:path*',
-    '/api/proposals/:path*',
-    '/api/statements/:path*',
-    '/api/transactions/:path*',
-    '/api/uploads/:path*',
-    // Exclude auth routes, public pages, and test routes
-    '/((?!api/auth|auth|_next/static|_next/image|favicon.ico|public|test-ocr|test-auth|test-storage|status|help).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     * - api/auth (authentication endpoints)
+     * - auth pages (signin, signup, etc.)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|api/auth|auth).*)',
   ],
 };
