@@ -203,10 +203,12 @@ function TransactionsContent() {
       
       console.log('[Transactions] Fetching with params:', params.toString());
       
+      // API endpoint - relative URL should work with Next.js
       const response = await fetch(`/api/transactions?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         credentials: 'include', // Important: Include cookies for authentication
         cache: 'no-store', // Ensure fresh data in production
@@ -230,22 +232,27 @@ function TransactionsContent() {
         console.log('Transactions found:', data.data?.length || 0);
         
         // Transform API data to match frontend interface
-        const transformedTransactions = data.data.map((txn: any) => ({
+        const transformedTransactions = (data.data || []).map((txn: any) => ({
           ...txn,
           id: txn._id,
           date: txn.txnDate,
           type: txn.direction === 'credit' ? 'income' : 'expense',
           account: txn.statement?.accountName || 'Unknown Account',
           status: 'completed',
-          vendor: txn.description.split(' - ')[0] || txn.description,
-          reconciled: false,
+          vendor: txn.description?.split(' - ')[0] || txn.description || '',
+          reconciled: txn.reconciled || false,
         }));
         
         console.log('Transformed transactions:', transformedTransactions.length);
         setTransactions(transformedTransactions);
+        
+        // Show a message if no transactions found
+        if (transformedTransactions.length === 0 && statementId) {
+          message.info('No transactions found for this statement');
+        }
       } else {
-        console.log('API Error:', data);
-        // If no data from API, show empty state
+        console.error('API Error:', data);
+        message.error(data.error || 'Failed to load transactions');
         setTransactions([]);
       }
     } catch (error) {
@@ -545,8 +552,11 @@ function TransactionsContent() {
       dataIndex: 'date',
       key: 'date',
       width: 100,
-      sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
-      render: (date) => dayjs(date).format('MMM DD, YYYY'),
+      sorter: (a, b) => dayjs(a.date || a.txnDate).unix() - dayjs(b.date || b.txnDate).unix(),
+      render: (date, record) => {
+        const displayDate = date || record.txnDate;
+        return displayDate ? dayjs(displayDate).format('MMM DD, YYYY') : 'N/A';
+      },
     },
     {
       title: 'Description',
