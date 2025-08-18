@@ -150,10 +150,10 @@ export default function BankStatementUploadPage() {
         // Update uploads with verification results
         const updatedUploads = recentUploads.map(upload => {
           const verification = verificationMap.get(upload._id || upload.id);
-          if (verification) {
+          if (verification && typeof verification === 'object' && 'exists' in verification) {
             return {
               ...upload,
-              fileExists: verification.exists,
+              fileExists: verification.exists as boolean,
               fileVerified: true,
             };
           }
@@ -228,7 +228,7 @@ export default function BankStatementUploadPage() {
         const transformedData = result.data.map((statement: any) => ({
           id: statement._id,
           _id: statement._id, // Ensure _id is included
-          fileName: statement.sourceFile?.originalName || statement.sourceFile?.filename || 'Unknown file',
+          fileName: statement.sourceFile?.originalName || statement.sourceFile?.fileName || 'Unknown file',
           fileSize: statement.sourceFile?.size || 0,
           uploadDate: statement.createdAt,
           status: statement.status || 'pending',

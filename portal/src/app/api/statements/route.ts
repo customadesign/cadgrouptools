@@ -134,13 +134,13 @@ export async function POST(request: NextRequest) {
 
     // Create file record
     const file = await File.create({
-      filename: fileName,
+      fileName: fileName,
       originalName: fileName,
       mimeType: fileType || 'application/pdf',
       size: fileSize,
       uploadedBy: new Types.ObjectId(session.user.id),
       storageProvider: 'local',
-      url: `/uploads/${fileName}`,
+      path: `/uploads/${fileName}`,
     });
 
     // Create statement record

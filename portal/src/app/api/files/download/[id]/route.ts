@@ -97,7 +97,7 @@ export async function GET(
         // Set appropriate headers for file download
         const headers = new Headers();
         headers.set('Content-Type', fileDoc.mimeType || 'application/octet-stream');
-        headers.set('Content-Disposition', `attachment; filename="${fileDoc.originalName || fileDoc.filename || 'download'}"`);
+        headers.set('Content-Disposition', `attachment; filename="${fileDoc.originalName || fileDoc.fileName || 'download'}"`);
         headers.set('Content-Length', buffer.length.toString());
 
         return new NextResponse(buffer, {

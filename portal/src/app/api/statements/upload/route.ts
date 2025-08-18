@@ -107,14 +107,12 @@ export async function POST(request: NextRequest) {
 
     // Create file record in database
     const fileDoc = await File.create({
-      filename: fileName,
+      fileName: fileName,
       originalName: file.name,
       mimeType: file.type,
       size: file.size,
       uploadedBy: new Types.ObjectId(session.user.id),
       storageProvider: 'supabase',
-      url: publicUrl,
-      bucket: STORAGE_BUCKET,
       path: fileName,
     });
 

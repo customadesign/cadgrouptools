@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Get all file references from database
     const dbFiles = await File.find({ storageProvider: 'supabase' })
-      .select('path filename')
+      .select('path fileName')
       .lean();
 
     const dbFilePaths = new Set(
-      dbFiles.map(f => f.path || f.filename).filter(Boolean)
+      dbFiles.map(f => f.path || f.fileName).filter(Boolean)
     );
 
     // Step 3: Find orphaned files (in storage but not in database)
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     // Step 4: Clean up database records with missing storage files
     const missingStorageFiles = [];
     for (const dbFile of dbFiles) {
-      const filePath = dbFile.path || dbFile.filename;
+      const filePath = dbFile.path || dbFile.fileName;
       if (filePath) {
         // Check if file exists in storage
         const exists = storageFiles.some(sf => sf.name === filePath);

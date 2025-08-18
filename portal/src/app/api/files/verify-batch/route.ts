@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       statements.map(async (statement) => {
         const result: any = {
           statementId: statement._id.toString(),
-          fileName: statement.sourceFile?.originalName || statement.sourceFile?.filename || 'Unknown',
+          fileName: statement.sourceFile?.originalName || statement.sourceFile?.fileName || 'Unknown',
         };
 
         if (!statement.sourceFile) {

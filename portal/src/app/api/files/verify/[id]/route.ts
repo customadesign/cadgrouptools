@@ -108,7 +108,7 @@ export async function GET(
       exists: fileExists,
       verified: true,
       statementId: id,
-      fileName: fileDoc.originalName || fileDoc.filename,
+              fileName: fileDoc.originalName || fileDoc.fileName,
       storageProvider: fileDoc.storageProvider,
       details: verificationDetails,
     });
