@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Card,
@@ -162,9 +162,9 @@ function TransactionsContent() {
     console.log('Current dateRange:', dateRange);
     fetchTransactions();
     fetchAccounts();
-  }, [fetchTransactions, fetchAccounts]);
+  }, [statementId, dateRange, filterCategory, filterType, filterAccount, searchText]);
 
-  const fetchAccounts = useCallback(async () => {
+  const fetchAccounts = async () => {
     try {
       const response = await fetch('/api/accounts?status=active');
       if (response.ok) {
@@ -174,9 +174,9 @@ function TransactionsContent() {
     } catch (error) {
       console.error('Error fetching accounts:', error);
     }
-  }, []);
+  };
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = async () => {
     setLoading(true);
     try {
       // Build query parameters
@@ -222,7 +222,7 @@ function TransactionsContent() {
     } finally {
       setLoading(false);
     }
-  }, [statementId, dateRange, filterCategory, filterType, filterAccount, searchText]);
+  };
 
   const handleEdit = (record: Transaction) => {
     setSelectedTransaction(record);
