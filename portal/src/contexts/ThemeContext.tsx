@@ -1,77 +1,91 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ConfigProvider, theme } from 'antd';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+
+type Theme = 'light' | 'dark' | 'system';
+type ResolvedTheme = 'light' | 'dark';
 
 interface ThemeContextType {
-  isDarkMode: boolean;
-  toggleTheme: () => void;
+  theme: Theme;
+  resolvedTheme: ResolvedTheme;
+  setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const useTheme = () => {
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>('system');
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
+  const [mounted, setMounted] = useState(false);
+
+  // Detect system theme preference
+  const getSystemTheme = (): ResolvedTheme => {
+    if (typeof window === 'undefined') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  // Resolve the actual theme to apply
+  const resolveTheme = (themeValue: Theme): ResolvedTheme => {
+    if (themeValue === 'system') {
+      return getSystemTheme();
+    }
+    return themeValue;
+  };
+
+  // Initialize theme from localStorage or system preference
+  useEffect(() => {
+    setMounted(true);
+    const savedTheme = localStorage.getItem('cad-theme') as Theme | null;
+    const initialTheme = savedTheme || 'system';
+    setThemeState(initialTheme);
+    setResolvedTheme(resolveTheme(initialTheme));
+  }, []);
+
+  // Apply theme to document
+  useEffect(() => {
+    if (!mounted) return;
+
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(resolvedTheme);
+    root.setAttribute('data-theme', resolvedTheme);
+  }, [resolvedTheme, mounted]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    if (theme !== 'system') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      setResolvedTheme(getSystemTheme());
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme]);
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+    setResolvedTheme(resolveTheme(newTheme));
+    localStorage.setItem('cad-theme', newTheme);
+  };
+
+  // Prevent flash of unstyled content
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() {
   const context = useContext(ThemeContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-};
-
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    // Load theme preference from localStorage
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    
-    // Save preference to localStorage
-    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-    
-    // Add/remove dark class to html element
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-
-  const lightTheme = {
-    algorithm: theme.defaultAlgorithm,
-    token: {
-      colorPrimary: '#1677ff',
-      borderRadius: 8,
-    },
-  };
-
-  const darkTheme = {
-    algorithm: theme.darkAlgorithm,
-    token: {
-      colorPrimary: '#1677ff',
-      borderRadius: 8,
-      colorBgContainer: '#1f1f1f',
-      colorBgElevated: '#262626',
-      colorBgLayout: '#141414',
-      colorBorder: '#424242',
-      colorText: '#ffffff',
-      colorTextSecondary: '#b3b3b3',
-    },
-  };
-
-  return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
-      <ConfigProvider theme={isDarkMode ? darkTheme : lightTheme}>
-        {children}
-      </ConfigProvider>
-    </ThemeContext.Provider>
-  );
-};
+}
