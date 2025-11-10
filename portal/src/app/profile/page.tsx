@@ -1,10 +1,7 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import {
   Card,
   Form,
@@ -12,19 +9,15 @@ import {
   Button,
   Avatar,
   Space,
-  Typography,
-  Divider,
-  Row,
-  Col,
   message,
   Tabs,
   List,
   Tag,
-  Progress,
-  Statistic,
-  Alert,
+  Row,
+  Col,
   Upload,
   Modal,
+  Divider,
 } from 'antd';
 import {
   UserOutlined,
@@ -32,21 +25,22 @@ import {
   PhoneOutlined,
   TeamOutlined,
   CalendarOutlined,
-  SafetyOutlined,
   EditOutlined,
   SaveOutlined,
   CloseOutlined,
   CameraOutlined,
   LockOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   FileTextOutlined,
   DollarOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
+import { motion } from 'framer-motion';
 import { supabase, STORAGE_BUCKET } from '@/lib/supabaseClient';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import StatCard from '@/components/ui/StatCard';
 
-const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 
 export default function ProfilePage() {
@@ -58,7 +52,6 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('1');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  // Mock data - replace with actual API calls
   const [profileData, setProfileData] = useState({
     name: session?.user?.name || 'John Doe',
     email: session?.user?.email || 'john.doe@cadgroup.com',
@@ -69,57 +62,17 @@ export default function ProfilePage() {
     avatar: null as string | null,
   });
 
-  const [stats, setStats] = useState({
+  const stats = {
     totalProposals: 42,
     activeClients: 15,
     completedTasks: 128,
     revenue: 125000,
-  });
+  };
 
   const recentActivity = [
-    {
-      id: 1,
-      action: 'Created proposal',
-      target: 'Website Redesign for ABC Corp',
-      timestamp: '2 hours ago',
-      type: 'proposal',
-    },
-    {
-      id: 2,
-      action: 'Updated client',
-      target: 'XYZ Industries',
-      timestamp: '5 hours ago',
-      type: 'client',
-    },
-    {
-      id: 3,
-      action: 'Uploaded statement',
-      target: 'Bank Statement - March 2024',
-      timestamp: '1 day ago',
-      type: 'accounting',
-    },
-    {
-      id: 4,
-      action: 'Completed task',
-      target: 'Quarterly Report Review',
-      timestamp: '2 days ago',
-      type: 'task',
-    },
-    {
-      id: 5,
-      action: 'Generated report',
-      target: 'Monthly Analytics Report',
-      timestamp: '3 days ago',
-      type: 'report',
-    },
-  ];
-
-  const loginHistory = [
-    { date: '2024-03-20 09:15 AM', location: 'San Francisco, CA', device: 'Chrome on MacOS' },
-    { date: '2024-03-19 02:30 PM', location: 'San Francisco, CA', device: 'Safari on iPhone' },
-    { date: '2024-03-18 08:45 AM', location: 'San Francisco, CA', device: 'Chrome on MacOS' },
-    { date: '2024-03-17 11:20 AM', location: 'New York, NY', device: 'Firefox on Windows' },
-    { date: '2024-03-16 03:10 PM', location: 'San Francisco, CA', device: 'Chrome on MacOS' },
+    { id: 1, action: 'Created proposal', target: 'Website Redesign', timestamp: '2 hours ago', type: 'proposal' },
+    { id: 2, action: 'Updated client', target: 'XYZ Industries', timestamp: '5 hours ago', type: 'client' },
+    { id: 3, action: 'Uploaded statement', target: 'Bank Statement', timestamp: '1 day ago', type: 'accounting' },
   ];
 
   useEffect(() => {
@@ -149,7 +102,6 @@ export default function ProfilePage() {
   const handlePasswordChange = async (values: any) => {
     setLoading(true);
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       message.success('Password changed successfully');
       setShowPasswordModal(false);
@@ -181,7 +133,6 @@ export default function ProfilePage() {
         const key = `avatars/${session?.user?.id}-${Date.now()}.${ext}`;
         const ct = (file as File).type || 'image/jpeg';
         
-        // Get signed upload URL from our API
         const presign = await fetch('/api/uploads/presign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -190,7 +141,6 @@ export default function ProfilePage() {
         const { path, token, publicUrl, error } = await presign.json();
         if (error) throw new Error(error);
         
-        // Upload to Supabase using the signed URL
         const { error: uploadError } = await supabase
           .storage
           .from(STORAGE_BUCKET)
@@ -201,10 +151,8 @@ export default function ProfilePage() {
         
         if (uploadError) throw uploadError;
         
-        // Use the public URL or construct it
         const avatarUrl = publicUrl || supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
         
-        // Persist avatar immediately
         await fetch('/api/auth/me', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -215,349 +163,435 @@ export default function ProfilePage() {
       } catch (e) {
         onError && onError(e as any);
         message.error('Failed to upload avatar');
-        console.error('Upload error:', e);
       }
     },
   };
 
   const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'proposal':
-        return <FileTextOutlined style={{ color: '#1890ff' }} />;
-      case 'client':
-        return <TeamOutlined style={{ color: '#52c41a' }} />;
-      case 'accounting':
-        return <DollarOutlined style={{ color: '#faad14' }} />;
-      case 'task':
-        return <CheckCircleOutlined style={{ color: '#13c2c2' }} />;
-      default:
-        return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
-    }
+    const icons = {
+      proposal: { icon: <FileTextOutlined />, color: '#3B82F6' },
+      client: { icon: <TeamOutlined />, color: '#10B981' },
+      accounting: { icon: <DollarOutlined />, color: '#F59E0B' },
+      task: { icon: <CheckCircleOutlined />, color: '#8B5CF6' },
+    };
+    return icons[type as keyof typeof icons] || icons.task;
   };
 
-  const breadcrumbs = [
-    { title: 'Profile' },
-  ];
-
   return (
-    <DashboardLayout breadcrumbs={breadcrumbs}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <Card
-          style={{ marginBottom: 24 }}
-          bodyStyle={{ padding: 32 }}
-        >
+    <ModernDashboardLayout>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          My Profile
+        </h1>
+        <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+          Manage your personal information and account settings
+        </p>
+      </motion.div>
+
+      {/* Profile Header Card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card className="gradient-card mb-6" styles={{ body: { padding: '32px' } }}>
           <Row gutter={24} align="middle">
-            <Col xs={24} sm={6} style={{ textAlign: 'center' }}>
-              <Space direction="vertical" size={16}>
-                <Upload {...uploadProps}>
-                  <div style={{ position: 'relative', cursor: 'pointer' }}>
-                    <Avatar
-                      size={120}
-                      icon={<UserOutlined />}
-                      src={profileData.avatar}
-                      style={{ backgroundColor: '#1890ff' }}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        right: 0,
-                        background: '#fff',
-                        borderRadius: '50%',
-                        padding: 8,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                      }}
-                    >
-                      <CameraOutlined style={{ fontSize: 16 }} />
-                    </div>
+            <Col xs={24} sm={8} md={6} style={{ textAlign: 'center' }}>
+              <Upload {...uploadProps}>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{ position: 'relative', cursor: 'pointer', display: 'inline-block' }}
+                >
+                  <Avatar
+                    size={120}
+                    icon={<UserOutlined />}
+                    src={profileData.avatar}
+                    style={{
+                      background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                      border: '4px solid var(--bg-elevated)',
+                      boxShadow: 'var(--shadow-lg)',
+                    }}
+                  />
+                  <div
+                    className="absolute bottom-0 right-0 w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
+                    style={{
+                      background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                      color: 'white',
+                    }}
+                  >
+                    <CameraOutlined style={{ fontSize: 16 }} />
                   </div>
-                </Upload>
-                <div>
-                  <Title level={4} style={{ margin: 0 }}>
-                    {profileData.name}
-                  </Title>
-                  <Text type="secondary">{profileData.position}</Text>
+                </motion.div>
+              </Upload>
+              <div className="mt-4">
+                <div className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                  {profileData.name}
                 </div>
-                <Tag color={session?.user?.role === 'admin' ? 'gold' : 'blue'}>
+                <div className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
+                  {profileData.position}
+                </div>
+                <Tag
+                  color={session?.user?.role === 'admin' ? 'gold' : 'blue'}
+                  style={{ borderRadius: '12px', padding: '4px 12px', fontWeight: 500 }}
+                >
                   {session?.user?.role?.toUpperCase() || 'STAFF'}
                 </Tag>
-              </Space>
+              </div>
             </Col>
-            <Col xs={24} sm={18}>
-              <Row gutter={[24, 24]}>
-                <Col xs={12} sm={6}>
-                  <Statistic
+            <Col xs={24} sm={16} md={18}>
+              <Row gutter={[16, 16]} className="stagger-children">
+                <Col xs={12} md={6}>
+                  <StatCard
                     title="Proposals"
                     value={stats.totalProposals}
-                    prefix={<FileTextOutlined />}
+                    icon={<FileTextOutlined style={{ fontSize: 20 }} />}
+                    color="primary"
                   />
                 </Col>
-                <Col xs={12} sm={6}>
-                  <Statistic
-                    title="Active Clients"
+                <Col xs={12} md={6}>
+                  <StatCard
+                    title="Clients"
                     value={stats.activeClients}
-                    prefix={<TeamOutlined />}
-                    valueStyle={{ color: '#52c41a' }}
+                    icon={<TeamOutlined style={{ fontSize: 20 }} />}
+                    color="success"
                   />
                 </Col>
-                <Col xs={12} sm={6}>
-                  <Statistic
-                    title="Tasks Completed"
+                <Col xs={12} md={6}>
+                  <StatCard
+                    title="Tasks"
                     value={stats.completedTasks}
-                    prefix={<CheckCircleOutlined />}
-                    valueStyle={{ color: '#1890ff' }}
+                    icon={<CheckCircleOutlined style={{ fontSize: 20 }} />}
+                    color="primary"
                   />
                 </Col>
-                <Col xs={12} sm={6}>
-                  <Statistic
-                    title="Revenue Generated"
-                    value={stats.revenue}
-                    prefix="$"
-                    precision={0}
-                    valueStyle={{ color: '#faad14' }}
+                <Col xs={12} md={6}>
+                  <StatCard
+                    title="Revenue"
+                    value={`$${(stats.revenue / 1000).toFixed(0)}K`}
+                    icon={<DollarOutlined style={{ fontSize: 20 }} />}
+                    color="warning"
                   />
                 </Col>
               </Row>
             </Col>
           </Row>
         </Card>
+      </motion.div>
 
-        <Card>
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <TabPane tab="Profile Information" key="1">
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSave}
-                disabled={!isEditing}
-              >
-                <Row gutter={24}>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Full Name"
-                      name="name"
-                      rules={[{ required: true, message: 'Please enter your name' }]}
-                    >
-                      <Input prefix={<UserOutlined />} placeholder="Full Name" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Email"
-                      name="email"
-                      rules={[
-                        { required: true, message: 'Please enter your email' },
-                        { type: 'email', message: 'Please enter a valid email' },
-                      ]}
-                    >
-                      <Input prefix={<MailOutlined />} placeholder="Email" disabled />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Phone Number"
-                      name="phone"
-                      rules={[{ required: true, message: 'Please enter your phone number' }]}
-                    >
-                      <Input prefix={<PhoneOutlined />} placeholder="Phone Number" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Department"
-                      name="department"
-                    >
-                      <Input prefix={<TeamOutlined />} placeholder="Department" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Position"
-                      name="position"
-                    >
-                      <Input placeholder="Position" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Join Date"
-                      name="joinDate"
-                    >
-                      <Input prefix={<CalendarOutlined />} disabled />
-                    </Form.Item>
-                  </Col>
-                </Row>
+      {/* Tabs Card */}
+      <Card className="gradient-card">
+        <Tabs activeKey={activeTab} onChange={setActiveTab} size="large">
+          <TabPane tab={<span><UserOutlined /> Profile Information</span>} key="1">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSave}
+              disabled={!isEditing}
+            >
+              <Row gutter={24}>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Full Name"
+                    name="name"
+                    rules={[{ required: true, message: 'Please enter your name' }]}
+                  >
+                    <Input prefix={<UserOutlined />} placeholder="Full Name" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Email"
+                    name="email"
+                    rules={[
+                      { required: true, message: 'Please enter your email' },
+                      { type: 'email', message: 'Please enter a valid email' },
+                    ]}
+                  >
+                    <Input prefix={<MailOutlined />} placeholder="Email" disabled size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Phone Number"
+                    name="phone"
+                  >
+                    <Input prefix={<PhoneOutlined />} placeholder="Phone Number" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Department"
+                    name="department"
+                  >
+                    <Input prefix={<TeamOutlined />} placeholder="Department" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Position"
+                    name="position"
+                  >
+                    <Input placeholder="Position" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Join Date"
+                    name="joinDate"
+                  >
+                    <Input prefix={<CalendarOutlined />} disabled size="large" />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-                <Divider />
+              <Divider />
 
-                <Space>
-                  {isEditing ? (
-                    <>
-                      <Button
-                        type="primary"
-                        icon={<SaveOutlined />}
-                        htmlType="submit"
-                        loading={loading}
-                      >
-                        Save Changes
-                      </Button>
-                      <Button
-                        icon={<CloseOutlined />}
-                        onClick={() => {
-                          setIsEditing(false);
-                          form.resetFields();
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        type="primary"
-                        icon={<EditOutlined />}
-                        onClick={() => setIsEditing(true)}
-                      >
-                        Edit Profile
-                      </Button>
-                      <Button
-                        icon={<LockOutlined />}
-                        onClick={() => setShowPasswordModal(true)}
-                      >
-                        Change Password
-                      </Button>
-                    </>
-                  )}
-                </Space>
-              </Form>
-            </TabPane>
-
-            <TabPane tab="Recent Activity" key="2">
-              <List
-                itemLayout="horizontal"
-                dataSource={recentActivity}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={getActivityIcon(item.type)}
-                      title={
-                        <Space>
-                          <Text>{item.action}</Text>
-                          <Text strong>{item.target}</Text>
-                        </Space>
-                      }
-                      description={item.timestamp}
-                    />
-                  </List.Item>
+              <Space>
+                {isEditing ? (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      htmlType="submit"
+                      loading={loading}
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button
+                      icon={<CloseOutlined />}
+                      onClick={() => {
+                        setIsEditing(false);
+                        form.resetFields();
+                      }}
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<EditOutlined />}
+                      onClick={() => setIsEditing(true)}
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
+                      Edit Profile
+                    </Button>
+                    <Button
+                      icon={<LockOutlined />}
+                      onClick={() => setShowPasswordModal(true)}
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
+                      Change Password
+                    </Button>
+                  </>
                 )}
-              />
-            </TabPane>
+              </Space>
+            </Form>
+          </TabPane>
 
-            <TabPane tab="Security" key="3">
-              <Space direction="vertical" size={24} style={{ width: '100%' }}>
-                <Alert
-                  message="Two-Factor Authentication"
-                  description="Enhance your account security by enabling two-factor authentication."
-                  type="info"
-                  action={
-                    <Button size="small" type="primary">
+          <TabPane tab={<span><CheckCircleOutlined /> Recent Activity</span>} key="2">
+            <List
+              dataSource={recentActivity}
+              renderItem={(item, index) => {
+                const iconConfig = getActivityIcon(item.type);
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center"
+                            style={{ background: `${iconConfig.color}20`, color: iconConfig.color }}
+                          >
+                            {iconConfig.icon}
+                          </div>
+                        }
+                        title={
+                          <div>
+                            <span style={{ color: 'var(--text-primary)' }}>{item.action}</span>
+                            {' '}
+                            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                              {item.target}
+                            </span>
+                          </div>
+                        }
+                        description={
+                          <span style={{ color: 'var(--text-tertiary)' }}>{item.timestamp}</span>
+                        }
+                      />
+                    </List.Item>
+                  </motion.div>
+                );
+              }}
+            />
+          </TabPane>
+
+          <TabPane tab={<span><SafetyOutlined /> Security</span>} key="3">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Two-Factor Authentication
+                </h3>
+                <Card
+                  className="theme-card"
+                  styles={{ body: { padding: '20px' } }}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                        Enhanced Security
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        Add an extra layer of protection to your account
+                      </div>
+                    </div>
+                    <Button
+                      type="primary"
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
                       Enable 2FA
                     </Button>
-                  }
-                  showIcon
-                  icon={<SafetyOutlined />}
-                />
+                  </div>
+                </Card>
+              </div>
 
-                <div>
-                  <Title level={5}>Login History</Title>
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Login History
+                </h3>
+                <Card className="theme-card">
                   <List
-                    dataSource={loginHistory}
-                    renderItem={(item) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          title={item.date}
-                          description={
-                            <Space>
-                              <Text type="secondary">{item.location}</Text>
-                              <Text type="secondary">•</Text>
-                              <Text type="secondary">{item.device}</Text>
-                            </Space>
-                          }
-                        />
-                      </List.Item>
+                    dataSource={[
+                      { date: 'Today, 9:15 AM', location: 'San Francisco, CA', device: 'Chrome on MacOS' },
+                      { date: 'Yesterday, 2:30 PM', location: 'San Francisco, CA', device: 'Safari on iPhone' },
+                      { date: '2 days ago', location: 'New York, NY', device: 'Firefox on Windows' },
+                    ]}
+                    renderItem={(item, index) => (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <List.Item>
+                          <List.Item.Meta
+                            avatar={
+                              <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center"
+                                style={{ background: '#10B98120', color: '#10B981' }}
+                              >
+                                <CheckCircleOutlined />
+                              </div>
+                            }
+                            title={<span style={{ color: 'var(--text-primary)' }}>{item.date}</span>}
+                            description={
+                              <div style={{ color: 'var(--text-secondary)' }}>
+                                {item.location} • {item.device}
+                              </div>
+                            }
+                          />
+                        </List.Item>
+                      </motion.div>
                     )}
                   />
-                </div>
-              </Space>
-            </TabPane>
-          </Tabs>
-        </Card>
+                </Card>
+              </div>
+            </div>
+          </TabPane>
+        </Tabs>
+      </Card>
 
-        <Modal
-          title="Change Password"
-          open={showPasswordModal}
-          onCancel={() => {
-            setShowPasswordModal(false);
-            passwordForm.resetFields();
-          }}
-          footer={null}
+      <Modal
+        title="Change Password"
+        open={showPasswordModal}
+        onCancel={() => {
+          setShowPasswordModal(false);
+          passwordForm.resetFields();
+        }}
+        footer={null}
+        width={500}
+      >
+        <Form
+          form={passwordForm}
+          layout="vertical"
+          onFinish={handlePasswordChange}
         >
-          <Form
-            form={passwordForm}
-            layout="vertical"
-            onFinish={handlePasswordChange}
+          <Form.Item
+            name="currentPassword"
+            label="Current Password"
+            rules={[{ required: true, message: 'Please enter your current password' }]}
           >
-            <Form.Item
-              name="currentPassword"
-              label="Current Password"
-              rules={[{ required: true, message: 'Please enter your current password' }]}
-            >
-              <Input.Password prefix={<LockOutlined />} />
-            </Form.Item>
-            <Form.Item
-              name="newPassword"
-              label="New Password"
-              rules={[
-                { required: true, message: 'Please enter a new password' },
-                { min: 8, message: 'Password must be at least 8 characters' },
-              ]}
-            >
-              <Input.Password prefix={<LockOutlined />} />
-            </Form.Item>
-            <Form.Item
-              name="confirmPassword"
-              label="Confirm New Password"
-              dependencies={['newPassword']}
-              rules={[
-                { required: true, message: 'Please confirm your new password' },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue('newPassword') === value) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error('Passwords do not match'));
-                  },
-                }),
-              ]}
-            >
-              <Input.Password prefix={<LockOutlined />} />
-            </Form.Item>
-            <Form.Item>
-              <Space>
-                <Button type="primary" htmlType="submit" loading={loading}>
-                  Change Password
-                </Button>
-                <Button onClick={() => {
+            <Input.Password prefix={<LockOutlined />} size="large" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label="New Password"
+            rules={[
+              { required: true, message: 'Please enter a new password' },
+              { min: 8, message: 'Password must be at least 8 characters' },
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} size="large" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="Confirm New Password"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: 'Please confirm your password' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('Passwords do not match'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} size="large" />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                size="large"
+                style={{ borderRadius: '24px' }}
+              >
+                Change Password
+              </Button>
+              <Button
+                onClick={() => {
                   setShowPasswordModal(false);
                   passwordForm.resetFields();
-                }}>
-                  Cancel
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Modal>
-      </div>
-    </DashboardLayout>
+                }}
+                size="large"
+                style={{ borderRadius: '24px' }}
+              >
+                Cancel
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </ModernDashboardLayout>
   );
 }

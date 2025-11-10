@@ -1,201 +1,266 @@
-# CAD Group Tools - Implementation Status
+# Multi-Company Financial Reporting System - Implementation Status
 
-## Completed Components ✅
+## ✅ Completed (Phase 1-3 + Reusable Components)
 
-### 1. Core Infrastructure
-- ✅ Environment variables configured in `env.example`
-- ✅ MongoDB models created:
-  - `ManusTask` - Tracks Manus AI tasks
-  - `AccountingDocument` - Manages uploaded accounting docs
-  - `GoHighLevelSubmission` - Stores form submissions
-- ✅ Dependencies added: `@anthropic-ai/sdk` for Claude integration
+### 1. Database Models (100% Complete)
+- ✅ **Company Model** - Full company management with tax ID, currency, fiscal year
+- ✅ **CompanyGroup Model** - For consolidated reporting across multiple companies
+- ✅ **Category Model** - Hierarchical income/expense categories with tax deductibility
+- ✅ **Updated Account Model** - Now links to companies
+- ✅ **Updated Transaction Model** - Enhanced with company, category references, reconciliation, tax fields
+- ✅ **ReportSnapshot Model** - For future report caching (not yet used)
 
-### 2. Manus AI Integration
-- ✅ **ManusService** (`src/services/manusService.ts`)
-  - Task creation for proposals and accounting
-  - File upload to tasks
-  - Task status checking
-  - Webhook signature verification
-  - Persistent accounting task management
-  - Murphy/E-Systems proposal task creation
-  - Webhook registration
+### 2. Migration & Seeding Scripts (100% Complete)
+- ✅ **seedReportingSystem.ts** - Seeds 9 companies, 50+ categories with hierarchy, company groups
+- ✅ **migrateFinancialReporting.ts** - Migrates existing accounts and transactions to new schema
+  - Maps accounts to companies by name patterns
+  - Maps old string categories to new Category ObjectIds
+  - Extracts vendors from descriptions
+  - Handles all edge cases
 
-- ✅ **Manus Webhook Handler** (`src/app/api/webhooks/manus/route.ts`)
-  - Signature verification
-  - Task completion handling
-  - Task failure handling
-  - Proposal and accounting data updates
-  - Webhook event logging
+### 3. Backend APIs (100% Complete)
 
-### 3. GoHighLevel Integration
-- ✅ **GHLService** (`src/services/ghlService.ts`)
-  - Webhook signature verification
-  - Company identification (Murphy vs E-Systems)
-  - Form data parsing and normalization
-  - Webhook registration
+#### Company & Category Management APIs
+- ✅ `GET/POST /api/companies` - List and create companies
+- ✅ `GET/PATCH/DELETE /api/companies/:id` - Company CRUD operations
+- ✅ `GET/POST /api/categories` - List and create categories (with hierarchy support)
+- ✅ `GET/PATCH/DELETE /api/categories/:id` - Category CRUD operations
+- ✅ `GET /api/categories/tree` - Get category tree structure by type
 
-- ✅ **GHL Webhook Handler** (`src/app/api/webhooks/ghl/route.ts`)
-  - Form submission processing
-  - Client record creation/update
-  - Manus task triggering
-  - Proposal creation
-  - Company-specific routing
+#### Core Report APIs
+- ✅ `GET /api/reports/pl` - Profit & Loss Statement
+  - Revenue/expense breakdown by category
+  - Subcategory support
+  - Optional comparison to previous period
+  - Net income and profit margin calculations
 
-### 4. Proposals Module - Murphy Consulting
-- ✅ **List View** (`src/app/proposals/murphy/page.tsx`)
-  - Filterable table with status/search
-  - Manus task status tracking
-  - Google Slides links
-  - Refresh functionality
+- ✅ `GET /api/reports/cashflow` - Cash Flow Statement
+  - Beginning/ending cash positions
+  - Operating activities (inflows/outflows)
+  - Daily balance tracking for charts
+  - Net cash from operations
 
-- ✅ **Detail View** (`src/app/proposals/murphy/[id]/page.tsx`)
-  - Complete proposal information
-  - Manus task status monitoring
-  - Google Slides preview/download
-  - Email sending capability
-  - Form submission data display
+- ✅ `GET /api/reports/expenses` - Expense Analysis
+  - Breakdown by category with percentages
+  - Monthly trends (optional)
+  - Top vendors per category
+  - Transaction counts
 
-### 5. Proposals Module - E-Systems Management
-- ✅ **List View** (`src/app/proposals/esystems/page.tsx`)
-  - Product-focused proposal listing
-  - Same features as Murphy list view
-  - E-Systems branding
+- ✅ `GET /api/reports/revenue` - Revenue Analysis
+  - Revenue by source/category
+  - Monthly trends
+  - Month-over-month comparisons
+  - Transaction counts
 
-- ✅ **Detail View** (`src/app/proposals/esystems/[id]/page.tsx`)
-  - E-Systems proposal details
-  - Product research data display
-  - Email sending with E-Systems branding
+- ✅ `GET /api/reports/transactions` - Transaction Ledger/Register
+  - Paginated transaction list (100 per page)
+  - Advanced filtering (company, category, status, search)
+  - Summary statistics
+  - Categorization rate tracking
 
-### 6. Unified Proposals Dashboard
-- ✅ **Main Dashboard** (`src/app/proposals/page.tsx`)
-  - Tab-based interface (Murphy/E-Systems)
-  - Statistics cards for each company
-  - Total, pending, processing, completed counts
-  - Visual status indicators
-  - Quick navigation to detailed views
+#### Consolidated Report APIs
+- ✅ `GET /api/reports/consolidated/pl` - Consolidated P&L
+  - Aggregates across multiple companies
+  - Company-level breakdown
+  - Optional company group filtering
 
-### 7. API Routes
-- ✅ **Proposals API** (`src/app/api/proposals/route.ts`)
-  - Company-based filtering
-  - Manus task data enrichment
-  - Search functionality
-  - Status filtering
+- ✅ `GET /api/reports/consolidated/comparison` - Company Comparison
+  - Side-by-side financial metrics
+  - Chart data for visualization
+  - Cash position for each company
+  - Performance ranking
 
-- ✅ **Proposal Detail API** (`src/app/api/proposals/[id]/route.ts`)
-  - GET, PATCH, DELETE operations
-  - Manus task and GHL submission enrichment
+- ✅ `GET /api/reports/consolidated/cash` - Consolidated Cash Position
+  - Total cash across all companies
+  - Breakdown by company and account type
+  - Real-time account balances
 
-- ✅ **Send Email API** (`src/app/api/proposals/[id]/send/route.ts`)
-  - SendGrid integration
-  - HTML email templates
-  - Company-specific branding
-  - Proposal status updates
+#### Tax & Compliance APIs
+- ✅ `GET /api/reports/tax-summary` - Tax Summary (BIR-ready)
+  - Quarterly income calculation
+  - Deductible vs non-deductible expenses
+  - Taxable income computation
+  - BIR form data structure (placeholder for future)
 
-## All Components Complete! ✅
+- ✅ `GET /api/reports/uncategorized` - Uncategorized Transactions
+  - Data quality metrics
+  - Categorization rate tracking
+  - List of uncategorized transactions
+  - Company-level breakdown
 
-### 8. Accounting Module ✅
-Completed:
-- ✅ Accounting document upload interface (`src/app/accounting-manus/page.tsx`)
-- ✅ Company selector for 9 companies
-- ✅ Supabase storage integration
-- ✅ Manus task creation and reuse logic
-- ✅ Document analysis display (`src/app/accounting-manus/[company]/page.tsx`)
-- ✅ P&L statement viewing with statistics
-- ✅ Historical document management
-- ✅ Upload API route (`src/app/api/accounting/upload/route.ts`)
-- ✅ Company data API (`src/app/api/accounting/[company]/route.ts`)
+### 4. Reusable UI Components (100% Complete)
+- ✅ **CompanySelector.tsx** - Dropdown with all companies, supports single/multiple selection
+- ✅ **DateRangePicker.tsx** - Quick date selections (This Month, Last Month, YTD, etc.) with comparison toggle
+- ✅ **ReportLayout.tsx** - Standard report page layout with breadcrumbs, export buttons, filters drawer
+- ✅ **ReportCharts.tsx** - Chart.js wrapper components:
+  - PLChart (Line chart for P&L trends)
+  - ExpensePieChart (Category breakdown)
+  - CashFlowChart (Area chart for cash flow)
+  - ComparisonBarChart (Multi-company comparison)
 
-### 9. Claude Chat Widget ✅
-Completed:
-- ✅ Floating chat button component (`src/components/AccountingChatWidget.tsx`)
-- ✅ Claude SDK service (`src/services/claudeService.ts`)
-- ✅ Context-aware chat with company/document data
-- ✅ Chat history persistence in localStorage
-- ✅ Quick question buttons
-- ✅ Export functionality
-- ✅ Chat API (`src/app/api/accounting/chat/route.ts`)
-- ✅ Suggestions API (`src/app/api/accounting/chat/suggestions/route.ts`)
+## 🚧 Remaining Work (Phase 4-6)
 
-### 10. Webhook Registration Scripts ✅
-Completed:
-- ✅ Webhook registration script (`scripts/register-webhooks.js`)
-- ✅ Webhook testing script (`scripts/test-webhooks.js`)
-- ✅ Environment-based configuration
-- ✅ Error handling and validation
+### 5. Individual Report Pages (Pending)
+These pages need to be created using the completed APIs and reusable components:
 
-### 11. Testing & Documentation ✅
-Completed:
-- ✅ Comprehensive testing guide (`TESTING_GUIDE.md`)
-- ✅ Deployment documentation (`DEPLOYMENT.md`)
-- ✅ Integration README (`README_MANUS_INTEGRATION.md`)
-- ✅ End-to-end workflow documentation
-- ✅ Troubleshooting guides
+- ⏳ `/reports/pl` - P&L Report Page
+- ⏳ `/reports/cashflow` - Cash Flow Report Page
+- ⏳ `/reports/expenses` - Expense Analysis Page
+- ⏳ `/reports/revenue` - Revenue Analysis Page
+- ⏳ `/reports/transactions` - Transaction Ledger Page
 
-## Environment Variables Required
+### 6. Consolidated Report Pages (Pending)
+- ⏳ `/reports/consolidated/pl` - Consolidated P&L Page
+- ⏳ `/reports/consolidated/comparison` - Company Comparison Page
+- ⏳ `/reports/consolidated/cash` - Cash Position Dashboard
+
+### 7. Tax & Compliance Pages (Pending)
+- ⏳ `/reports/tax-summary` - Tax Summary Page
+- ⏳ `/reports/uncategorized` - Data Quality Dashboard
+
+### 8. Export Utilities (Pending)
+- ⏳ `exportToPDF()` - Generate PDF reports using jsPDF
+- ⏳ `exportToCSV()` - Generate CSV exports
+- ⏳ `exportToExcel()` - Generate Excel exports using xlsx library
+
+### 9. Navigation Integration (Pending)
+- ⏳ Update `DashboardLayout.tsx` - Add "Financial Reports" section to sidebar
+- ⏳ Update `accounting/page.tsx` - Add quick links to reports
+- ⏳ Update `accounting/transactions/page.tsx` - Replace hardcoded categories with dynamic Category API
+
+### 10. Testing & Documentation (Pending)
+- ⏳ API endpoint tests
+- ⏳ Frontend component tests
+- ⏳ Migration script testing on copy of production data
+- ⏳ User documentation (`docs/financial-reports-guide.md`)
+
+## 📦 Dependencies to Install
+
+The following npm packages need to be installed:
 
 ```bash
-# Manus AI
-MANUS_API_KEY=sk-84mJtNODf1nezQJLbmbOmoKhe4aQVb2GZCbCjdkioPsIAFXwSbL_K_qrjop3dcDD_9n67thIrNoxy-YStjm3k3qX8bHx
-MANUS_BASE_URL=https://api.manus.ai/v1
-MANUS_WEBHOOK_SECRET=<generate-this>
-
-# GoHighLevel
-GHL_API_KEY=pit-b1a70f52-ef61-4e6e-a439-22d836a23563
-GHL_LOCATION_ID=62kZ0CQqMotRWvdIjMZS
-GHL_WEBHOOK_SECRET=<generate-this>
-
-# Claude SDK
-ANTHROPIC_API_KEY=<your-key>
-
-# Company Configuration
-MURPHY_HOURLY_RATE=35
-
-# Existing (SendGrid, Supabase, MongoDB)
-EMAIL_SERVER_PASSWORD=<sendgrid-api-key>
-SUPABASE_URL=<your-supabase-url>
-SUPABASE_ANON_KEY=<your-key>
-SUPABASE_SERVICE_ROLE=<your-key>
-DATABASE_URL=<mongodb-connection-string>
+cd portal
+npm install dayjs chart.js react-chartjs-2 jspdf xlsx
 ```
 
-## Key Implementation Details
+## 🚀 Next Steps to Complete the System
 
-### Manus AI Workflow
-1. **Proposals**: Form submission → GHL webhook → Create Manus task → Manus research → Generate Google Slides → Webhook completion → Update proposal
-2. **Accounting**: Upload document → Supabase storage → Create/update Manus task → Manus OCR & analysis → Generate P&L → Webhook completion → Update records
+### Step 1: Install Dependencies
+```bash
+cd /Users/harrymurphy/Library/Mobile\ Documents/com~apple~CloudDocs/Coding\ Projects/Cadgroupmgt.com\ Internal\ Tools/portal
+npm install dayjs chart.js react-chartjs-2 jspdf xlsx
+```
+
+### Step 2: Run Migration
+After backing up your database:
+```bash
+npx ts-node src/scripts/migrateFinancialReporting.ts
+```
+
+### Step 3: Build Report Pages
+Start with the most critical reports:
+1. Cash Flow (most important for day-to-day decisions)
+2. P&L Statement
+3. Consolidated Cash Position
+4. Expense Analysis
+5. Revenue Analysis
+
+### Step 4: Create Main Reports Landing Page
+Create `/reports/page.tsx` with cards for each report type.
+
+### Step 5: Implement Export Functions
+Build the export utilities for PDF, CSV, and Excel exports.
+
+### Step 6: Update Navigation
+Integrate the reports into the main navigation and accounting dashboard.
+
+### Step 7: Test & Document
+- Test all APIs with various data scenarios
+- Test UI with different date ranges and companies
+- Write user documentation
+
+## 📊 What You Can Do Right Now
+
+Even with the remaining work pending, you can:
+
+1. **Test the APIs** using tools like Postman or curl
+2. **Review the migration script** before running it
+3. **Verify the seeding script** creates proper data structure
+4. **Examine the data models** to ensure they meet your requirements
+
+## 🎯 System Architecture Highlights
 
 ### Data Flow
-- GoHighLevel → CAD Tools → Manus AI → Google Slides → Client
-- Document Upload → Supabase → Manus AI → Analysis → Database
+1. **Transactions** are linked to **Companies** via **Accounts** and **Statements**
+2. **Categories** provide hierarchical organization for income/expenses
+3. **Reports** aggregate transaction data based on company, category, and date ranges
+4. **CompanyGroups** enable consolidated reporting across related entities
 
-### Webhook Security
-- All webhooks verify signatures using HMAC-SHA256
-- Timing-safe comparison to prevent timing attacks
-- Environment-based webhook secrets
+### Key Features Implemented
+- ✅ Multi-company support with proper data isolation
+- ✅ Hierarchical category system (parent/subcategories)
+- ✅ Tax deductibility tracking at category and transaction level
+- ✅ Philippine BIR tax compliance structure (basic)
+- ✅ Reconciliation tracking
+- ✅ Vendor extraction from transaction descriptions
+- ✅ Performance-optimized with proper database indexes
+- ✅ Role-based access control (admin-only for sensitive operations)
 
-### Google Slides Generation
-- Handled entirely by Manus AI
-- URLs stored in proposal records
-- Accessible for preview/download/email
+### Performance Considerations
+- All report queries use MongoDB aggregation pipelines (efficient)
+- Proper indexes on frequently queried fields
+- Pagination on transaction ledger (100 per page)
+- Future: Report snapshot caching for frequently-accessed reports
 
-### Persistent Accounting Tasks
-- ONE Manus task per company (reusable)
-- Accumulates knowledge over time
-- New documents uploaded to existing task
-- Continuous learning and analysis
+## 📝 Important Notes
 
-## Next Steps
+1. **Currency**: Currently defaults to PHP (Philippine Peso). Multi-currency support can be added later.
 
-1. Complete accounting upload interface
-2. Implement Claude chat widget
-3. Create webhook registration scripts
-4. Test complete workflows
-5. Deploy to production
-6. Monitor and optimize
+2. **Company Mapping**: During migration, accounts are mapped to companies by name patterns. Review the mapping in `migrateFinancialReporting.ts` and adjust if needed.
 
-## Notes
-- OCR processing removed from local codebase (now handled by Manus)
-- All proposals are automatically generated from form submissions
-- No manual proposal creation needed
-- Accounting analysis is fully automated
+3. **Category Mapping**: Old string categories are mapped to new Category objects. Unmapped transactions default to "Miscellaneous" or "Other Income".
 
+4. **System Categories**: Some categories are marked as `isSystem: true` and cannot be deleted to maintain data integrity.
+
+5. **Backup First**: Always backup your database before running the migration script!
+
+## 🔗 File Locations
+
+### Models
+- `/portal/src/models/Company.ts`
+- `/portal/src/models/CompanyGroup.ts`
+- `/portal/src/models/Category.ts`
+- `/portal/src/models/Account.ts` (updated)
+- `/portal/src/models/Transaction.ts` (updated)
+- `/portal/src/models/ReportSnapshot.ts`
+
+### Scripts
+- `/portal/src/scripts/seedReportingSystem.ts`
+- `/portal/src/scripts/migrateFinancialReporting.ts`
+
+### APIs
+- `/portal/src/app/api/companies/**`
+- `/portal/src/app/api/categories/**`
+- `/portal/src/app/api/reports/**`
+
+### Components
+- `/portal/src/components/reports/CompanySelector.tsx`
+- `/portal/src/components/reports/DateRangePicker.tsx`
+- `/portal/src/components/reports/ReportLayout.tsx`
+- `/portal/src/components/reports/ReportCharts.tsx`
+
+## 💪 Estimated Completion Time
+
+Based on complexity:
+- Report Pages (5 individual + 3 consolidated + 2 tax): **12-16 hours**
+- Export Utilities: **4-6 hours**
+- Navigation Integration: **2-3 hours**
+- Testing & Documentation: **4-6 hours**
+
+**Total remaining: ~22-31 hours of development work**
+
+---
+
+**Status as of**: Implementation paused at Phase 4 (UI Pages)
+**Completion**: ~60% of total project
+**Ready for**: Testing backend APIs, reviewing migration strategy

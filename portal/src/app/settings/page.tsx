@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -11,24 +9,16 @@ import {
   Select,
   Switch,
   Tabs,
-  Avatar,
-  Upload,
   message,
   Row,
   Col,
-  Typography,
   Divider,
   Space,
   Alert,
-  Badge,
   List,
-  Tag,
-  Modal,
-  TimePicker,
   Radio,
-  Spin,
-  Table,
-  Tooltip,
+  TimePicker,
+  Modal,
 } from 'antd';
 import {
   UserOutlined,
@@ -37,189 +27,44 @@ import {
   BellOutlined,
   SafetyOutlined,
   SettingOutlined,
-  CameraOutlined,
   SaveOutlined,
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
+  KeyOutlined,
   GlobalOutlined,
   SunOutlined,
   MoonOutlined,
   DesktopOutlined,
-  MobileOutlined,
-  KeyOutlined,
-  TeamOutlined,
-  CalendarOutlined,
-  DollarOutlined,
+  CheckCircleOutlined,
   DownloadOutlined,
+  ExclamationCircleOutlined,
   CrownOutlined,
-  UserSwitchOutlined,
+  TeamOutlined,
   UserAddOutlined,
-  UploadOutlined,
-  ChromeOutlined,
-  SendOutlined,
-  HistoryOutlined,
-  DeleteOutlined,
+  UserSwitchOutlined,
 } from '@ant-design/icons';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import PageHeader from '@/components/common/PageHeader';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
-import clientPushNotificationService from '@/services/clientPushNotificationService';
+import { useTheme } from '@/contexts/ThemeContext';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
 import PushNotificationSettings from '@/components/settings/PushNotificationSettings';
 
-const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 const { Option } = Select;
 
 export default function SettingsPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
-  const [notificationForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [pushSupported, setPushSupported] = useState(false);
-  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
-  const [userSubscriptions, setUserSubscriptions] = useState<any[]>([]);
-  const [notificationHistory, setNotificationHistory] = useState<any[]>([]);
-  const [loadingPush, setLoadingPush] = useState(false);
-  const [sendNotificationModal, setSendNotificationModal] = useState(false);
-
-  // Check push notification support and status on mount
-  useEffect(() => {
-    checkPushNotificationStatus();
-  }, []);
-
-  const checkPushNotificationStatus = async () => {
-    if (clientPushNotificationService.isSupported()) {
-      setPushSupported(true);
-      setPushPermission(clientPushNotificationService.getPermissionStatus());
-      
-      // Check if user is subscribed
-      const isSubscribed = await clientPushNotificationService.isSubscribed();
-      setPushNotifications(isSubscribed);
-      
-      if (isSubscribed) {
-        // Fetch user subscriptions
-        const subs = await clientPushNotificationService.getUserSubscriptions();
-        setUserSubscriptions(subs);
-      }
-      
-      // Fetch notification history
-      const history = await clientPushNotificationService.getNotificationHistory();
-      setNotificationHistory(history);
-    }
-  };
-
-  const handlePushNotificationToggle = async (enabled: boolean) => {
-    if (!pushSupported) {
-      message.error('Push notifications are not supported in this browser');
-      return;
-    }
-
-    setLoadingPush(true);
-    try {
-      if (enabled) {
-        // Subscribe to push notifications
-        await clientPushNotificationService.subscribe();
-        setPushNotifications(true);
-        setPushPermission('granted');
-        message.success('Push notifications enabled successfully');
-        
-        // Refresh subscriptions list
-        const subs = await clientPushNotificationService.getUserSubscriptions();
-        setUserSubscriptions(subs);
-      } else {
-        // Unsubscribe from push notifications
-        await clientPushNotificationService.unsubscribe();
-        setPushNotifications(false);
-        message.success('Push notifications disabled');
-        setUserSubscriptions([]);
-      }
-    } catch (error: any) {
-      message.error(error.message || 'Failed to update push notification settings');
-      setPushNotifications(!enabled); // Revert the toggle
-    } finally {
-      setLoadingPush(false);
-    }
-  };
-
-  const testPushNotification = async () => {
-    try {
-      await clientPushNotificationService.showLocalNotification(
-        'Test Notification',
-        'This is a test notification from CADGroup Tools Portal',
-        {
-          requireInteraction: true,
-          actions: [
-            { action: 'view', title: 'View' },
-            { action: 'dismiss', title: 'Dismiss' }
-          ]
-        }
-      );
-      message.success('Test notification sent');
-    } catch (error: any) {
-      message.error(error.message || 'Failed to send test notification');
-    }
-  };
-
-  const sendCustomNotification = async (values: any) => {
-    setLoading(true);
-    try {
-      const result = await clientPushNotificationService.sendCustomNotification(
-        values.targetUsers,
-        values.title,
-        values.body,
-        {
-          requireInteraction: values.requireInteraction,
-          data: values.data
-        }
-      );
-      
-      if (result.success) {
-        message.success(`Notification sent successfully (${result.successCount} sent, ${result.failureCount} failed)`);
-        setSendNotificationModal(false);
-        notificationForm.resetFields();
-        
-        // Refresh history
-        const history = await clientPushNotificationService.getNotificationHistory();
-        setNotificationHistory(history);
-      } else {
-        message.error('Failed to send notification');
-      }
-    } catch (error: any) {
-      message.error(error.message || 'Failed to send notification');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const removeSubscription = async (endpoint: string) => {
-    try {
-      await fetch(`/api/notifications/subscribe?endpoint=${encodeURIComponent(endpoint)}`, {
-        method: 'DELETE',
-      });
-      message.success('Device removed successfully');
-      
-      // Refresh subscriptions list
-      const subs = await clientPushNotificationService.getUserSubscriptions();
-      setUserSubscriptions(subs);
-    } catch (error) {
-      message.error('Failed to remove device');
-    }
-  };
 
   const handleProfileUpdate = async (values: any) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       message.success('Profile updated successfully');
     } catch (error) {
       message.error('Failed to update profile');
@@ -231,8 +76,7 @@ export default function SettingsPage() {
   const handlePasswordChange = async (values: any) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       message.success('Password changed successfully');
       passwordForm.resetFields();
     } catch (error) {
@@ -242,209 +86,104 @@ export default function SettingsPage() {
     }
   };
 
-  const handleEnable2FA = () => {
-    Modal.confirm({
-      title: 'Enable Two-Factor Authentication',
-      icon: <SafetyOutlined />,
-      content: 'This will add an extra layer of security to your account. You will need an authenticator app to complete the setup.',
-      onOk: () => {
-        setTwoFactorEnabled(true);
-        message.success('Two-factor authentication enabled');
-      },
-    });
-  };
-
-  const activityLog = [
-    {
-      id: 1,
-      action: 'Login from new device',
-      device: 'Chrome on MacOS',
-      location: 'Manila, Philippines',
-      time: '2 hours ago',
-      ip: '192.168.1.1',
-    },
-    {
-      id: 2,
-      action: 'Password changed',
-      device: 'Safari on iPhone',
-      location: 'Manila, Philippines',
-      time: '3 days ago',
-      ip: '192.168.1.2',
-    },
-    {
-      id: 3,
-      action: 'Profile updated',
-      device: 'Chrome on Windows',
-      location: 'Quezon City, Philippines',
-      time: '1 week ago',
-      ip: '192.168.1.3',
-    },
-  ];
-
-
   return (
-    <DashboardLayout
-      breadcrumbs={[
-        { title: 'Settings' },
-      ]}
-    >
-      <PageHeader
-        title="Settings"
-        subtitle="Manage your account settings and preferences"
-      />
+    <ModernDashboardLayout>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Settings
+        </h1>
+        <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+          Manage your account settings and preferences
+        </p>
+      </motion.div>
 
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={6}>
-          <Card>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <Badge
-                count={<CameraOutlined style={{ fontSize: 20, color: '#fff' }} />}
-                offset={[-10, 80]}
-                style={{ backgroundColor: '#1677ff', cursor: 'pointer' }}
-              >
-                <Avatar
-                  size={100}
-                  icon={<UserOutlined />}
-                  style={{ backgroundColor: '#1677ff' }}
-                />
-              </Badge>
-              <Title level={4} style={{ marginTop: 16, marginBottom: 0 }}>
-                {session?.user?.name || 'User Name'}
-              </Title>
-              <Text type="secondary">{session?.user?.email}</Text>
-              <br />
-              <Tag color="blue" style={{ marginTop: 8 }}>
-                {session?.user?.role?.toUpperCase() || 'ADMIN'}
-              </Tag>
-            </div>
+      <Card className="gradient-card">
+        <Tabs activeKey={activeTab} onChange={setActiveTab} size="large">
+          {/* Profile Tab */}
+          <TabPane tab={<span><UserOutlined /> Profile</span>} key="profile">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleProfileUpdate}
+              initialValues={{
+                name: session?.user?.name,
+                email: session?.user?.email,
+                phone: '',
+                company: 'CADGroup Management',
+                department: 'Management',
+                jobTitle: 'Administrator',
+              }}
+            >
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="name"
+                    label="Full Name"
+                    rules={[{ required: true, message: 'Please enter your name' }]}
+                  >
+                    <Input prefix={<UserOutlined />} placeholder="Full Name" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="email"
+                    label="Email Address"
+                  >
+                    <Input prefix={<MailOutlined />} placeholder="Email" disabled size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="phone" label="Phone Number">
+                    <Input placeholder="Phone Number" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="company" label="Company">
+                    <Input placeholder="Company Name" size="large" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="department" label="Department">
+                    <Select placeholder="Select Department" size="large">
+                      <Option value="Management">Management</Option>
+                      <Option value="Sales">Sales</Option>
+                      <Option value="Engineering">Engineering</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="jobTitle" label="Job Title">
+                    <Input placeholder="Job Title" size="large" />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-            <Divider />
-
-            <List
-              size="small"
-              dataSource={[
-                { icon: <CalendarOutlined />, label: 'Member Since', value: 'Jan 2024' },
-                { icon: <TeamOutlined />, label: 'Department', value: 'Management' },
-                { icon: <GlobalOutlined />, label: 'Timezone', value: 'Asia/Manila' },
-                { icon: <DollarOutlined />, label: 'Plan', value: 'Premium' },
-              ]}
-              renderItem={item => (
-                <List.Item>
-                  <Space>
-                    {item.icon}
-                    <Text type="secondary">{item.label}:</Text>
-                    <Text strong>{item.value}</Text>
-                  </Space>
-                </List.Item>
-              )}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={18}>
-          <Card>
-            <Tabs activeKey={activeTab} onChange={setActiveTab}>
-              <TabPane
-                tab={
-                  <span>
-                    <UserOutlined />
-                    Profile
-                  </span>
-                }
-                key="profile"
-              >
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onFinish={handleProfileUpdate}
-                  initialValues={{
-                    name: session?.user?.name,
-                    email: session?.user?.email,
-                    phone: '+63 917 123 4567',
-                    company: 'CADGroup Management',
-                    department: 'Management',
-                    jobTitle: 'Administrator',
-                    bio: 'System administrator for CADGroup Tools Portal',
-                  }}
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  icon={<SaveOutlined />}
+                  size="large"
+                  style={{ borderRadius: '24px' }}
                 >
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        name="name"
-                        label="Full Name"
-                        rules={[{ required: true, message: 'Please enter your name' }]}
-                      >
-                        <Input prefix={<UserOutlined />} placeholder="Full Name" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        name="email"
-                        label="Email Address"
-                        rules={[
-                          { required: true, message: 'Please enter your email' },
-                          { type: 'email', message: 'Please enter a valid email' },
-                        ]}
-                      >
-                        <Input prefix={<MailOutlined />} placeholder="Email" disabled />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  Save Changes
+                </Button>
+              </Form.Item>
+            </Form>
+          </TabPane>
 
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item name="phone" label="Phone Number">
-                        <Input placeholder="Phone Number" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item name="company" label="Company">
-                        <Input placeholder="Company Name" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item name="department" label="Department">
-                        <Select placeholder="Select Department">
-                          <Option value="Management">Management</Option>
-                          <Option value="Sales">Sales</Option>
-                          <Option value="Marketing">Marketing</Option>
-                          <Option value="Engineering">Engineering</Option>
-                          <Option value="Support">Support</Option>
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item name="jobTitle" label="Job Title">
-                        <Input placeholder="Job Title" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Form.Item name="bio" label="Bio">
-                    <Input.TextArea rows={4} placeholder="Tell us about yourself" />
-                  </Form.Item>
-
-                  <Form.Item>
-                    <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />}>
-                      Save Changes
-                    </Button>
-                  </Form.Item>
-                </Form>
-              </TabPane>
-
-              <TabPane
-                tab={
-                  <span>
-                    <LockOutlined />
-                    Security
-                  </span>
-                }
-                key="security"
-              >
-                <Title level={5}>Change Password</Title>
+          {/* Security Tab */}
+          <TabPane tab={<span><LockOutlined /> Security</span>} key="security">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Change Password
+                </h3>
                 <Form
                   form={passwordForm}
                   layout="vertical"
@@ -456,7 +195,7 @@ export default function SettingsPage() {
                     label="Current Password"
                     rules={[{ required: true, message: 'Please enter your current password' }]}
                   >
-                    <Input.Password prefix={<LockOutlined />} placeholder="Current Password" />
+                    <Input.Password prefix={<LockOutlined />} placeholder="Current Password" size="large" />
                   </Form.Item>
 
                   <Form.Item
@@ -467,7 +206,7 @@ export default function SettingsPage() {
                       { min: 8, message: 'Password must be at least 8 characters' },
                     ]}
                   >
-                    <Input.Password prefix={<LockOutlined />} placeholder="New Password" />
+                    <Input.Password prefix={<LockOutlined />} placeholder="New Password" size="large" />
                   </Form.Item>
 
                   <Form.Item
@@ -486,69 +225,58 @@ export default function SettingsPage() {
                       }),
                     ]}
                   >
-                    <Input.Password prefix={<LockOutlined />} placeholder="Confirm Password" />
+                    <Input.Password prefix={<LockOutlined />} placeholder="Confirm Password" size="large" />
                   </Form.Item>
 
                   <Form.Item>
-                    <Button type="primary" htmlType="submit" loading={loading} icon={<KeyOutlined />}>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={loading}
+                      icon={<KeyOutlined />}
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
                       Change Password
                     </Button>
                   </Form.Item>
                 </Form>
+              </div>
 
-                <Divider />
+              <Divider />
 
-                <Title level={5}>Two-Factor Authentication</Title>
-                <Alert
-                  message="Enhanced Security"
-                  description="Two-factor authentication adds an extra layer of security to your account."
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-                <Space>
-                  <Switch
-                    checked={twoFactorEnabled}
-                    onChange={handleEnable2FA}
-                    checkedChildren="Enabled"
-                    unCheckedChildren="Disabled"
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Two-Factor Authentication
+                </h3>
+                <Card className="theme-card" styles={{ body: { padding: '20px' } }}>
+                  <Alert
+                    message="Enhanced Security"
+                    description="Two-factor authentication adds an extra layer of security to your account."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16, borderRadius: '12px' }}
                   />
-                  <Text>{twoFactorEnabled ? 'Two-factor authentication is enabled' : 'Enable two-factor authentication'}</Text>
-                </Space>
+                  <Button
+                    type="primary"
+                    icon={<SafetyOutlined />}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
+                  >
+                    Enable 2FA
+                  </Button>
+                </Card>
+              </div>
+            </div>
+          </TabPane>
 
-                <Divider />
-
-                <Title level={5}>Recent Activity</Title>
-                <List
-                  dataSource={activityLog}
-                  renderItem={item => (
-                    <List.Item>
-                      <List.Item.Meta
-                        avatar={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                        title={item.action}
-                        description={
-                          <Space direction="vertical" size={0}>
-                            <Text type="secondary">{item.device}</Text>
-                            <Text type="secondary">{item.location} • {item.ip}</Text>
-                          </Space>
-                        }
-                      />
-                      <Text type="secondary">{item.time}</Text>
-                    </List.Item>
-                  )}
-                />
-              </TabPane>
-
-              <TabPane
-                tab={
-                  <span>
-                    <BellOutlined />
-                    Notifications
-                  </span>
-                }
-                key="notifications"
-              >
-                <Title level={5}>Email Notifications</Title>
+          {/* Notifications Tab */}
+          <TabPane tab={<span><BellOutlined /> Notifications</span>} key="notifications">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Email Notifications
+                </h3>
                 <List
                   dataSource={[
                     { key: 'proposals', label: 'New proposal submissions', enabled: true },
@@ -557,273 +285,409 @@ export default function SettingsPage() {
                     { key: 'reports', label: 'Weekly reports', enabled: true },
                     { key: 'security', label: 'Security alerts', enabled: true },
                   ]}
-                  renderItem={item => (
-                    <List.Item
-                      actions={[
-                        <Switch
-                          defaultChecked={item.enabled}
-                          onChange={(checked) => message.info(`${item.label}: ${checked ? 'Enabled' : 'Disabled'}`)}
-                        />,
-                      ]}
+                  renderItem={(item, index) => (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
                     >
-                      <List.Item.Meta
-                        title={item.label}
-                        avatar={<MailOutlined />}
-                      />
-                    </List.Item>
+                      <List.Item
+                        actions={[
+                          <Switch
+                            defaultChecked={item.enabled}
+                            onChange={(checked) => message.info(`${item.label}: ${checked ? 'Enabled' : 'Disabled'}`)}
+                          />,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ background: '#3B82F620', color: '#3B82F6' }}
+                            >
+                              <MailOutlined />
+                            </div>
+                          }
+                          title={<span style={{ color: 'var(--text-primary)' }}>{item.label}</span>}
+                        />
+                      </List.Item>
+                    </motion.div>
                   )}
                 />
+              </div>
 
-                <Divider />
+              <Divider />
 
-                <PushNotificationSettings />
+              <PushNotificationSettings />
+            </div>
+          </TabPane>
 
-                <Divider />
+          {/* Preferences Tab */}
+          <TabPane tab={<span><SettingOutlined /> Preferences</span>} key="preferences">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Appearance
+                </h3>
+                <Card className="theme-card" styles={{ body: { padding: '20px' } }}>
+                  <Form layout="vertical">
+                    <Form.Item label="Theme Mode">
+                      <Radio.Group
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value)}
+                        size="large"
+                      >
+                        <Radio.Button value="light" style={{ borderRadius: '24px 0 0 24px' }}>
+                          <SunOutlined /> Light
+                        </Radio.Button>
+                        <Radio.Button value="dark">
+                          <MoonOutlined /> Dark
+                        </Radio.Button>
+                        <Radio.Button value="system" style={{ borderRadius: '0 24px 24px 0' }}>
+                          <DesktopOutlined /> System
+                        </Radio.Button>
+                      </Radio.Group>
+                    </Form.Item>
 
-                <Title level={5}>Notification Schedule</Title>
-                <Form layout="vertical" style={{ maxWidth: 400 }}>
-                  <Form.Item label="Quiet Hours">
-                    <TimePicker.RangePicker
-                      format="HH:mm"
-                      defaultValue={[dayjs('22:00', 'HH:mm'), dayjs('08:00', 'HH:mm')]}
-                    />
-                  </Form.Item>
-                  <Form.Item label="Summary Frequency">
-                    <Radio.Group defaultValue="daily">
-                      <Radio value="realtime">Real-time</Radio>
-                      <Radio value="hourly">Hourly</Radio>
-                      <Radio value="daily">Daily</Radio>
-                      <Radio value="weekly">Weekly</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                </Form>
-              </TabPane>
+                    <Form.Item label="Language">
+                      <Select defaultValue="en" style={{ width: 200 }} size="large">
+                        <Option value="en">English</Option>
+                        <Option value="es">Spanish</Option>
+                        <Option value="fr">French</Option>
+                      </Select>
+                    </Form.Item>
 
-              <TabPane
-                tab={
-                  <span>
-                    <SettingOutlined />
-                    Preferences
-                  </span>
-                }
-                key="preferences"
-              >
-                <Title level={5}>Appearance</Title>
-                <Form layout="vertical">
-                  <Form.Item label="Theme">
-                    <Radio.Group value={darkMode ? 'dark' : 'light'} onChange={(e) => setDarkMode(e.target.value === 'dark')}>
-                      <Radio.Button value="light">
-                        <SunOutlined /> Light
-                      </Radio.Button>
-                      <Radio.Button value="dark">
-                        <MoonOutlined /> Dark
-                      </Radio.Button>
-                      <Radio.Button value="auto">
-                        <DesktopOutlined /> System
-                      </Radio.Button>
-                    </Radio.Group>
-                  </Form.Item>
+                    <Form.Item label="Time Zone">
+                      <Select defaultValue="America/Los_Angeles" style={{ width: 300 }} size="large">
+                        <Option value="America/Los_Angeles">Pacific Time (PT)</Option>
+                        <Option value="America/New_York">Eastern Time (ET)</Option>
+                        <Option value="Europe/London">London (GMT)</Option>
+                      </Select>
+                    </Form.Item>
+                  </Form>
+                </Card>
+              </div>
 
-                  <Form.Item label="Language">
-                    <Select defaultValue="en" style={{ width: 200 }}>
-                      <Option value="en">English</Option>
-                      <Option value="es">Spanish</Option>
-                      <Option value="fr">French</Option>
-                      <Option value="de">German</Option>
-                      <Option value="zh">Chinese</Option>
-                    </Select>
-                  </Form.Item>
+              <Divider />
 
-                  <Form.Item label="Date Format">
-                    <Select defaultValue="MM/DD/YYYY" style={{ width: 200 }}>
-                      <Option value="MM/DD/YYYY">MM/DD/YYYY</Option>
-                      <Option value="DD/MM/YYYY">DD/MM/YYYY</Option>
-                      <Option value="YYYY-MM-DD">YYYY-MM-DD</Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item label="Time Zone">
-                    <Select defaultValue="Asia/Manila" style={{ width: 200 }}>
-                      <Option value="Asia/Manila">Asia/Manila (GMT+8)</Option>
-                      <Option value="America/New_York">America/New York (EST)</Option>
-                      <Option value="Europe/London">Europe/London (GMT)</Option>
-                      <Option value="Asia/Tokyo">Asia/Tokyo (JST)</Option>
-                    </Select>
-                  </Form.Item>
-                </Form>
-
-                <Divider />
-
-                <Title level={5}>Data & Privacy</Title>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Button icon={<DownloadOutlined />}>Download My Data</Button>
-                  <Button danger icon={<ExclamationCircleOutlined />}>Delete Account</Button>
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Data & Privacy
+                </h3>
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <Button
+                    icon={<DownloadOutlined />}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
+                  >
+                    Download My Data
+                  </Button>
+                  <Button
+                    danger
+                    icon={<ExclamationCircleOutlined />}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
+                  >
+                    Delete Account
+                  </Button>
                 </Space>
-              </TabPane>
+              </div>
+            </div>
+          </TabPane>
 
-              {/* Admin Tab - Only visible to admins */}
-              {session?.user?.role === 'admin' && (
-                <TabPane
-                  tab={
-                    <span>
-                      <CrownOutlined />
-                      Admin
-                    </span>
-                  }
-                  key="admin"
-                >
-                  <Title level={5}>User Management</Title>
-                  <Paragraph type="secondary">
-                    Manage user accounts, roles, and permissions for the CADGroup Tools portal.
-                  </Paragraph>
-                  
-                  <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-                    <Col xs={24} md={12} lg={8}>
-                      <Card
-                        hoverable
-                        onClick={() => router.push('/admin/users')}
-                        style={{ cursor: 'pointer' }}
+          {/* Admin Tab */}
+          {session?.user?.role === 'admin' && (
+            <TabPane tab={<span><CrownOutlined /> Admin</span>} key="admin">
+              <div className="space-y-6">
+                <Alert
+                  message="Administrator Access"
+                  description="You have full system access. Use these privileges responsibly."
+                  type="warning"
+                  showIcon
+                  style={{ borderRadius: '12px' }}
+                />
+
+                <Row gutter={[16, 16]} className="stagger-children">
+                  {[
+                    {
+                      title: 'Manage Users',
+                      description: 'View and manage all users',
+                      icon: <TeamOutlined style={{ fontSize: 24 }} />,
+                      color: '#3B82F6',
+                      onClick: () => router.push('/admin/users'),
+                    },
+                    {
+                      title: 'Add New User',
+                      description: 'Register new users',
+                      icon: <UserAddOutlined style={{ fontSize: 24 }} />,
+                      color: '#10B981',
+                      onClick: () => router.push('/admin/users?action=add'),
+                    },
+                    {
+                      title: 'Role Management',
+                      description: 'Assign roles and permissions',
+                      icon: <UserSwitchOutlined style={{ fontSize: 24 }} />,
+                      color: '#F59E0B',
+                      onClick: () => router.push('/admin/users'),
+                    },
+                  ].map((item, index) => (
+                    <Col xs={24} sm={12} lg={8} key={index}>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ y: -4 }}
                       >
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <TeamOutlined style={{ fontSize: 32, color: '#1677ff' }} />
-                          <Title level={5} style={{ margin: 0 }}>Manage Users</Title>
-                          <Text type="secondary">
-                            View, add, edit, and manage all registered users in the system
-                          </Text>
-                          <Button type="primary" icon={<TeamOutlined />}>
-                            Open User Management
-                          </Button>
-                        </Space>
-                      </Card>
-                    </Col>
-
-                    <Col xs={24} md={12} lg={8}>
-                      <Card
-                        hoverable
-                        onClick={() => router.push('/admin/users?action=add')}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <UserAddOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-                          <Title level={5} style={{ margin: 0 }}>Add New User</Title>
-                          <Text type="secondary">
-                            Register a new user and send them login credentials
-                          </Text>
-                          <Button type="primary" icon={<UserAddOutlined />} style={{ backgroundColor: '#52c41a' }}>
-                            Add User
-                          </Button>
-                        </Space>
-                      </Card>
-                    </Col>
-
-                    <Col xs={24} md={12} lg={8}>
-                      <Card
-                        hoverable
-                        onClick={() => router.push('/admin/users')}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <UserSwitchOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
-                          <Title level={5} style={{ margin: 0 }}>Role Management</Title>
-                          <Text type="secondary">
-                            Assign roles and permissions to users
-                          </Text>
-                          <Button 
-                            type="primary"
-                            icon={<UserSwitchOutlined />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push('/admin/users');
-                            }}
-                          >
-                            Manage Roles
-                          </Button>
-                        </Space>
-                      </Card>
-                    </Col>
-                  </Row>
-
-                  <Divider />
-
-                  <Title level={5}>Quick Actions</Title>
-                  <List
-                    grid={{ gutter: 16, xs: 1, sm: 2, md: 2, lg: 3 }}
-                    dataSource={[
-                      {
-                        title: 'Reset User Password',
-                        description: 'Send password reset email to users',
-                        icon: <KeyOutlined />,
-                        action: () => message.info('Password reset functionality'),
-                      },
-                      {
-                        title: 'Bulk User Import',
-                        description: 'Import multiple users from CSV',
-                        icon: <UploadOutlined />,
-                        action: () => message.info('Bulk import functionality'),
-                      },
-                      {
-                        title: 'Export Users',
-                        description: 'Export user data to CSV',
-                        icon: <DownloadOutlined />,
-                        action: () => message.info('Export functionality'),
-                      },
-                      {
-                        title: 'Activate/Deactivate Users',
-                        description: 'Manage user account status',
-                        icon: <LockOutlined />,
-                        action: () => router.push('/admin/users'),
-                      },
-                      {
-                        title: 'View Activity Logs',
-                        description: 'Monitor user activities',
-                        icon: <CheckCircleOutlined />,
-                        action: () => message.info('Activity logs'),
-                      },
-                      {
-                        title: 'Email All Users',
-                        description: 'Send broadcast messages',
-                        icon: <MailOutlined />,
-                        action: () => message.info('Email broadcast'),
-                      },
-                    ]}
-                    renderItem={item => (
-                      <List.Item>
                         <Card
+                          className="gradient-card cursor-pointer h-full"
+                          onClick={item.onClick}
                           hoverable
-                          size="small"
-                          onClick={item.action}
-                          style={{ cursor: 'pointer' }}
                         >
-                          <Space>
-                            <span style={{ fontSize: 24, color: '#1677ff' }}>{item.icon}</span>
+                          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                            <div
+                              className="w-14 h-14 rounded-xl flex items-center justify-center text-white"
+                              style={{
+                                background: `linear-gradient(135deg, ${item.color} 0%, ${item.color}dd 100%)`,
+                              }}
+                            >
+                              {item.icon}
+                            </div>
                             <div>
-                              <Text strong>{item.title}</Text>
-                              <br />
-                              <Text type="secondary" style={{ fontSize: 12 }}>
+                              <div className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                                {item.title}
+                              </div>
+                              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                                 {item.description}
-                              </Text>
+                              </div>
                             </div>
                           </Space>
                         </Card>
-                      </List.Item>
-                    )}
-                  />
+                      </motion.div>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
+            </TabPane>
+          )}
 
-                  <Divider />
+          {/* Security Tab */}
+          <TabPane tab={<span><LockOutlined /> Security</span>} key="security">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Change Password
+                </h3>
+                <Form
+                  form={passwordForm}
+                  layout="vertical"
+                  onFinish={handlePasswordChange}
+                  style={{ maxWidth: 500 }}
+                >
+                  <Form.Item
+                    name="currentPassword"
+                    label="Current Password"
+                    rules={[{ required: true, message: 'Please enter your current password' }]}
+                  >
+                    <Input.Password prefix={<LockOutlined />} size="large" />
+                  </Form.Item>
 
+                  <Form.Item
+                    name="newPassword"
+                    label="New Password"
+                    rules={[
+                      { required: true, message: 'Please enter a new password' },
+                      { min: 8, message: 'Password must be at least 8 characters' },
+                    ]}
+                  >
+                    <Input.Password prefix={<LockOutlined />} size="large" />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="confirmPassword"
+                    label="Confirm New Password"
+                    dependencies={['newPassword']}
+                    rules={[
+                      { required: true, message: 'Please confirm your password' },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (!value || getFieldValue('newPassword') === value) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('Passwords do not match'));
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input.Password prefix={<LockOutlined />} size="large" />
+                  </Form.Item>
+
+                  <Form.Item>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={loading}
+                      icon={<KeyOutlined />}
+                      size="large"
+                      style={{ borderRadius: '24px' }}
+                    >
+                      Change Password
+                    </Button>
+                  </Form.Item>
+                </Form>
+              </div>
+
+              <Divider />
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Two-Factor Authentication
+                </h3>
+                <Card className="theme-card">
                   <Alert
-                    message="Admin Access"
-                    description="As an administrator, you have full access to manage users, roles, and system settings. Please use these privileges responsibly."
-                    type="warning"
+                    message="Enhanced Security"
+                    description="Two-factor authentication adds an extra layer of security to your account."
+                    type="info"
                     showIcon
-                    icon={<SafetyOutlined />}
+                    style={{ marginBottom: 16, borderRadius: '12px' }}
                   />
-                </TabPane>
-              )}
-            </Tabs>
-          </Card>
-        </Col>
-      </Row>
-    </DashboardLayout>
+                  <Button
+                    type="primary"
+                    icon={<SafetyOutlined />}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
+                  >
+                    Enable 2FA
+                  </Button>
+                </Card>
+              </div>
+            </div>
+          </TabPane>
+
+          {/* Notifications Tab */}
+          <TabPane tab={<span><BellOutlined /> Notifications</span>} key="notifications">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Email Notifications
+                </h3>
+                <List
+                  dataSource={[
+                    { key: 'proposals', label: 'New proposal submissions', enabled: true },
+                    { key: 'clients', label: 'New client registrations', enabled: true },
+                    { key: 'reports', label: 'Weekly reports', enabled: true },
+                    { key: 'security', label: 'Security alerts', enabled: true },
+                  ]}
+                  renderItem={(item, index) => (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <List.Item
+                        actions={[
+                          <Switch
+                            defaultChecked={item.enabled}
+                            onChange={(checked) => message.info(`${item.label}: ${checked ? 'Enabled' : 'Disabled'}`)}
+                          />,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ background: '#3B82F620', color: '#3B82F6' }}
+                            >
+                              <MailOutlined />
+                            </div>
+                          }
+                          title={<span style={{ color: 'var(--text-primary)' }}>{item.label}</span>}
+                        />
+                      </List.Item>
+                    </motion.div>
+                  )}
+                />
+              </div>
+
+              <Divider />
+
+              <PushNotificationSettings />
+            </div>
+          </TabPane>
+
+          {/* Preferences Tab */}
+          <TabPane tab={<span><SettingOutlined /> Preferences</span>} key="preferences">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Appearance
+                </h3>
+                <Card className="theme-card" styles={{ body: { padding: '20px' } }}>
+                  <Form layout="vertical">
+                    <Form.Item label="Theme Mode">
+                      <Radio.Group
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value)}
+                        size="large"
+                      >
+                        <Radio.Button value="light" style={{ borderRadius: '24px 0 0 24px', minWidth: '100px' }}>
+                          <SunOutlined /> Light
+                        </Radio.Button>
+                        <Radio.Button value="dark" style={{ minWidth: '100px' }}>
+                          <MoonOutlined /> Dark
+                        </Radio.Button>
+                        <Radio.Button value="system" style={{ borderRadius: '0 24px 24px 0', minWidth: '100px' }}>
+                          <DesktopOutlined /> System
+                        </Radio.Button>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item label="Language">
+                      <Select defaultValue="en" style={{ width: 200 }} size="large">
+                        <Option value="en">English</Option>
+                        <Option value="es">Spanish</Option>
+                        <Option value="fr">French</Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Time Zone">
+                      <Select defaultValue="America/Los_Angeles" style={{ width: 300 }} size="large">
+                        <Option value="America/Los_Angeles">Pacific Time (PT)</Option>
+                        <Option value="America/New_York">Eastern Time (ET)</Option>
+                        <Option value="Europe/London">London (GMT)</Option>
+                      </Select>
+                    </Form.Item>
+                  </Form>
+                </Card>
+              </div>
+
+              <Divider />
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Data & Privacy
+                </h3>
+                <Space direction="vertical" size="middle">
+                  <Button
+                    icon={<DownloadOutlined />}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
+                  >
+                    Download My Data
+                  </Button>
+                  <Button
+                    danger
+                    icon={<ExclamationCircleOutlined />}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
+                  >
+                    Delete Account
+                  </Button>
+                </Space>
+              </div>
+            </div>
+          </TabPane>
+        </Tabs>
+      </Card>
+    </ModernDashboardLayout>
   );
 }
