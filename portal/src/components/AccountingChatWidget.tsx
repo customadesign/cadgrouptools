@@ -8,7 +8,6 @@ import {
   Input,
   Button,
   Space,
-  Typography,
   Avatar,
   Spin,
   message,
@@ -21,10 +20,11 @@ import {
   DownloadOutlined,
   RobotOutlined,
   UserOutlined,
+  SparklesOutlined,
 } from '@ant-design/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const { TextArea } = Input;
-const { Text } = Typography;
 
 interface Message {
   id: string;
@@ -183,26 +183,55 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
 
   return (
     <>
-      <FloatButton
-        icon={<MessageOutlined />}
-        type="primary"
-        style={{ right: 24, bottom: 24 }}
-        onClick={() => setOpen(true)}
-        badge={{ count: messages.filter(m => m.role === 'assistant').length }}
-        tooltip="Accounting Assistant"
-      />
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 200, delay: 0.5 }}
+        style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 1000 }}
+      >
+        <FloatButton
+          icon={<MessageOutlined />}
+          type="primary"
+          onClick={() => setOpen(true)}
+          badge={{ count: messages.filter(m => m.role === 'assistant').length }}
+          tooltip="AI Accounting Assistant"
+          style={{
+            width: 60,
+            height: 60,
+            background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+          }}
+        />
+      </motion.div>
 
       <Drawer
         title={
-          <Space>
-            <RobotOutlined style={{ color: '#1890ff' }} />
-            <span>Accounting Assistant</span>
-          </Space>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white"
+              style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}
+            >
+              <SparklesOutlined style={{ fontSize: 20 }} />
+            </div>
+            <div>
+              <div className="font-semibold">AI Accounting Assistant</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)', fontWeight: 'normal' }}>
+                Powered by Claude 3.5
+              </div>
+            </div>
+          </div>
         }
         placement="right"
         onClose={() => setOpen(false)}
         open={open}
         width={450}
+        styles={{
+          body: { padding: 0 },
+          header: {
+            background: 'var(--bg-elevated)',
+            borderBottom: '1px solid var(--border-primary)',
+          },
+        }}
         extra={
           <Space>
             <Button
@@ -210,6 +239,7 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
               icon={<DownloadOutlined />}
               onClick={exportConversation}
               disabled={messages.length === 0}
+              style={{ borderRadius: '20px' }}
             >
               Export
             </Button>
@@ -219,6 +249,7 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
               onClick={clearConversation}
               disabled={messages.length === 0}
               danger
+              style={{ borderRadius: '20px' }}
             >
               Clear
             </Button>
@@ -228,37 +259,70 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Context Display */}
           {context?.companyName && (
-            <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass p-3 m-4 rounded-xl"
+              style={{ background: 'var(--bg-secondary)' }}
+            >
+              <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Current Context:
-              </Text>
-              <div>
-                <Tag color="blue">{context.companyName}</Tag>
               </div>
-            </div>
+              <Tag
+                color="blue"
+                style={{
+                  borderRadius: '12px',
+                  padding: '4px 12px',
+                  fontWeight: 500,
+                }}
+              >
+                {context.companyName}
+              </Tag>
+            </motion.div>
           )}
 
           {/* Quick Questions */}
           {messages.length === 0 && quickQuestions.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="px-4 mb-4"
+            >
+              <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Quick Questions:
-              </Text>
+              </div>
               <Space direction="vertical" style={{ width: '100%' }} size="small">
                 {quickQuestions.map((question, index) => (
-                  <Button
+                  <motion.div
                     key={index}
-                    type="dashed"
-                    size="small"
-                    block
-                    onClick={() => handleQuickQuestion(question)}
-                    style={{ textAlign: 'left', height: 'auto', whiteSpace: 'normal', padding: '8px 12px' }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    {question}
-                  </Button>
+                    <Button
+                      type="dashed"
+                      size="small"
+                      block
+                      onClick={() => handleQuickQuestion(question)}
+                      style={{
+                        textAlign: 'left',
+                        height: 'auto',
+                        whiteSpace: 'normal',
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        borderColor: 'var(--border-primary)',
+                      }}
+                    >
+                      <SparklesOutlined style={{ marginRight: 8, color: 'var(--color-primary)' }} />
+                      {question}
+                    </Button>
+                  </motion.div>
                 ))}
               </Space>
-            </div>
+            </motion.div>
           )}
 
           {/* Messages */}
@@ -266,78 +330,106 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
             style={{
               flex: 1,
               overflowY: 'auto',
-              marginBottom: 16,
-              padding: '0 4px',
+              padding: '16px',
+              background: 'var(--bg-primary)',
             }}
           >
             {messages.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8c8c8c' }}>
-                <RobotOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-                <div>Ask me anything about your accounting data!</div>
-              </div>
-            )}
-
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                style={{
-                  marginBottom: 16,
-                  display: 'flex',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                }}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-12"
               >
                 <div
+                  className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"
+                  style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}
+                >
+                  <SparklesOutlined style={{ fontSize: 40, color: 'white' }} />
+                </div>
+                <div className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  AI Accounting Assistant
+                </div>
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  Ask me anything about your financial data!
+                </div>
+              </motion.div>
+            )}
+
+            <AnimatePresence>
+              {messages.map((msg, index) => (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-4 flex"
                   style={{
-                    maxWidth: '80%',
-                    display: 'flex',
-                    flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                    gap: 8,
+                    justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                   }}
                 >
-                  <Avatar
-                    size="small"
-                    icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                    style={{
-                      backgroundColor: msg.role === 'user' ? '#1890ff' : '#52c41a',
-                      flexShrink: 0,
-                    }}
-                  />
                   <div
+                    className="max-w-[80%] flex gap-2"
                     style={{
-                      background: msg.role === 'user' ? '#e6f7ff' : '#f5f5f5',
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      wordBreak: 'break-word',
+                      flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
                     }}
                   >
-                    <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                      {msg.content}
-                    </div>
-                    <div
+                    <Avatar
+                      size="small"
+                      icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
                       style={{
-                        fontSize: 11,
-                        color: '#8c8c8c',
-                        marginTop: 4,
+                        background: msg.role === 'user'
+                          ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                          : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div
+                      className="px-4 py-2 rounded-2xl"
+                      style={{
+                        background: msg.role === 'user' ? 'var(--color-primary-light)' : 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
                       }}
                     >
-                      {new Date(msg.timestamp).toLocaleTimeString()}
+                      <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+                        {msg.content}
+                      </div>
+                      <div
+                        className="text-xs mt-1"
+                        style={{ color: 'var(--text-tertiary)' }}
+                      >
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
             {loading && (
-              <div style={{ textAlign: 'center', padding: 16 }}>
-                <Spin />
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-center py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <Spin size="small" />
+                  <span style={{ color: 'var(--text-secondary)' }}>AI is thinking...</span>
+                </div>
+              </motion.div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
-          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+          <div
+            className="p-4"
+            style={{
+              borderTop: '1px solid var(--border-primary)',
+              background: 'var(--bg-elevated)',
+            }}
+          >
             <Space.Compact style={{ width: '100%' }}>
               <TextArea
                 value={inputValue}
@@ -351,6 +443,10 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
                   }
                 }}
                 disabled={loading}
+                style={{
+                  borderRadius: '20px 0 0 20px',
+                  background: 'var(--bg-primary)',
+                }}
               />
               <Button
                 type="primary"
@@ -358,13 +454,17 @@ export default function AccountingChatWidget({ context }: AccountingChatWidgetPr
                 onClick={() => sendMessage(inputValue)}
                 loading={loading}
                 disabled={!inputValue.trim()}
-              >
-                Send
-              </Button>
+                style={{
+                  borderRadius: '0 20px 20px 0',
+                  height: 'auto',
+                  background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                  border: 'none',
+                }}
+              />
             </Space.Compact>
-            <Text type="secondary" style={{ fontSize: 11, marginTop: 8, display: 'block' }}>
+            <div className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
               Press Enter to send, Shift+Enter for new line
-            </Text>
+            </div>
           </div>
         </div>
       </Drawer>

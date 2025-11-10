@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, Descriptions, Badge, Button, Space, message, Spin, Alert, Modal, Input } from 'antd';
+import { Card, Descriptions, Button, Space, message, Spin, Alert, Modal, Input, Steps } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, MailOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import StatusBadge from '@/components/ui/StatusBadge';
+import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 
 const { TextArea } = Input;
 
@@ -105,49 +109,62 @@ export default function MurphyProposalDetailPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; text: string }> = {
-      draft: { color: 'default', text: 'Draft' },
-      processing: { color: 'processing', text: 'Processing' },
-      finalized: { color: 'success', text: 'Finalized' },
-      sent: { color: 'blue', text: 'Sent' },
-      failed: { color: 'error', text: 'Failed' },
-    };
-
-    const config = statusConfig[status] || { color: 'default', text: status };
-    return <Badge status={config.color as any} text={config.text} />;
+  const getStepStatus = (manusStatus?: string, proposalStatus?: string) => {
+    const status = manusStatus || proposalStatus || 'draft';
+    
+    if (status === 'completed' || status === 'finalized') return 2;
+    if (status === 'processing') return 1;
+    if (status === 'failed') return 1;
+    return 0;
   };
 
   if (status === 'loading' || loading || !proposal) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Spin size="large" />
-      </div>
+      <ModernDashboardLayout>
+        <LoadingSkeleton type="detail" />
+      </ModernDashboardLayout>
     );
   }
 
+  const currentStep = getStepStatus(proposal.manusTask?.status, proposal.status);
   const isProcessing = proposal.manusTask?.status === 'processing' || proposal.status === 'processing';
   const isCompleted = proposal.manusTask?.status === 'completed' || proposal.status === 'finalized';
   const isFailed = proposal.manusTask?.status === 'failed' || proposal.status === 'failed';
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <ModernDashboardLayout>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* Back Button */}
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => router.push('/proposals/murphy')}
+          size="large"
+          style={{ marginBottom: 24, borderRadius: '24px' }}
         >
           Back to List
         </Button>
 
-        <Card
-          title={`Proposal: ${proposal.client.organization}`}
-          extra={
+        {/* Header Card */}
+        <Card className="gradient-card mb-6" styles={{ body: { padding: '32px' } }}>
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                {proposal.client.organization}
+              </h1>
+              <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+                Murphy Consulting Proposal
+              </p>
+            </div>
             <Space>
               <Button
                 icon={<ReloadOutlined />}
                 onClick={fetchProposal}
-                loading={loading}
+                size="large"
+                style={{ borderRadius: '24px' }}
               >
                 Refresh
               </Button>
@@ -158,6 +175,8 @@ export default function MurphyProposalDetailPage() {
                     icon={<EyeOutlined />}
                     href={proposal.googleSlidesUrl}
                     target="_blank"
+                    size="large"
+                    style={{ borderRadius: '24px' }}
                   >
                     View Slides
                   </Button>
@@ -165,36 +184,69 @@ export default function MurphyProposalDetailPage() {
                     icon={<MailOutlined />}
                     onClick={() => setEmailModalVisible(true)}
                     disabled={!proposal.client.email}
+                    size="large"
+                    style={{ borderRadius: '24px' }}
                   >
                     Send to Client
                   </Button>
                 </>
               )}
             </Space>
-          }
-        >
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="Status" span={2}>
-              {getStatusBadge(proposal.status)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Manus Task Status" span={2}>
-              <Badge
-                status={
-                  proposal.manusTask?.status === 'completed' ? 'success' :
-                  proposal.manusTask?.status === 'processing' ? 'processing' :
-                  proposal.manusTask?.status === 'failed' ? 'error' : 'default'
-                }
-                text={proposal.manusTask?.status || 'Unknown'}
-              />
-            </Descriptions.Item>
-            <Descriptions.Item label="Client">{proposal.client.organization}</Descriptions.Item>
+          </div>
+
+          {/* Status Timeline */}
+          <Steps
+            current={currentStep}
+            status={isFailed ? 'error' : isProcessing ? 'process' : 'finish'}
+            items={[
+              {
+                title: 'Received',
+                description: 'Form submitted',
+              },
+              {
+                title: 'Processing',
+                description: 'Manus AI researching',
+              },
+              {
+                title: 'Completed',
+                description: 'Proposal ready',
+              },
+            ]}
+          />
+        </Card>
+
+        {/* Status Alerts */}
+        {isProcessing && (
+          <Alert
+            message="Processing in Progress"
+            description="Manus AI is currently researching and generating your proposal. This may take 3-5 minutes."
+            type="info"
+            showIcon
+            style={{ marginBottom: 24, borderRadius: '12px' }}
+          />
+        )}
+
+        {isFailed && (
+          <Alert
+            message="Processing Failed"
+            description={proposal.manusTask?.outputData?.error || 'An error occurred while generating the proposal.'}
+            type="error"
+            showIcon
+            style={{ marginBottom: 24, borderRadius: '12px' }}
+          />
+        )}
+
+        {/* Client Information */}
+        <Card title="Client Information" className="gradient-card mb-6">
+          <Descriptions column={{ xs: 1, sm: 2 }} bordered>
+            <Descriptions.Item label="Organization">{proposal.client.organization}</Descriptions.Item>
             <Descriptions.Item label="Email">{proposal.client.email}</Descriptions.Item>
             {proposal.client.phone && (
               <Descriptions.Item label="Phone">{proposal.client.phone}</Descriptions.Item>
             )}
             {proposal.client.website && (
               <Descriptions.Item label="Website">
-                <a href={proposal.client.website} target="_blank" rel="noopener noreferrer">
+                <a href={proposal.client.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>
                   {proposal.client.website}
                 </a>
               </Descriptions.Item>
@@ -214,55 +266,41 @@ export default function MurphyProposalDetailPage() {
               </Descriptions.Item>
             )}
           </Descriptions>
-
-          {isProcessing && (
-            <Alert
-              message="Processing in Progress"
-              description="Manus AI is currently researching and generating your proposal. This may take a few minutes."
-              type="info"
-              showIcon
-              style={{ marginTop: 16 }}
-            />
-          )}
-
-          {isFailed && (
-            <Alert
-              message="Processing Failed"
-              description={proposal.manusTask?.outputData?.error || 'An error occurred while generating the proposal.'}
-              type="error"
-              showIcon
-              style={{ marginTop: 16 }}
-            />
-          )}
-
-          {isCompleted && !proposal.googleSlidesUrl && (
-            <Alert
-              message="Proposal Completed"
-              description="The proposal has been generated but the Google Slides link is not available yet."
-              type="warning"
-              showIcon
-              style={{ marginTop: 16 }}
-            />
-          )}
         </Card>
 
-        {proposal.ghlSubmission && (
-          <Card title="Form Submission Data">
-            <pre style={{ background: '#f5f5f5', padding: 16, borderRadius: 4, overflow: 'auto' }}>
-              {JSON.stringify(proposal.ghlSubmission.submissionData, null, 2)}
-            </pre>
+        {/* Google Slides Embed */}
+        {isCompleted && proposal.googleSlidesUrl && (
+          <Card title="Proposal Preview" className="gradient-card mb-6">
+            <div style={{ width: '100%', height: '600px', borderRadius: '8px', overflow: 'hidden' }}>
+              <iframe
+                src={proposal.googleSlidesUrl.replace('/edit', '/preview')}
+                width="100%"
+                height="100%"
+                style={{ border: 'none' }}
+                title="Proposal Slides"
+              />
+            </div>
           </Card>
         )}
 
+        {/* Research Data */}
         {proposal.researchJson && Object.keys(proposal.researchJson).length > 0 && (
-          <Card title="Research Data">
-            <pre style={{ background: '#f5f5f5', padding: 16, borderRadius: 4, overflow: 'auto' }}>
+          <Card title="Research Data" className="gradient-card">
+            <pre
+              className="p-4 rounded-lg overflow-auto"
+              style={{
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                maxHeight: '400px',
+              }}
+            >
               {JSON.stringify(proposal.researchJson, null, 2)}
             </pre>
           </Card>
         )}
-      </Space>
+      </motion.div>
 
+      {/* Send Email Modal */}
       <Modal
         title="Send Proposal to Client"
         open={emailModalVisible}
@@ -270,14 +308,15 @@ export default function MurphyProposalDetailPage() {
         onCancel={() => setEmailModalVisible(false)}
         confirmLoading={sending}
         okText="Send Email"
+        width={600}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <p>
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
             <strong>To:</strong> {proposal?.client.email}
-          </p>
-          <p>
+          </div>
+          <div>
             <strong>Subject:</strong> Your Murphy Consulting Proposal
-          </p>
+          </div>
           <TextArea
             rows={6}
             placeholder="Optional message to include with the proposal..."
@@ -286,7 +325,6 @@ export default function MurphyProposalDetailPage() {
           />
         </Space>
       </Modal>
-    </div>
+    </ModernDashboardLayout>
   );
 }
-

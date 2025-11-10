@@ -8,13 +8,9 @@ import {
   Table,
   Button,
   Space,
-  Badge,
-  Descriptions,
   Tabs,
   Empty,
   message,
-  Spin,
-  Statistic,
   Row,
   Col,
 } from 'antd';
@@ -26,10 +22,16 @@ import {
   DollarOutlined,
   RiseOutlined,
   FallOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import PageHeader from '@/components/common/PageHeader';
+import { motion } from 'framer-motion';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge from '@/components/ui/StatusBadge';
+import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
+import EmptyState from '@/components/ui/EmptyState';
+import RevenueExpenseChart from '@/components/charts/RevenueExpenseChart';
 
 const { TabPane } = Tabs;
 
@@ -54,11 +56,11 @@ interface PLStatement {
 }
 
 const COMPANY_NAMES: Record<string, string> = {
-  murphy_web_services: 'Murphy Web Services Incorporated',
-  esystems_management: 'E-Systems Management Incorporated',
-  mm_secretarial: 'M&M Secretarial Services Incorporated',
+  murphy_web_services: 'Murphy Web Services Inc',
+  esystems_management: 'E-Systems Management Inc',
+  mm_secretarial: 'M&M Secretarial Services Inc',
   dpm: 'DPM Incorporated',
-  linkage_web_solutions: 'Linkage Web Solutions Enterprise Incorporated',
+  linkage_web_solutions: 'Linkage Web Solutions Enterprise Inc',
   wdds: 'WDDS',
   mm_leasing: 'M&M Leasing Services',
   hardin_bar_grill: 'Hardin Bar & Grill',
@@ -74,7 +76,7 @@ export default function CompanyAccountingPage() {
   const [documents, setDocuments] = useState<AccountingDoc[]>([]);
   const [plStatements, setPLStatements] = useState<PLStatement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('documents');
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -103,18 +105,6 @@ export default function CompanyAccountingPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const config: Record<string, { color: string; text: string }> = {
-      uploaded: { color: 'default', text: 'Uploaded' },
-      processing: { color: 'processing', text: 'Processing' },
-      completed: { color: 'success', text: 'Completed' },
-      failed: { color: 'error', text: 'Failed' },
-    };
-
-    const statusConfig = config[status] || { color: 'default', text: status };
-    return <Badge status={statusConfig.color as any} text={statusConfig.text} />;
-  };
-
   const documentColumns: ColumnsType<AccountingDoc> = [
     {
       title: 'Period',
@@ -136,7 +126,7 @@ export default function CompanyAccountingPage() {
       title: 'Status',
       dataIndex: 'processingStatus',
       key: 'status',
-      render: (status: string) => getStatusBadge(status),
+      render: (status: string) => <StatusBadge status={status as any} size="small" />,
     },
     {
       title: 'Uploaded',
@@ -148,238 +138,205 @@ export default function CompanyAccountingPage() {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<DownloadOutlined />}
-            href={record.supabaseUrl}
-            target="_blank"
-          >
-            Download
-          </Button>
-          {record.analysisResult && (
-            <Button
-              type="link"
-              onClick={() => showAnalysis(record)}
-            >
-              View Analysis
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  const plColumns: ColumnsType<PLStatement> = [
-    {
-      title: 'Period',
-      key: 'period',
-      render: (_, record) => `${record.month} ${record.year}`,
-      sorter: (a, b) => {
-        const dateA = new Date(`${a.month} 1, ${a.year}`);
-        const dateB = new Date(`${b.month} 1, ${b.year}`);
-        return dateB.getTime() - dateA.getTime();
-      },
-    },
-    {
-      title: 'Revenue',
-      dataIndex: 'totalRevenue',
-      key: 'revenue',
-      render: (value: number) => (
-        <span style={{ color: '#52c41a', fontWeight: 500 }}>
-          ${value?.toLocaleString() || '0'}
-        </span>
-      ),
-    },
-    {
-      title: 'Expenses',
-      dataIndex: 'totalExpenses',
-      key: 'expenses',
-      render: (value: number) => (
-        <span style={{ color: '#ff4d4f', fontWeight: 500 }}>
-          ${value?.toLocaleString() || '0'}
-        </span>
-      ),
-    },
-    {
-      title: 'Net Income',
-      dataIndex: 'netIncome',
-      key: 'netIncome',
-      render: (value: number) => (
-        <Space>
-          {value >= 0 ? <RiseOutlined style={{ color: '#52c41a' }} /> : <FallOutlined style={{ color: '#ff4d4f' }} />}
-          <span style={{ color: value >= 0 ? '#52c41a' : '#ff4d4f', fontWeight: 600 }}>
-            ${Math.abs(value)?.toLocaleString() || '0'}
-          </span>
-        </Space>
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Button type="link" onClick={() => showPLDetails(record)}>
-          View Details
+        <Button
+          type="link"
+          icon={<DownloadOutlined />}
+          href={record.supabaseUrl}
+          target="_blank"
+        >
+          Download
         </Button>
       ),
     },
   ];
 
-  const showAnalysis = (doc: AccountingDoc) => {
-    // TODO: Show detailed analysis in modal
-    message.info('Analysis viewer coming soon');
-  };
-
-  const showPLDetails = (pl: PLStatement) => {
-    // TODO: Show detailed P&L breakdown in modal
-    message.info('P&L details viewer coming soon');
-  };
-
-  const exportToCSV = () => {
-    message.success('Exporting to CSV...');
-    // TODO: Implement CSV export
-  };
-
-  if (status === 'loading' || loading) {
-    return (
-      <DashboardLayout breadcrumbs={[{ title: 'Accounting' }]}>
-        <div style={{ padding: '24px', textAlign: 'center' }}>
-          <Spin size="large" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const companyName = COMPANY_NAMES[company] || company;
   const latestPL = plStatements[0];
 
+  // Prepare chart data
+  const chartData = plStatements.slice(0, 6).reverse().map(pl => ({
+    month: `${pl.month.substring(0, 3)} ${pl.year}`,
+    revenue: pl.totalRevenue || 0,
+    expenses: pl.totalExpenses || 0,
+  }));
+
+  if (loading) {
+    return (
+      <ModernDashboardLayout>
+        <LoadingSkeleton type="detail" />
+      </ModernDashboardLayout>
+    );
+  }
+
   return (
-    <DashboardLayout
-      breadcrumbs={[
-        { title: 'Accounting', href: '/accounting-manus' },
-        { title: companyName },
-      ]}
-    >
-      <PageHeader
-        title={companyName}
-        subtitle="Financial documents and analysis powered by Manus AI"
-        extra={
+    <ModernDashboardLayout>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => router.push('/accounting-manus')}
+              size="large"
+              style={{ marginBottom: 16, borderRadius: '24px' }}
+            >
+              Back
+            </Button>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              {companyName}
+            </h1>
+            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+              Financial documents and AI-powered analysis
+            </p>
+          </div>
           <Space>
             <Button
               icon={<ReloadOutlined />}
               onClick={fetchData}
-              loading={loading}
+              size="large"
+              style={{ borderRadius: '24px' }}
             >
               Refresh
             </Button>
             <Button
-              icon={<DownloadOutlined />}
-              onClick={exportToCSV}
-            >
-              Export CSV
-            </Button>
-            <Button
               type="primary"
+              icon={<PlusOutlined />}
               onClick={() => router.push('/accounting-manus')}
+              size="large"
+              style={{ borderRadius: '24px' }}
             >
-              Upload New Document
+              Upload Document
             </Button>
           </Space>
-        }
-      />
+        </div>
 
-      {/* Summary Statistics */}
-      {latestPL && (
-        <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 24 }}>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
+        {/* KPI Cards */}
+        {latestPL && (
+          <Row gutter={[24, 24]} className="mb-8 stagger-children">
+            <Col xs={24} sm={8}>
+              <StatCard
                 title="Latest Revenue"
-                value={latestPL.totalRevenue}
-                prefix="$"
-                valueStyle={{ color: '#52c41a' }}
-                suffix={<small>({latestPL.month} {latestPL.year})</small>}
+                value={`$${latestPL.totalRevenue?.toLocaleString() || '0'}`}
+                icon={<DollarOutlined style={{ fontSize: 20 }} />}
+                color="success"
               />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
+            </Col>
+            <Col xs={24} sm={8}>
+              <StatCard
                 title="Latest Expenses"
-                value={latestPL.totalExpenses}
-                prefix="$"
-                valueStyle={{ color: '#ff4d4f' }}
-                suffix={<small>({latestPL.month} {latestPL.year})</small>}
+                value={`$${latestPL.totalExpenses?.toLocaleString() || '0'}`}
+                icon={<DollarOutlined style={{ fontSize: 20 }} />}
+                color="error"
               />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Latest Net Income"
-                value={latestPL.netIncome}
-                prefix="$"
-                valueStyle={{ color: latestPL.netIncome >= 0 ? '#52c41a' : '#ff4d4f' }}
-                suffix={<small>({latestPL.month} {latestPL.year})</small>}
+            </Col>
+            <Col xs={24} sm={8}>
+              <StatCard
+                title="Net Income"
+                value={`$${Math.abs(latestPL.netIncome || 0).toLocaleString()}`}
+                icon={latestPL.netIncome >= 0 ? <RiseOutlined style={{ fontSize: 20 }} /> : <FallOutlined style={{ fontSize: 20 }} />}
+                color={latestPL.netIncome >= 0 ? 'success' : 'error'}
               />
-            </Card>
-          </Col>
-        </Row>
-      )}
+            </Col>
+          </Row>
+        )}
 
-      {/* Tabs for Documents and P&L Statements */}
-      <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} size="large">
-          <TabPane tab="Uploaded Documents" key="documents">
-            <Table
-              columns={documentColumns}
-              dataSource={documents}
-              rowKey="_id"
-              loading={loading}
-              pagination={{
-                pageSize: 10,
-                showTotal: (total) => `Total ${total} documents`,
-              }}
-              locale={{
-                emptyText: (
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No documents uploaded yet"
-                  >
-                    <Button type="primary" onClick={() => router.push('/accounting-manus')}>
-                      Upload First Document
-                    </Button>
-                  </Empty>
-                ),
-              }}
-            />
-          </TabPane>
+        {/* Charts */}
+        {chartData.length > 0 && (
+          <Card title="Revenue vs Expenses Trend" className="gradient-card mb-6">
+            <RevenueExpenseChart data={chartData} />
+          </Card>
+        )}
 
-          <TabPane tab="P&L Statements" key="pl">
-            <Table
-              columns={plColumns}
-              dataSource={plStatements}
-              rowKey={(record) => `${record.month}-${record.year}`}
-              loading={loading}
-              pagination={{
-                pageSize: 12,
-                showTotal: (total) => `Total ${total} statements`,
-              }}
-              locale={{
-                emptyText: (
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No P&L statements generated yet"
-                  >
-                    <p>Upload documents to generate P&L statements</p>
-                  </Empty>
-                ),
-              }}
-            />
-          </TabPane>
-        </Tabs>
-      </Card>
-    </DashboardLayout>
+        {/* Tabs */}
+        <Card className="gradient-card">
+          <Tabs activeKey={activeTab} onChange={setActiveTab} size="large">
+            <TabPane tab="Documents" key="documents">
+              <Table
+                columns={documentColumns}
+                dataSource={documents}
+                rowKey="_id"
+                pagination={{
+                  pageSize: 10,
+                  showTotal: (total) => `Total ${total} documents`,
+                }}
+                locale={{
+                  emptyText: (
+                    <EmptyState
+                      title="No documents uploaded"
+                      description="Upload your first document to start tracking"
+                      type="documents"
+                      action={{
+                        text: 'Upload Document',
+                        onClick: () => router.push('/accounting-manus'),
+                        icon: <PlusOutlined />,
+                      }}
+                    />
+                  ),
+                }}
+              />
+            </TabPane>
+
+            <TabPane tab="P&L Statements" key="pl">
+              {plStatements.length === 0 ? (
+                <EmptyState
+                  title="No P&L statements yet"
+                  description="P&L statements are generated automatically after documents are processed by Manus AI"
+                  type="documents"
+                />
+              ) : (
+                <div className="space-y-4">
+                  {plStatements.map((pl, index) => (
+                    <motion.div
+                      key={`${pl.month}-${pl.year}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="theme-card">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                              {pl.month} {pl.year}
+                            </div>
+                            <Space size="large">
+                              <div>
+                                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Revenue</div>
+                                <div className="text-lg font-semibold" style={{ color: 'var(--color-success)' }}>
+                                  ${pl.totalRevenue?.toLocaleString() || '0'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Expenses</div>
+                                <div className="text-lg font-semibold" style={{ color: 'var(--color-error)' }}>
+                                  ${pl.totalExpenses?.toLocaleString() || '0'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Net Income</div>
+                                <div className="text-lg font-semibold" style={{ color: pl.netIncome >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
+                                  ${Math.abs(pl.netIncome || 0).toLocaleString()}
+                                </div>
+                              </div>
+                            </Space>
+                          </div>
+                          {pl.netIncome >= 0 ? (
+                            <RiseOutlined style={{ fontSize: 32, color: 'var(--color-success)' }} />
+                          ) : (
+                            <FallOutlined style={{ fontSize: 32, color: 'var(--color-error)' }} />
+                          )}
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabPane>
+          </Tabs>
+        </Card>
+      </motion.div>
+    </ModernDashboardLayout>
   );
 }
-

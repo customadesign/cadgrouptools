@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Table, Card, Badge, Button, Input, Select, Space, message } from 'antd';
-import { SearchOutlined, ReloadOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import { Card, Input, Select, Space, message, Row, Col } from 'antd';
+import { SearchOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import StatusBadge from '@/components/ui/StatusBadge';
+import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
+import EmptyState from '@/components/ui/EmptyState';
 
 const { Option } = Select;
 
@@ -65,158 +69,137 @@ export default function ESystemsProposalsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; text: string }> = {
-      draft: { color: 'default', text: 'Draft' },
-      processing: { color: 'processing', text: 'Processing' },
-      finalized: { color: 'success', text: 'Finalized' },
-      sent: { color: 'blue', text: 'Sent' },
-      failed: { color: 'error', text: 'Failed' },
-    };
-
-    const config = statusConfig[status] || { color: 'default', text: status };
-    return <Badge status={config.color as any} text={config.text} />;
-  };
-
-  const getManusStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; text: string }> = {
-      pending: { color: 'default', text: 'Pending' },
-      processing: { color: 'processing', text: 'Processing' },
-      completed: { color: 'success', text: 'Completed' },
-      failed: { color: 'error', text: 'Failed' },
-    };
-
-    const config = statusConfig[status] || { color: 'default', text: status };
-    return <Badge status={config.color as any} text={config.text} />;
-  };
-
-  const columns: ColumnsType<Proposal> = [
-    {
-      title: 'Client',
-      dataIndex: ['client', 'organization'],
-      key: 'organization',
-      sorter: (a, b) => a.client.organization.localeCompare(b.client.organization),
-    },
-    {
-      title: 'Email',
-      dataIndex: ['client', 'email'],
-      key: 'email',
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => getStatusBadge(status),
-      filters: [
-        { text: 'Draft', value: 'draft' },
-        { text: 'Processing', value: 'processing' },
-        { text: 'Finalized', value: 'finalized' },
-        { text: 'Sent', value: 'sent' },
-        { text: 'Failed', value: 'failed' },
-      ],
-      onFilter: (value, record) => record.status === value,
-    },
-    {
-      title: 'Manus Status',
-      dataIndex: ['manusTask', 'status'],
-      key: 'manusStatus',
-      render: (status: string) => status ? getManusStatusBadge(status) : '-',
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString(),
-      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => router.push(`/proposals/esystems/${record._id}`)}
-          >
-            View
-          </Button>
-          {record.googleSlidesUrl && (
-            <Button
-              type="link"
-              icon={<DownloadOutlined />}
-              href={record.googleSlidesUrl}
-              target="_blank"
-            >
-              Slides
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  const filteredProposals = proposals.filter(p => {
+    const matchesSearch = searchText === '' || 
+      p.client.organization.toLowerCase().includes(searchText.toLowerCase()) ||
+      p.client.email.toLowerCase().includes(searchText.toLowerCase());
+    return matchesSearch;
+  });
 
   if (status === 'loading' || !session) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <p>Loading...</p>
-      </div>
+      <ModernDashboardLayout>
+        <LoadingSkeleton type="card" count={6} />
+      </ModernDashboardLayout>
     );
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Card
-        title="E-Systems Management Proposals"
-        extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchProposals}
-            loading={loading}
-          >
-            Refresh
-          </Button>
-        }
+    <ModernDashboardLayout>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
       >
-        <Space style={{ marginBottom: 16 }} size="middle">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              E-Systems Management Proposals
+            </h1>
+            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+              Product-focused proposals and solutions
+            </p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <Space size="middle" className="w-full md:w-auto">
           <Input
-            placeholder="Search by client name"
-            prefix={<SearchOutlined />}
+            placeholder="Search by client name..."
+            prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            onPressEnter={fetchProposals}
-            style={{ width: 250 }}
+            style={{ width: 250, borderRadius: '24px' }}
+            size="large"
           />
           <Select
             value={statusFilter}
             onChange={setStatusFilter}
-            style={{ width: 150 }}
+            style={{ width: 150, borderRadius: '24px' }}
+            size="large"
           >
             <Option value="all">All Status</Option>
             <Option value="draft">Draft</Option>
             <Option value="processing">Processing</Option>
             <Option value="finalized">Finalized</Option>
             <Option value="sent">Sent</Option>
-            <Option value="failed">Failed</Option>
           </Select>
-          <Button type="primary" onClick={fetchProposals}>
-            Search
-          </Button>
         </Space>
+      </motion.div>
 
-        <Table
-          columns={columns}
-          dataSource={proposals}
-          rowKey="_id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} proposals`,
-          }}
+      {/* Proposals Grid */}
+      {loading ? (
+        <LoadingSkeleton type="card" count={6} />
+      ) : filteredProposals.length === 0 ? (
+        <EmptyState
+          title="No proposals found"
+          description="Proposals will appear here automatically when forms are submitted"
+          type="proposals"
         />
-      </Card>
-    </div>
+      ) : (
+        <Row gutter={[24, 24]} className="stagger-children">
+          {filteredProposals.map((proposal, index) => (
+            <Col xs={24} sm={12} lg={8} key={proposal._id}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -4 }}
+              >
+                <Card
+                  className="gradient-card cursor-pointer h-full"
+                  onClick={() => router.push(`/proposals/esystems/${proposal._id}`)}
+                  hoverable
+                  styles={{ body: { padding: '24px' } }}
+                >
+                  {/* Status Badge */}
+                  <div className="mb-4">
+                    <StatusBadge status={proposal.manusTask?.status || proposal.status as any} />
+                  </div>
+
+                  {/* Client Info */}
+                  <div className="mb-4">
+                    <div className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                      {proposal.client.organization}
+                    </div>
+                    <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      {proposal.client.email}
+                    </div>
+                  </div>
+
+                  {/* Created Date */}
+                  <div className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
+                    Created {new Date(proposal.createdAt).toLocaleDateString()}
+                  </div>
+
+                  {/* Actions */}
+                  <Space size="small" className="w-full justify-between">
+                    <div
+                      className="text-sm font-medium flex items-center gap-1"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      View Details <EyeOutlined />
+                    </div>
+                    {proposal.googleSlidesUrl && (
+                      <a
+                        href={proposal.googleSlidesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-sm font-medium flex items-center gap-1"
+                        style={{ color: 'var(--color-success)' }}
+                      >
+                        Slides <DownloadOutlined />
+                      </a>
+                    )}
+                  </Space>
+                </Card>
+              </motion.div>
+            </Col>
+          ))}
+        </Row>
+      )}
+    </ModernDashboardLayout>
   );
 }
-

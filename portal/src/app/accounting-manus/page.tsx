@@ -11,7 +11,6 @@ import {
   Button,
   message,
   Space,
-  Typography,
   Alert,
   Row,
   Col,
@@ -19,26 +18,25 @@ import {
 import {
   UploadOutlined,
   InboxOutlined,
-  FileTextOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import PageHeader from '@/components/common/PageHeader';
+import { motion } from 'framer-motion';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
 
 const { Option } = Select;
-const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
 const COMPANIES = [
-  { value: 'murphy_web_services', label: 'Murphy Web Services Incorporated' },
-  { value: 'esystems_management', label: 'E-Systems Management Incorporated' },
-  { value: 'mm_secretarial', label: 'M&M Secretarial Services Incorporated' },
-  { value: 'dpm', label: 'DPM Incorporated' },
-  { value: 'linkage_web_solutions', label: 'Linkage Web Solutions Enterprise Incorporated' },
-  { value: 'wdds', label: 'WDDS' },
-  { value: 'mm_leasing', label: 'M&M Leasing Services' },
-  { value: 'hardin_bar_grill', label: 'Hardin Bar & Grill' },
-  { value: 'mphi', label: 'MPHI' },
+  { value: 'murphy_web_services', label: 'Murphy Web Services', short: 'MWSI', color: '#3B82F6' },
+  { value: 'esystems_management', label: 'E-Systems Management', short: 'ESM', color: '#10B981' },
+  { value: 'mm_secretarial', label: 'M&M Secretarial Services', short: 'M&M', color: '#F59E0B' },
+  { value: 'dpm', label: 'DPM Incorporated', short: 'DPM', color: '#8B5CF6' },
+  { value: 'linkage_web_solutions', label: 'Linkage Web Solutions', short: 'LWS', color: '#EC4899' },
+  { value: 'wdds', label: 'WDDS', short: 'WDDS', color: '#06B6D4' },
+  { value: 'mm_leasing', label: 'M&M Leasing Services', short: 'MLS', color: '#F97316' },
+  { value: 'hardin_bar_grill', label: 'Hardin Bar & Grill', short: 'HBG', color: '#EF4444' },
+  { value: 'mphi', label: 'MPHI', short: 'MPHI', color: '#14B8A6' },
 ];
 
 const DOCUMENT_TYPES = [
@@ -49,19 +47,9 @@ const DOCUMENT_TYPES = [
 ];
 
 const MONTHS = [
-  { value: 'January', label: 'January' },
-  { value: 'February', label: 'February' },
-  { value: 'March', label: 'March' },
-  { value: 'April', label: 'April' },
-  { value: 'May', label: 'May' },
-  { value: 'June', label: 'June' },
-  { value: 'July', label: 'July' },
-  { value: 'August', label: 'August' },
-  { value: 'September', label: 'September' },
-  { value: 'October', label: 'October' },
-  { value: 'November', label: 'November' },
-  { value: 'December', label: 'December' },
-];
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+].map(m => ({ value: m, label: m }));
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => ({
@@ -75,7 +63,7 @@ export default function AccountingUploadPage() {
   const [form] = Form.useForm();
   const [uploading, setUploading] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   const handleUpload = async (values: any) => {
     if (fileList.length === 0) {
@@ -108,11 +96,8 @@ export default function AccountingUploadPage() {
       
       message.success(`Document uploaded successfully! Manus AI is now processing it.`);
       
-      setUploadedDocs([data.document, ...uploadedDocs]);
       setFileList([]);
       form.resetFields();
-
-      // Redirect to company accounting page
       router.push(`/accounting-manus/${values.company}`);
 
     } catch (error: any) {
@@ -146,18 +131,18 @@ export default function AccountingUploadPage() {
       }
 
       setFileList([file as any]);
-      return false; // Prevent auto upload
+      return false;
     },
     fileList,
   };
 
   if (status === 'loading') {
     return (
-      <DashboardLayout breadcrumbs={[{ title: 'Accounting' }]}>
-        <div style={{ padding: '24px', textAlign: 'center' }}>
-          <Text>Loading...</Text>
+      <ModernDashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <p>Loading...</p>
         </div>
-      </DashboardLayout>
+      </ModernDashboardLayout>
     );
   }
 
@@ -167,27 +152,77 @@ export default function AccountingUploadPage() {
   }
 
   return (
-    <DashboardLayout
-      breadcrumbs={[
-        { title: 'Accounting', href: '/accounting' },
-        { title: 'Upload Document' },
-      ]}
-    >
-      <PageHeader
-        title="Upload Accounting Document"
-        subtitle="Upload financial documents for automated analysis by Manus AI"
-      />
+    <ModernDashboardLayout>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Upload Accounting Document
+        </h1>
+        <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+          Upload financial documents for automated AI analysis by Manus
+        </p>
+      </motion.div>
 
-      <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
+      <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          <Card>
-            <Alert
-              message="Automated AI Processing"
-              description="Documents are automatically processed by Manus AI. OCR extraction, transaction parsing, and P&L generation happen automatically. This may take a few minutes per document."
-              type="info"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="gradient-card mb-6">
+              <Alert
+                message="Automated AI Processing"
+                description="Documents are automatically processed by Manus AI. OCR extraction, transaction parsing, and P&L generation happen automatically within 5-10 minutes."
+                type="info"
+                showIcon
+                icon={<CheckCircleOutlined />}
+                style={{ borderRadius: '12px' }}
+              />
+            </Card>
+
+            {/* Visual Company Selector */}
+            <Card title="Select Company" className="gradient-card mb-6">
+              <Row gutter={[16, 16]}>
+                {COMPANIES.map((company, index) => (
+                  <Col xs={12} sm={8} md={6} key={company.value}>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <div
+                        onClick={() => {
+                          form.setFieldValue('company', company.value);
+                          setSelectedCompany(company.value);
+                        }}
+                        className={`p-4 rounded-xl cursor-pointer text-center transition-all ${
+                          selectedCompany === company.value
+                            ? 'ring-2 ring-offset-2'
+                            : ''
+                        }`}
+                        style={{
+                          background: selectedCompany === company.value
+                            ? `linear-gradient(135deg, ${company.color} 0%, ${company.color}dd 100%)`
+                            : 'var(--bg-secondary)',
+                          color: selectedCompany === company.value ? 'white' : 'var(--text-primary)',
+                          borderRadius: '12px',
+                          ringColor: company.color,
+                        }}
+                      >
+                        <div className="text-2xl font-bold mb-1">{company.short}</div>
+                        <div className="text-xs">{company.label.split(' ').slice(0, 2).join(' ')}</div>
+                      </div>
+                    </motion.div>
+                  </Col>
+                ))}
+              </Row>
+            </Card>
 
             <Form
               form={form}
@@ -199,83 +234,72 @@ export default function AccountingUploadPage() {
                 year: currentYear,
               }}
             >
-              <Form.Item
-                label="Company"
-                name="company"
-                rules={[{ required: true, message: 'Please select a company' }]}
-              >
-                <Select
-                  size="large"
-                  placeholder="Select company"
-                  showSearch
-                  optionFilterProp="children"
+              <Form.Item name="company" hidden>
+                <input />
+              </Form.Item>
+
+              <Card title="Document Details" className="gradient-card mb-6">
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label="Month"
+                      name="month"
+                      rules={[{ required: true, message: 'Please select month' }]}
+                    >
+                      <Select size="large" placeholder="Select month">
+                        {MONTHS.map(month => (
+                          <Option key={month.value} value={month.value}>
+                            {month.label}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label="Year"
+                      name="year"
+                      rules={[{ required: true, message: 'Please select year' }]}
+                    >
+                      <Select size="large" placeholder="Select year">
+                        {YEARS.map(year => (
+                          <Option key={year.value} value={year.value}>
+                            {year.label}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Form.Item
+                  label="Document Type"
+                  name="documentType"
+                  rules={[{ required: true, message: 'Please select document type' }]}
                 >
-                  {COMPANIES.map(company => (
-                    <Option key={company.value} value={company.value}>
-                      {company.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
+                  <Select size="large" placeholder="Select document type">
+                    {DOCUMENT_TYPES.map(type => (
+                      <Option key={type.value} value={type.value}>
+                        {type.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Card>
 
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Month"
-                    name="month"
-                    rules={[{ required: true, message: 'Please select month' }]}
-                  >
-                    <Select size="large" placeholder="Select month">
-                      {MONTHS.map(month => (
-                        <Option key={month.value} value={month.value}>
-                          {month.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Year"
-                    name="year"
-                    rules={[{ required: true, message: 'Please select year' }]}
-                  >
-                    <Select size="large" placeholder="Select year">
-                      {YEARS.map(year => (
-                        <Option key={year.value} value={year.value}>
-                          {year.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item
-                label="Document Type"
-                name="documentType"
-                rules={[{ required: true, message: 'Please select document type' }]}
-              >
-                <Select size="large" placeholder="Select document type">
-                  {DOCUMENT_TYPES.map(type => (
-                    <Option key={type.value} value={type.value}>
-                      {type.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-
-              <Form.Item label="Upload Document">
-                <Dragger {...uploadProps}>
+              <Card title="Upload File" className="gradient-card mb-6">
+                <Dragger {...uploadProps} style={{ borderRadius: '12px' }}>
                   <p className="ant-upload-drag-icon">
-                    <InboxOutlined />
+                    <InboxOutlined style={{ fontSize: 64, color: 'var(--color-primary)' }} />
                   </p>
-                  <p className="ant-upload-text">Click or drag file to this area to upload</p>
-                  <p className="ant-upload-hint">
-                    Support for PDF and image files (JPG, PNG). Maximum file size: 25MB
+                  <p className="ant-upload-text" style={{ color: 'var(--text-primary)' }}>
+                    Click or drag file to upload
+                  </p>
+                  <p className="ant-upload-hint" style={{ color: 'var(--text-secondary)' }}>
+                    Support for PDF and image files (JPG, PNG). Maximum 25MB
                   </p>
                 </Dragger>
-              </Form.Item>
+              </Card>
 
               <Form.Item>
                 <Space>
@@ -285,59 +309,87 @@ export default function AccountingUploadPage() {
                     loading={uploading}
                     size="large"
                     icon={<UploadOutlined />}
+                    disabled={!selectedCompany}
+                    style={{ borderRadius: '24px', height: '48px', padding: '0 32px' }}
                   >
                     Upload & Process with Manus AI
                   </Button>
-                  <Button size="large" onClick={() => form.resetFields()}>
+                  <Button
+                    size="large"
+                    onClick={() => {
+                      form.resetFields();
+                      setFileList([]);
+                      setSelectedCompany(null);
+                    }}
+                    style={{ borderRadius: '24px', height: '48px' }}
+                  >
                     Reset
                   </Button>
                 </Space>
               </Form.Item>
             </Form>
-          </Card>
+          </motion.div>
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card title="How It Works" style={{ marginBottom: 16 }}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <div>
-                <Title level={5}>1. Upload Document</Title>
-                <Text type="secondary">
-                  Select company, month, year, and upload your document
-                </Text>
-              </div>
-              <div>
-                <Title level={5}>2. Automatic Processing</Title>
-                <Text type="secondary">
-                  Manus AI performs OCR extraction and analysis
-                </Text>
-              </div>
-              <div>
-                <Title level={5}>3. P&L Generation</Title>
-                <Text type="secondary">
-                  Monthly profit & loss statements are generated automatically
-                </Text>
-              </div>
-              <div>
-                <Title level={5}>4. View Results</Title>
-                <Text type="secondary">
-                  Access transaction data, insights, and reports
-                </Text>
-              </div>
-            </Space>
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card title="How It Works" className="gradient-card mb-6">
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                {[
+                  { step: '1', title: 'Select Company', desc: 'Choose which company this document belongs to' },
+                  { step: '2', title: 'Upload Document', desc: 'Drag and drop your PDF or image file' },
+                  { step: '3', title: 'Auto Processing', desc: 'Manus AI performs OCR and analysis' },
+                  { step: '4', title: 'View Results', desc: 'Access P&L statements and insights' },
+                ].map((item, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                      }}
+                    >
+                      {item.step}
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                        {item.title}
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </Space>
+            </Card>
 
-          <Card title="Supported Documents">
-            <Space direction="vertical" size="small">
-              <Text><FileTextOutlined /> Bank Statements (PDF)</Text>
-              <Text><FileTextOutlined /> Invoices (PDF, Images)</Text>
-              <Text><FileTextOutlined /> Receipts (PDF, Images)</Text>
-              <Text><FileTextOutlined /> Financial Reports</Text>
-            </Space>
-          </Card>
+            <Card title="Supported Files" className="gradient-card">
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <div className="flex items-center gap-2">
+                  <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />
+                  <span style={{ color: 'var(--text-primary)' }}>Bank Statements (PDF)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />
+                  <span style={{ color: 'var(--text-primary)' }}>Invoices (PDF, Images)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />
+                  <span style={{ color: 'var(--text-primary)' }}>Receipts (PDF, Images)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircleOutlined style={{ color: 'var(--color-success)' }} />
+                  <span style={{ color: 'var(--text-primary)' }}>Financial Reports</span>
+                </div>
+              </Space>
+            </Card>
+          </motion.div>
         </Col>
       </Row>
-    </DashboardLayout>
+    </ModernDashboardLayout>
   );
 }
-

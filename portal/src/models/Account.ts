@@ -1,11 +1,17 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models, Types } from 'mongoose';
 
 const AccountSchema = new Schema(
   {
+    company: { 
+      type: Types.ObjectId, 
+      ref: 'Company', 
+      required: true, 
+      index: true 
+    },
     name: { type: String, required: true, index: true },
     bankName: { type: String, required: true },
     accountNumber: { type: String }, // Last 4 digits only for security
-    currency: { type: String, default: 'USD' },
+    currency: { type: String, default: 'PHP' },
     type: { 
       type: String, 
       enum: ['checking', 'savings', 'credit', 'investment'],
@@ -23,7 +29,9 @@ const AccountSchema = new Schema(
   { timestamps: true }
 );
 
-// Compound index for unique account identification
+// Compound indexes for unique account identification and queries
 AccountSchema.index({ name: 1, bankName: 1 });
+AccountSchema.index({ company: 1, name: 1, bankName: 1 });
+AccountSchema.index({ company: 1, status: 1 });
 
 export const Account = models.Account || model('Account', AccountSchema);
