@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Proposal } from '@/models/Proposal';
 import { Client } from '@/models/Client';
+import ManusTask from '@/models/ManusTask';
+import GoHighLevelSubmission from '@/models/GoHighLevelSubmission';
 import { requireAuth } from '@/lib/auth';
 import { notificationService } from '@/services/notificationService';
 import { getServerSession } from 'next-auth';
@@ -18,10 +20,12 @@ export const GET = requireAuth(async (request: NextRequest) => {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status') || '';
     const clientId = searchParams.get('clientId') || '';
+    const company = searchParams.get('company') || ''; // murphy or esystems
+    const search = searchParams.get('search') || '';
 
     // Build query
     const query: any = {};
-    if (status) {
+    if (status && status !== 'all') {
       query.status = status;
     }
     if (clientId) {
@@ -30,14 +34,57 @@ export const GET = requireAuth(async (request: NextRequest) => {
 
     // Execute query with pagination
     const skip = (page - 1) * limit;
-    const [proposals, total] = await Promise.all([
-      Proposal.find(query)
-        .populate('client', 'organization website industry')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Proposal.countDocuments(query),
-    ]);
+    let proposals = await Proposal.find(query)
+      .populate('client', 'organization website email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Enrich proposals with Manus task data
+    const proposalIds = proposals.map((p: any) => p._id);
+    const manusTasks = await ManusTask.find({
+      proposalId: { $in: proposalIds },
+      ...(company && {
+        taskType: company === 'murphy' ? 'proposal_murphy' : 'proposal_esystems'
+      })
+    }).lean();
+
+    const manusTaskMap = new Map();
+    manusTasks.forEach((task: any) => {
+      manusTaskMap.set(task.proposalId.toString(), task);
+    });
+
+    // Filter by company if specified
+    if (company) {
+      proposals = proposals.filter((p: any) => {
+        const task = manusTaskMap.get(p._id.toString());
+        if (company === 'murphy') {
+          return task?.taskType === 'proposal_murphy';
+        } else if (company === 'esystems') {
+          return task?.taskType === 'proposal_esystems';
+        }
+        return false;
+      });
+    }
+
+    // Filter by search term if specified
+    if (search) {
+      const searchLower = search.toLowerCase();
+      proposals = proposals.filter((p: any) => 
+        p.client?.organization?.toLowerCase().includes(searchLower) ||
+        p.client?.email?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Add manus task data to proposals
+    proposals = proposals.map((p: any) => ({
+      ...p,
+      manusTask: manusTaskMap.get(p._id.toString()) || null,
+      googleSlidesUrl: p.pdfKey || manusTaskMap.get(p._id.toString())?.outputData?.slides_url,
+    }));
+
+    const total = proposals.length;
 
     return NextResponse.json({
       proposals,

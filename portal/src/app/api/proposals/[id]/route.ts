@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Proposal } from '@/models/Proposal';
-import { requireAuth, requireRole } from '@/lib/auth';
+import ManusTask from '@/models/ManusTask';
+import GoHighLevelSubmission from '@/models/GoHighLevelSubmission';
+import { requireAuth } from '@/lib/auth';
 
-// GET /api/proposals/[id] - Get a single proposal
-export const GET = requireAuth(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
+// GET /api/proposals/[id] - Get proposal details
+export const GET = requireAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
   try {
-    const { id } = params;
-
     await connectToDatabase();
 
-    const proposal = await Proposal.findById(id)
-      .populate('client', 'organization website industry email phone address');
-    
+    const proposal = await Proposal.findById(params.id)
+      .populate('client', 'organization website email phone')
+      .lean();
+
     if (!proposal) {
       return NextResponse.json(
         { error: 'Proposal not found' },
@@ -23,7 +21,23 @@ export const GET = requireAuth(async (
       );
     }
 
-    return NextResponse.json({ proposal });
+    // Get associated Manus task
+    const manusTask = await ManusTask.findOne({ proposalId: params.id }).lean();
+
+    // Get GHL submission if it exists
+    const ghlSubmission = await GoHighLevelSubmission.findOne({ 
+      proposalId: params.id 
+    }).lean();
+
+    // Enrich proposal with related data
+    const enrichedProposal = {
+      ...proposal,
+      manusTask: manusTask || null,
+      ghlSubmission: ghlSubmission || null,
+      googleSlidesUrl: proposal.pdfKey || manusTask?.outputData?.slides_url || manusTask?.outputData?.presentation_url,
+    };
+
+    return NextResponse.json({ proposal: enrichedProposal });
   } catch (error) {
     console.error('Error fetching proposal:', error);
     return NextResponse.json(
@@ -33,95 +47,26 @@ export const GET = requireAuth(async (
   }
 });
 
-// PUT /api/proposals/[id] - Update a proposal
-export const PUT = requireAuth(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
+// PATCH /api/proposals/[id] - Update proposal
+export const PATCH = requireAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
   try {
-    const { id } = params;
     const body = await request.json();
-    const {
-      status,
-      selectedServices,
-      murphyRate,
-      clientRate,
-      researchJson,
-      htmlDraft,
-      pdfKey,
-    } = body;
-
-    // Validation
-    if (status && !['draft', 'finalized', 'sent'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status value' },
-        { status: 400 }
-      );
-    }
-
-    if (selectedServices !== undefined) {
-      if (!Array.isArray(selectedServices) || selectedServices.length === 0) {
-        return NextResponse.json(
-          { error: 'At least one service must be selected' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate rates
-    if (murphyRate !== undefined && (murphyRate < 0 || !Number.isFinite(murphyRate))) {
-      return NextResponse.json(
-        { error: 'Invalid Murphy rate' },
-        { status: 400 }
-      );
-    }
-
-    if (clientRate !== undefined && (clientRate < 0 || !Number.isFinite(clientRate))) {
-      return NextResponse.json(
-        { error: 'Invalid client rate' },
-        { status: 400 }
-      );
-    }
-
     await connectToDatabase();
 
-    // Check if proposal exists
-    const existingProposal = await Proposal.findById(id);
-    if (!existingProposal) {
+    const proposal = await Proposal.findByIdAndUpdate(
+      params.id,
+      { $set: body },
+      { new: true, runValidators: true }
+    ).populate('client', 'organization website email phone');
+
+    if (!proposal) {
       return NextResponse.json(
         { error: 'Proposal not found' },
         { status: 404 }
       );
     }
 
-    // Prevent editing finalized proposals unless changing status
-    if (existingProposal.status === 'finalized' && !status && status !== 'sent') {
-      const editableFields = ['status', 'pdfKey'];
-      const attemptedEdits = Object.keys(body).filter(key => !editableFields.includes(key));
-      if (attemptedEdits.length > 0) {
-        return NextResponse.json(
-          { error: 'Cannot edit finalized proposal content. Only status and PDF can be updated.' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Update proposal
-    const updatedProposal = await Proposal.findByIdAndUpdate(
-      id,
-      {
-        ...(status !== undefined && { status }),
-        ...(selectedServices !== undefined && { selectedServices }),
-        ...(murphyRate !== undefined && { murphyRate }),
-        ...(clientRate !== undefined && { clientRate }),
-        ...(researchJson !== undefined && { researchJson }),
-        ...(htmlDraft !== undefined && { htmlDraft }),
-        ...(pdfKey !== undefined && { pdfKey }),
-      },
-      { new: true, runValidators: true }
-    ).populate('client', 'organization website industry email phone address');
-
-    return NextResponse.json({ proposal: updatedProposal });
+    return NextResponse.json({ proposal });
   } catch (error) {
     console.error('Error updating proposal:', error);
     return NextResponse.json(
@@ -131,17 +76,13 @@ export const PUT = requireAuth(async (
   }
 });
 
-// DELETE /api/proposals/[id] - Delete a proposal (admin only)
-export const DELETE = requireRole('admin')(async (
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
+// DELETE /api/proposals/[id] - Delete proposal
+export const DELETE = requireAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
   try {
-    const { id } = params;
-
     await connectToDatabase();
 
-    const proposal = await Proposal.findById(id);
+    const proposal = await Proposal.findByIdAndDelete(params.id);
+
     if (!proposal) {
       return NextResponse.json(
         { error: 'Proposal not found' },
@@ -149,17 +90,7 @@ export const DELETE = requireRole('admin')(async (
       );
     }
 
-    // Prevent deletion of sent proposals
-    if (proposal.status === 'sent') {
-      return NextResponse.json(
-        { error: 'Cannot delete sent proposals' },
-        { status: 400 }
-      );
-    }
-
-    await Proposal.findByIdAndDelete(id);
-
-    return NextResponse.json({ message: 'Proposal deleted successfully' });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting proposal:', error);
     return NextResponse.json(
