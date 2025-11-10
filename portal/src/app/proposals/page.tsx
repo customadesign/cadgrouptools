@@ -1,27 +1,19 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useState, useEffect } from 'react';
-import {
-  Tabs,
-  Card,
-  Button,
-  Space,
-  Statistic,
-  Row,
-  Col,
-} from 'antd';
+import { Tabs, Card, Button, Space, Row, Col } from 'antd';
 import {
   FileTextOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  CloseCircleOutlined,
   SyncOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import PageHeader from '@/components/common/PageHeader';
+import { motion } from 'framer-motion';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import StatCard from '@/components/ui/StatCard';
+import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 
 const { TabPane } = Tabs;
 
@@ -36,6 +28,7 @@ interface ProposalStats {
 export default function ProposalsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('murphy');
+  const [loading, setLoading] = useState(true);
   const [murphyStats, setMurphyStats] = useState<ProposalStats>({
     total: 0,
     pending: 0,
@@ -50,7 +43,6 @@ export default function ProposalsPage() {
     completed: 0,
     failed: 0,
   });
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -94,145 +86,159 @@ export default function ProposalsPage() {
   };
 
   const renderStatsCards = (stats: ProposalStats) => (
-    <Row gutter={[16, 16]}>
+    <Row gutter={[16, 16]} className="stagger-children">
       <Col xs={24} sm={12} lg={6}>
-        <Card>
-          <Statistic
-            title="Total Proposals"
-            value={stats.total}
-            prefix={<FileTextOutlined />}
-          />
-        </Card>
+        <StatCard
+          title="Total Proposals"
+          value={stats.total}
+          icon={<FileTextOutlined style={{ fontSize: 20 }} />}
+          color="primary"
+          loading={loading}
+        />
       </Col>
       <Col xs={24} sm={12} lg={6}>
-        <Card>
-          <Statistic
-            title="Pending"
-            value={stats.pending}
-            prefix={<ClockCircleOutlined />}
-            valueStyle={{ color: '#faad14' }}
-          />
-        </Card>
+        <StatCard
+          title="Pending"
+          value={stats.pending}
+          icon={<ClockCircleOutlined style={{ fontSize: 20 }} />}
+          color="warning"
+          loading={loading}
+        />
       </Col>
       <Col xs={24} sm={12} lg={6}>
-        <Card>
-          <Statistic
-            title="Processing"
-            value={stats.processing}
-            prefix={<SyncOutlined spin />}
-            valueStyle={{ color: '#1890ff' }}
-          />
-        </Card>
+        <StatCard
+          title="Processing"
+          value={stats.processing}
+          icon={<SyncOutlined style={{ fontSize: 20 }} />}
+          color="primary"
+          loading={loading}
+        />
       </Col>
       <Col xs={24} sm={12} lg={6}>
-        <Card>
-          <Statistic
-            title="Completed"
-            value={stats.completed}
-            prefix={<CheckCircleOutlined />}
-            valueStyle={{ color: '#52c41a' }}
-          />
-        </Card>
+        <StatCard
+          title="Completed"
+          value={stats.completed}
+          icon={<CheckCircleOutlined style={{ fontSize: 20 }} />}
+          color="success"
+          loading={loading}
+        />
       </Col>
     </Row>
   );
 
   return (
-    <DashboardLayout
-      breadcrumbs={[
-        { title: 'Proposals' },
-      ]}
-    >
-      <PageHeader
-        title="Proposals"
-        subtitle="Manage proposals for Murphy Consulting and E-Systems Management"
-        extra={
-          <Button
-            icon={<SyncOutlined spin={loading} />}
-            onClick={fetchStats}
-            loading={loading}
-          >
-            Refresh
-          </Button>
-        }
-      />
+    <ModernDashboardLayout>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Proposals
+        </h1>
+        <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+          Manage proposals for Murphy Consulting and E-Systems Management
+        </p>
+      </motion.div>
 
-      <Tabs 
-        activeKey={activeTab} 
+      <Tabs
+        activeKey={activeTab}
         onChange={setActiveTab}
         size="large"
-        style={{ marginTop: 24 }}
+        animated={{ inkBar: true, tabPane: true }}
       >
-        <TabPane 
+        <TabPane
           tab={
             <Space>
-              <span>Murphy Consulting</span>
-              {murphyStats.processing > 0 && (
-                <SyncOutlined spin style={{ color: '#1890ff' }} />
-              )}
+              <span className="font-semibold">Murphy Consulting</span>
+              {murphyStats.processing > 0 && <SyncOutlined spin style={{ color: '#3B82F6' }} />}
             </Space>
-          } 
+          }
           key="murphy"
         >
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space direction="vertical" size={24} style={{ width: '100%', marginTop: 24 }}>
             {renderStatsCards(murphyStats)}
-            
-            <Card>
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-                <h3>Murphy Consulting Proposals</h3>
-                <p style={{ color: '#8c8c8c', marginBottom: 24 }}>
-                  Proposals are automatically generated from GoHighLevel form submissions
-                </p>
-                <Space>
-                  <Button 
-                    type="primary" 
-                    size="large"
-                    onClick={() => router.push('/proposals/murphy')}
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="gradient-card text-center" style={{ padding: '40px 20px' }}>
+                <div className="mb-4">
+                  <div
+                    className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-white mb-4"
+                    style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}
                   >
-                    View All Murphy Proposals
-                  </Button>
-                </Space>
-              </div>
-            </Card>
+                    <FileTextOutlined style={{ fontSize: 40 }} />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                    Murphy Consulting Proposals
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+                    Proposals are automatically generated from GoHighLevel form submissions at $35/hour
+                  </p>
+                </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => router.push('/proposals/murphy')}
+                  icon={<ArrowRightOutlined />}
+                  style={{ borderRadius: '24px', height: '48px', padding: '0 32px' }}
+                >
+                  View All Murphy Proposals
+                </Button>
+              </Card>
+            </motion.div>
           </Space>
         </TabPane>
 
-        <TabPane 
+        <TabPane
           tab={
             <Space>
-              <span>E-Systems Management</span>
-              {esystemsStats.processing > 0 && (
-                <SyncOutlined spin style={{ color: '#1890ff' }} />
-              )}
+              <span className="font-semibold">E-Systems Management</span>
+              {esystemsStats.processing > 0 && <SyncOutlined spin style={{ color: '#3B82F6' }} />}
             </Space>
-          } 
+          }
           key="esystems"
         >
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space direction="vertical" size={24} style={{ width: '100%', marginTop: 24 }}>
             {renderStatsCards(esystemsStats)}
-            
-            <Card>
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-                <h3>E-Systems Management Proposals</h3>
-                <p style={{ color: '#8c8c8c', marginBottom: 24 }}>
-                  Product-focused proposals are automatically generated from GoHighLevel form submissions
-                </p>
-                <Space>
-                  <Button 
-                    type="primary" 
-                    size="large"
-                    onClick={() => router.push('/proposals/esystems')}
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="gradient-card text-center" style={{ padding: '40px 20px' }}>
+                <div className="mb-4">
+                  <div
+                    className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-white mb-4"
+                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
                   >
-                    View All E-Systems Proposals
-                  </Button>
-                </Space>
-              </div>
-            </Card>
+                    <FileTextOutlined style={{ fontSize: 40 }} />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                    E-Systems Management Proposals
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+                    Product-focused proposals automatically generated from form submissions
+                  </p>
+                </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => router.push('/proposals/esystems')}
+                  icon={<ArrowRightOutlined />}
+                  style={{ borderRadius: '24px', height: '48px', padding: '0 32px' }}
+                >
+                  View All E-Systems Proposals
+                </Button>
+              </Card>
+            </motion.div>
           </Space>
         </TabPane>
       </Tabs>
-    </DashboardLayout>
+    </ModernDashboardLayout>
   );
 }
