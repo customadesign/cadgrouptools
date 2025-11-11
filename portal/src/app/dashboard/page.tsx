@@ -58,24 +58,24 @@ const recentActivities = [
 const quickActions = [
   {
     title: 'Upload Document',
-    description: 'Add accounting documents',
-    icon: <FileTextOutlined style={{ fontSize: 24 }} />,
+    description: 'Add accounting documents for AI analysis',
+    icon: <DollarOutlined style={{ fontSize: 24 }} />,
     color: '#3B82F6',
     onClick: '/accounting-manus',
   },
   {
     title: 'View Proposals',
-    description: 'Check proposal status',
+    description: 'Check proposal status and send to clients',
     icon: <FileTextOutlined style={{ fontSize: 24 }} />,
     color: '#10B981',
     onClick: '/proposals',
   },
   {
-    title: 'New Client',
-    description: 'Add a new client',
-    icon: <TeamOutlined style={{ fontSize: 24 }} />,
-    color: '#F59E0B',
-    onClick: '/clients/new',
+    title: 'AI Personas',
+    description: 'Customize Manus AI behavior per form',
+    icon: <RocketOutlined style={{ fontSize: 24 }} />,
+    color: '#8B5CF6',
+    onClick: '/proposals/personas',
   },
 ];
 
