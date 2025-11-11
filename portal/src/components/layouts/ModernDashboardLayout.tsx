@@ -111,6 +111,14 @@ export default function ModernDashboardLayout({ children, breadcrumbs = [] }: Da
           label: 'E-Systems Management',
           onClick: () => router.push('/proposals/esystems'),
         },
+        {
+          type: 'divider',
+        },
+        {
+          key: '/proposals/personas',
+          label: '🤖 AI Personas',
+          onClick: () => router.push('/proposals/personas'),
+        },
       ],
     },
     {
