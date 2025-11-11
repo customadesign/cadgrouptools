@@ -4,6 +4,7 @@ import GoHighLevelSubmission from '@/models/GoHighLevelSubmission';
 import ManusTask from '@/models/ManusTask';
 import Proposal from '@/models/Proposal';
 import Client from '@/models/Client';
+import Persona from '@/models/Persona';
 import ghlService from '@/services/ghlService';
 import manusService from '@/services/manusService';
 
@@ -85,14 +86,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Manus task based on company
+    // Fetch active persona for this specific form
+    const activePersona = await Persona.findOne({
+      ghlFormId: formId,
+      isActive: true,
+    }).lean();
+
+    console.log('Active persona for form:', formId, activePersona ? activePersona.name : 'None');
+
+    // Create Manus task based on company (with persona if available)
     let manusTask;
     
     try {
       if (company === 'murphy') {
-        manusTask = await manusService.createMurphyProposalTask(formData);
+        manusTask = await manusService.createMurphyProposalTask(
+          formData,
+          activePersona?.promptText
+        );
       } else if (company === 'esystems') {
-        manusTask = await manusService.createESystemsProposalTask(formData);
+        manusTask = await manusService.createESystemsProposalTask(
+          formData,
+          activePersona?.promptText
+        );
       }
 
       if (manusTask) {

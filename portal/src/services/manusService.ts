@@ -204,8 +204,8 @@ Maintain a comprehensive financial history and provide analysis when requested.`
   /**
    * Create a Murphy Consulting proposal task
    */
-  async createMurphyProposalTask(formData: any): Promise<ManusTask> {
-    const instructions = `Company: ${formData.organization || 'Unknown'}
+  async createMurphyProposalTask(formData: any, personaPrompt?: string): Promise<ManusTask> {
+    const baseInstructions = `Company: ${formData.organization || 'Unknown'}
 Website: ${formData.website || 'Not provided'}
 Hourly Rate: $35/hour
 
@@ -234,6 +234,10 @@ Create a Google Slides presentation with:
 
 Provide the Google Slides link in the output.`;
 
+    const instructions = personaPrompt
+      ? `${personaPrompt}\n\n---\n\nCLIENT INFORMATION:\n\n${baseInstructions}`
+      : baseInstructions;
+
     return this.createTask('proposal', {
       instructions,
       metadata: {
@@ -249,8 +253,8 @@ Provide the Google Slides link in the output.`;
   /**
    * Create an E-Systems Management proposal task
    */
-  async createESystemsProposalTask(formData: any): Promise<ManusTask> {
-    const instructions = `Company: ${formData.organization || 'Unknown'}
+  async createESystemsProposalTask(formData: any, personaPrompt?: string): Promise<ManusTask> {
+    const baseInstructions = `Company: ${formData.organization || 'Unknown'}
 Form Data: ${JSON.stringify(formData, null, 2)}
 
 Conduct product research based on client requirements.
@@ -279,6 +283,10 @@ Include:
 - Support details
 
 Provide the Google Slides link in the output.`;
+
+    const instructions = personaPrompt
+      ? `${personaPrompt}\n\n---\n\nCLIENT INFORMATION:\n\n${baseInstructions}`
+      : baseInstructions;
 
     return this.createTask('proposal', {
       instructions,

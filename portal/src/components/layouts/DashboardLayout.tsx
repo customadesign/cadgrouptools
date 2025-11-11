@@ -172,10 +172,96 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
       ],
     },
     {
-      key: '/reports',
+      key: 'reports',
       icon: <BarChartOutlined />,
-      label: 'Reports',
-      onClick: () => router.push('/reports'),
+      label: 'Financial Reports',
+      children: [
+        {
+          key: '/reports',
+          label: 'All Reports',
+          onClick: () => router.push('/reports'),
+        },
+        {
+          type: 'divider',
+        },
+        {
+          key: 'individual-reports',
+          label: 'Individual Company',
+          type: 'group',
+          children: [
+            {
+              key: '/reports/pl',
+              label: 'P&L Statement',
+              onClick: () => router.push('/reports/pl'),
+            },
+            {
+              key: '/reports/cashflow',
+              label: 'Cash Flow',
+              onClick: () => router.push('/reports/cashflow'),
+            },
+            {
+              key: '/reports/expenses',
+              label: 'Expenses',
+              onClick: () => router.push('/reports/expenses'),
+            },
+            {
+              key: '/reports/revenue',
+              label: 'Revenue',
+              onClick: () => router.push('/reports/revenue'),
+            },
+            {
+              key: '/reports/transactions',
+              label: 'Transaction Ledger',
+              onClick: () => router.push('/reports/transactions'),
+            },
+          ],
+        },
+        {
+          type: 'divider',
+        },
+        {
+          key: 'consolidated-reports',
+          label: 'Consolidated',
+          type: 'group',
+          children: [
+            {
+              key: '/reports/consolidated/pl',
+              label: 'Consolidated P&L',
+              onClick: () => router.push('/reports/consolidated/pl'),
+            },
+            {
+              key: '/reports/consolidated/comparison',
+              label: 'Company Comparison',
+              onClick: () => router.push('/reports/consolidated/comparison'),
+            },
+            {
+              key: '/reports/consolidated/cash',
+              label: 'Cash Position',
+              onClick: () => router.push('/reports/consolidated/cash'),
+            },
+          ],
+        },
+        {
+          type: 'divider',
+        },
+        {
+          key: 'tax-compliance',
+          label: 'Tax & Compliance',
+          type: 'group',
+          children: [
+            {
+              key: '/reports/tax-summary',
+              label: 'Tax Summary',
+              onClick: () => router.push('/reports/tax-summary'),
+            },
+            {
+              key: '/reports/uncategorized',
+              label: 'Data Quality',
+              onClick: () => router.push('/reports/uncategorized'),
+            },
+          ],
+        },
+      ],
     },
   ];
 
