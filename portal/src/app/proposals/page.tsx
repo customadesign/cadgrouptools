@@ -141,6 +141,69 @@ export default function ProposalsPage() {
         </p>
       </motion.div>
 
+      {/* How It Works Info Card */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card
+          className="gradient-card mb-6"
+          styles={{ body: { padding: '24px' } }}
+          style={{
+            background: 'linear-gradient(135deg, #3B82F620 0%, #10B98120 100%)',
+            border: '1px solid var(--border-primary)',
+          }}
+        >
+          <Row gutter={24} align="middle">
+            <Col xs={24} md={16}>
+              <div className="flex items-start gap-4">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}
+                >
+                  <FileTextOutlined style={{ fontSize: 24, color: 'white' }} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                    📋 How Proposals Work
+                  </h3>
+                  <p className="mb-2" style={{ color: 'var(--text-secondary)' }}>
+                    Proposals are <strong>automatically generated</strong> when clients submit forms on your GoHighLevel pages. 
+                    Manus AI researches their business and creates professional Google Slides presentations.
+                  </p>
+                  <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                    ✨ No manual upload needed - everything happens automatically via webhooks!
+                  </p>
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} md={8} className="text-center md:text-right">
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  href="https://app.venderflow.com/v2/location/62kZ0CQqMotRWvdIjMZS/form-builder/main?folder=Js6hHNkJvK4oKPSmoclb"
+                  target="_blank"
+                  size="large"
+                  style={{ borderRadius: '24px', width: '100%' }}
+                >
+                  📝 Murphy Forms
+                </Button>
+                <Button
+                  type="default"
+                  href="https://link.esystemsmanagement.com/widget/form/Dencs4XQEHrrOmkLPuCz"
+                  target="_blank"
+                  size="large"
+                  style={{ borderRadius: '24px', width: '100%' }}
+                >
+                  📝 E-Systems Form
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
+      </motion.div>
+
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
