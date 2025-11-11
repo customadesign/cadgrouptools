@@ -570,12 +570,46 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
                   Email Notifications
                 </h3>
+                <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                  Get notified via email for important events in your CAD Group Tools workflow
+                </p>
                 <List
                   dataSource={[
-                    { key: 'proposals', label: 'New proposal submissions', enabled: true },
-                    { key: 'clients', label: 'New client registrations', enabled: true },
-                    { key: 'reports', label: 'Weekly reports', enabled: true },
-                    { key: 'security', label: 'Security alerts', enabled: true },
+                    {
+                      key: 'proposal_completed',
+                      label: 'Proposal Completed',
+                      description: 'When Manus AI finishes generating a proposal',
+                      icon: '✅',
+                      enabled: true,
+                    },
+                    {
+                      key: 'proposal_failed',
+                      label: 'Proposal Failed',
+                      description: 'When proposal generation encounters an error',
+                      icon: '❌',
+                      enabled: true,
+                    },
+                    {
+                      key: 'document_processed',
+                      label: 'Document Processed',
+                      description: 'When accounting document analysis completes',
+                      icon: '📄',
+                      enabled: true,
+                    },
+                    {
+                      key: 'pl_generated',
+                      label: 'P&L Statement Ready',
+                      description: 'When monthly profit & loss statement is generated',
+                      icon: '📊',
+                      enabled: true,
+                    },
+                    {
+                      key: 'system_alerts',
+                      label: 'System Alerts',
+                      description: 'Important system notifications and security updates',
+                      icon: '🔔',
+                      enabled: true,
+                    },
                   ]}
                   renderItem={(item, index) => (
                     <motion.div
@@ -597,10 +631,15 @@ export default function SettingsPage() {
                               className="w-10 h-10 rounded-full flex items-center justify-center"
                               style={{ background: '#3B82F620', color: '#3B82F6' }}
                             >
-                              <MailOutlined />
+                              <span style={{ fontSize: 20 }}>{item.icon}</span>
                             </div>
                           }
                           title={<span style={{ color: 'var(--text-primary)' }}>{item.label}</span>}
+                          description={
+                            <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                              {item.description}
+                            </span>
+                          }
                         />
                       </List.Item>
                     </motion.div>
@@ -610,7 +649,13 @@ export default function SettingsPage() {
 
               <Divider />
 
-              <PushNotificationSettings />
+              {/* Push Notifications */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                  Push Notifications
+                </h3>
+                <PushNotificationSettings />
+              </div>
             </div>
           </TabPane>
 
