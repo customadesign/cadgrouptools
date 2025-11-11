@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Table, Statistic, message, Space, Tag } from 'antml:function_calls>
+import { Card, Row, Col, Table, Statistic, message, Space, Tag } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import ReportLayout from '@/components/reports/ReportLayout';
 import CompanySelector from '@/components/reports/CompanySelector';
