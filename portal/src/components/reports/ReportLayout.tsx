@@ -13,6 +13,7 @@ import {
 import { ReactNode } from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
 
 const { Title, Text } = Typography;
 
@@ -52,113 +53,115 @@ export default function ReportLayout({
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
-      {/* Breadcrumb */}
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        {defaultBreadcrumbs.map((crumb, index) => (
-          <Breadcrumb.Item key={index}>
-            {crumb.href ? (
-              <Link href={crumb.href}>
-                {index === 0 && <HomeOutlined style={{ marginRight: 4 }} />}
-                {crumb.label}
-              </Link>
-            ) : (
-              crumb.label
-            )}
-          </Breadcrumb.Item>
-        ))}
-      </Breadcrumb>
+    <ModernDashboardLayout>
+      <div style={{ padding: '24px' }}>
+        {/* Breadcrumb */}
+        <Breadcrumb style={{ marginBottom: 16 }}>
+          {defaultBreadcrumbs.map((crumb, index) => (
+            <Breadcrumb.Item key={index}>
+              {crumb.href ? (
+                <Link href={crumb.href}>
+                  {index === 0 && <HomeOutlined style={{ marginRight: 4 }} />}
+                  {crumb.label}
+                </Link>
+              ) : (
+                crumb.label
+              )}
+            </Breadcrumb.Item>
+          ))}
+        </Breadcrumb>
 
-      {/* Header */}
-      <Card style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <Title level={2} style={{ marginBottom: 4 }}>
-              {title}
-            </Title>
-            {subtitle && (
-              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                {subtitle}
-              </Text>
-            )}
-            {companyName && (
-              <Text strong style={{ display: 'block' }}>
-                Company: {companyName}
-              </Text>
-            )}
-            {period && (
-              <Text type="secondary" style={{ display: 'block' }}>
-                Period: {period}
-              </Text>
-            )}
+        {/* Header */}
+        <Card style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <Title level={2} style={{ marginBottom: 4 }}>
+                {title}
+              </Title>
+              {subtitle && (
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                  {subtitle}
+                </Text>
+              )}
+              {companyName && (
+                <Text strong style={{ display: 'block' }}>
+                  Company: {companyName}
+                </Text>
+              )}
+              {period && (
+                <Text type="secondary" style={{ display: 'block' }}>
+                  Period: {period}
+                </Text>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <Space>
+              {filters && (
+                <Button
+                  icon={<FilterOutlined />}
+                  onClick={() => setFiltersVisible(true)}
+                >
+                  Filters
+                </Button>
+              )}
+
+              {onExportPDF && (
+                <Button
+                  icon={<FilePdfOutlined />}
+                  onClick={onExportPDF}
+                >
+                  PDF
+                </Button>
+              )}
+
+              {onExportCSV && (
+                <Button
+                  icon={<FileTextOutlined />}
+                  onClick={onExportCSV}
+                >
+                  CSV
+                </Button>
+              )}
+
+              {onExportExcel && (
+                <Button
+                  icon={<FileExcelOutlined />}
+                  onClick={onExportExcel}
+                >
+                  Excel
+                </Button>
+              )}
+
+              {onPrint && (
+                <Button
+                  icon={<PrinterOutlined />}
+                  onClick={onPrint}
+                >
+                  Print
+                </Button>
+              )}
+            </Space>
           </div>
+        </Card>
 
-          {/* Action Buttons */}
-          <Space>
-            {filters && (
-              <Button
-                icon={<FilterOutlined />}
-                onClick={() => setFiltersVisible(true)}
-              >
-                Filters
-              </Button>
-            )}
+        {/* Report Content */}
+        <div id="report-content">{children}</div>
 
-            {onExportPDF && (
-              <Button
-                icon={<FilePdfOutlined />}
-                onClick={onExportPDF}
-              >
-                PDF
-              </Button>
-            )}
-
-            {onExportCSV && (
-              <Button
-                icon={<FileTextOutlined />}
-                onClick={onExportCSV}
-              >
-                CSV
-              </Button>
-            )}
-
-            {onExportExcel && (
-              <Button
-                icon={<FileExcelOutlined />}
-                onClick={onExportExcel}
-              >
-                Excel
-              </Button>
-            )}
-
-            {onPrint && (
-              <Button
-                icon={<PrinterOutlined />}
-                onClick={onPrint}
-              >
-                Print
-              </Button>
-            )}
-          </Space>
-        </div>
-      </Card>
-
-      {/* Report Content */}
-      <div id="report-content">{children}</div>
-
-      {/* Filters Drawer */}
-      {filters && (
-        <Drawer
-          title="Report Filters"
-          placement="right"
-          open={filtersVisible}
-          onClose={() => setFiltersVisible(false)}
-          width={400}
-        >
-          {filters}
-        </Drawer>
-      )}
-    </div>
+        {/* Filters Drawer */}
+        {filters && (
+          <Drawer
+            title="Report Filters"
+            placement="right"
+            open={filtersVisible}
+            onClose={() => setFiltersVisible(false)}
+            width={400}
+          >
+            {filters}
+          </Drawer>
+        )}
+      </div>
+    </ModernDashboardLayout>
   );
 }
 

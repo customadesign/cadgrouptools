@@ -14,6 +14,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
+import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
 
 const { Title, Paragraph } = Typography;
 
@@ -107,52 +108,54 @@ const reportCategories = [
 
 export default function ReportsPage() {
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>Financial Reports</Title>
-      <Paragraph type="secondary" style={{ marginBottom: 32 }}>
-        Comprehensive financial reporting for single and multi-company analysis
-      </Paragraph>
+    <ModernDashboardLayout>
+      <div style={{ padding: '24px' }}>
+        <Title level={2}>Financial Reports</Title>
+        <Paragraph type="secondary" style={{ marginBottom: 32 }}>
+          Comprehensive financial reporting for single and multi-company analysis
+        </Paragraph>
 
-      {reportCategories.map((category, index) => (
-        <div key={index} style={{ marginBottom: 48 }}>
-          <Title level={3} style={{ marginBottom: 16 }}>
-            {category.title}
-          </Title>
-          <Row gutter={[16, 16]}>
-            {category.reports.map((report, reportIndex) => (
-              <Col key={reportIndex} xs={24} sm={12} lg={8}>
-                <Link href={report.href} style={{ textDecoration: 'none' }}>
-                  <Card
-                    hoverable
-                    style={{ height: '100%' }}
-                    bodyStyle={{ display: 'flex', flexDirection: 'column', height: '100%' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-                      <div
-                        style={{
-                          backgroundColor: `${report.color}15`,
-                          color: report.color,
-                          padding: 16,
-                          borderRadius: 8,
-                          marginRight: 16,
-                        }}
-                      >
-                        {report.icon}
+        {reportCategories.map((category, index) => (
+          <div key={index} style={{ marginBottom: 48 }}>
+            <Title level={3} style={{ marginBottom: 16 }}>
+              {category.title}
+            </Title>
+            <Row gutter={[16, 16]}>
+              {category.reports.map((report, reportIndex) => (
+                <Col key={reportIndex} xs={24} sm={12} lg={8}>
+                  <Link href={report.href} style={{ textDecoration: 'none' }}>
+                    <Card
+                      hoverable
+                      style={{ height: '100%' }}
+                      bodyStyle={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                        <div
+                          style={{
+                            backgroundColor: `${report.color}15`,
+                            color: report.color,
+                            padding: 16,
+                            borderRadius: 8,
+                            marginRight: 16,
+                          }}
+                        >
+                          {report.icon}
+                        </div>
+                        <Title level={4} style={{ margin: 0, flex: 1 }}>
+                          {report.title}
+                        </Title>
                       </div>
-                      <Title level={4} style={{ margin: 0, flex: 1 }}>
-                        {report.title}
-                      </Title>
-                    </div>
-                    <Paragraph type="secondary" style={{ margin: 0 }}>
-                      {report.description}
-                    </Paragraph>
-                  </Card>
-                </Link>
-              </Col>
-            ))}
-          </Row>
-        </div>
-      ))}
-    </div>
+                      <Paragraph type="secondary" style={{ margin: 0 }}>
+                        {report.description}
+                      </Paragraph>
+                    </Card>
+                  </Link>
+                </Col>
+              ))}
+            </Row>
+          </div>
+        ))}
+      </div>
+    </ModernDashboardLayout>
   );
 }
