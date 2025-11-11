@@ -38,3 +38,4 @@ CompanySchema.index({ slug: 1 });
 
 export const Company = models.Company || model('Company', CompanySchema);
 
+

@@ -272,3 +272,4 @@ export function ComparisonBarChart({ data, height = 300 }: ComparisonBarChartPro
   );
 }
 
+

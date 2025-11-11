@@ -75,6 +75,9 @@ export function exportReportToCSV(reportData: any, reportType: string, companyNa
       case 'transactions':
         exportTransactionsToCSV(reportData, filename);
         break;
+      case 'checks':
+        exportChecksToCSV(reportData, filename, period);
+        break;
       default:
         message.warning('Export not implemented for this report type');
     }
@@ -216,6 +219,123 @@ function exportTransactionsToCSV(reportData: any, filename: string) {
   exportToCSV(rows, filename);
 }
 
+function exportChecksToCSV(reportData: any, filename: string, period: string) {
+  const rows: any[] = [];
+  
+  // Header rows
+  rows.push({ col1: 'COMPANY:', col2: reportData.company?.name || 'Unknown' });
+  rows.push({ col1: 'PERIOD:', col2: period });
+  rows.push({ col1: '', col2: '' });
+  
+  // Column headers
+  rows.push({
+    checkNo: 'Check #',
+    date: 'Date',
+    payee: 'Payee',
+    purpose: 'Purpose',
+    amount: 'Amount',
+  });
+  
+  // Check data
+  if (reportData.checks) {
+    reportData.checks.forEach((check: any) => {
+      rows.push({
+        checkNo: check.checkNo,
+        date: dayjs(check.date).format('MM/DD/YYYY'),
+        payee: check.vendor,
+        purpose: check.purpose,
+        amount: check.amount.toFixed(2),
+      });
+    });
+    
+    // Total row
+    rows.push({
+      checkNo: '',
+      date: '',
+      payee: '',
+      purpose: 'TOTAL',
+      amount: reportData.summary.totalAmount.toFixed(2),
+    });
+  }
+
+  exportToCSV(rows, filename, ['Check #', 'Date', 'Payee', 'Purpose', 'Amount']);
+}
+
+/**
+ * Export check register to Excel with bookkeeper-friendly formatting
+ */
+export async function exportChecksToExcel(checkData: any, companyName: string, monthName: string, year: string) {
+  try {
+    const XLSX = await import('xlsx');
+    
+    // Prepare data for Excel
+    const data: any[] = [];
+    
+    // Header rows
+    data.push(['COMPANY:', companyName]);
+    data.push(['PERIOD:', `${monthName} ${year}`]);
+    data.push([]); // Empty row
+    
+    // Column headers
+    data.push(['Check #', 'Date', 'Payee', 'Purpose', 'Amount']);
+    
+    // Check rows
+    checkData.checks.forEach((check: any) => {
+      data.push([
+        check.checkNo,
+        dayjs(check.date).format('MM/DD/YYYY'),
+        check.vendor,
+        check.purpose,
+        parseFloat(check.amount.toFixed(2)),
+      ]);
+    });
+    
+    // Total row
+    data.push([
+      '',
+      '',
+      '',
+      'TOTAL',
+      parseFloat(checkData.summary.totalAmount.toFixed(2)),
+    ]);
+    
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 10 }, // Check #
+      { wch: 12 }, // Date
+      { wch: 25 }, // Payee
+      { wch: 30 }, // Purpose
+      { wch: 12 }, // Amount
+    ];
+    
+    // Format amount column as currency (column E, starting from row 5)
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:E1');
+    for (let R = 4; R <= range.e.r; R++) { // Start from data rows (after header)
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: 4 }); // Column E (Amount)
+      if (worksheet[cellAddress] && typeof worksheet[cellAddress].v === 'number') {
+        worksheet[cellAddress].z = '$#,##0.00';
+      }
+    }
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Check Register');
+    
+    // Generate filename
+    const filename = `Check_Register_${companyName.replace(/\s+/g, '_')}_${monthName}_${year}.xlsx`;
+    
+    // Write file
+    XLSX.writeFile(workbook, filename);
+    message.success('Excel file exported successfully');
+  } catch (error) {
+    console.error('Error exporting checks to Excel:', error);
+    message.error('Failed to export Excel file');
+  }
+}
+
 /**
  * Export to Excel format (XLSX)
  * Requires: npm install xlsx
@@ -270,4 +390,5 @@ export function formatCurrencyForExport(value: number, currency: string = 'PHP')
 export function formatDateForExport(date: string | Date, format: string = 'YYYY-MM-DD'): string {
   return dayjs(date).format(format);
 }
+
 

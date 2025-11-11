@@ -57,6 +57,13 @@ const reportCategories = [
         href: '/reports/transactions',
         color: '#fa8c16',
       },
+      {
+        title: 'Check Register',
+        description: 'Monthly list of all checks written with check numbers',
+        icon: <FileTextOutlined style={{ fontSize: 32 }} />,
+        href: '/reports/checks',
+        color: '#13c2c2',
+      },
     ],
   },
   {

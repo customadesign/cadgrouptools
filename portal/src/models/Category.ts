@@ -44,3 +44,4 @@ CategorySchema.index({ name: 1, type: 1 }, { unique: true });
 
 export const Category = models.Category || model('Category', CategorySchema);
 
+

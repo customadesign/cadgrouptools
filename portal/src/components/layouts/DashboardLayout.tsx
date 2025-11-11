@@ -214,6 +214,11 @@ export default function DashboardLayout({ children, breadcrumbs = [] }: Dashboar
               label: 'Transaction Ledger',
               onClick: () => router.push('/reports/transactions'),
             },
+            {
+              key: '/reports/checks',
+              label: 'Check Register',
+              onClick: () => router.push('/reports/checks'),
+            },
           ],
         },
         {

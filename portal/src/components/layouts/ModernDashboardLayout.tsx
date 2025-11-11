@@ -196,6 +196,11 @@ export default function ModernDashboardLayout({ children, breadcrumbs = [] }: Da
               label: 'Transaction Ledger',
               onClick: () => router.push('/reports/transactions'),
             },
+            {
+              key: '/reports/checks',
+              label: 'Check Register',
+              onClick: () => router.push('/reports/checks'),
+            },
           ],
         },
         {

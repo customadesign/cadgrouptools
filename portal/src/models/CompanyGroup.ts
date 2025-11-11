@@ -24,3 +24,4 @@ CompanyGroupSchema.index({ status: 1, name: 1 });
 
 export const CompanyGroup = models.CompanyGroup || model('CompanyGroup', CompanyGroupSchema);
 
+
