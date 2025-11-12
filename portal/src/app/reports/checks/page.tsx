@@ -114,17 +114,20 @@ export default function CheckRegisterPage() {
       title: 'Date',
       dataIndex: 'date',
       key: 'date',
-      width: 120,
-      render: (val: string) => dayjs(val).format('MMM DD, YYYY'),
+      width: 180,
       sorter: (a: any, b: any) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+      render: (val: string, record: any) => {
+        const displayValue = dayjs(val).format('MMM DD, YYYY');
+        return renderEditableCell(val, record, 'date', displayValue);
+      },
     },
     {
       title: 'Payee',
       dataIndex: 'vendor',
       key: 'vendor',
-      width: 200,
-      ellipsis: true,
+      width: 220,
       sorter: (a: any, b: any) => a.vendor.localeCompare(b.vendor),
+      render: (vendor: string, record: any) => renderEditableCell(vendor, record, 'vendor'),
     },
     {
       title: 'Purpose',
@@ -145,26 +148,107 @@ export default function CheckRegisterPage() {
       dataIndex: 'amount',
       key: 'amount',
       align: 'right' as const,
-      width: 120,
-      render: (val: number) => (
-        <span style={{ fontWeight: 500, color: '#ff4d4f' }}>
-          {formatCurrency(val)}
-        </span>
-      ),
+      width: 180,
       sorter: (a: any, b: any) => a.amount - b.amount,
+      render: (val: number, record: any) => {
+        const displayValue = formatCurrency(val);
+        const isEditing = editingCell?.id === record.id && editingCell?.field === 'amount';
+        
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+            {isEditing ? (
+              <>
+                <Input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onPressEnter={() => handleCellSave(record.id, 'amount')}
+                  autoFocus
+                  size="small"
+                  style={{ width: 100 }}
+                  type="number"
+                  step="0.01"
+                />
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<SaveOutlined />}
+                  onClick={() => handleCellSave(record.id, 'amount')}
+                />
+                <Button
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={handleEditCancel}
+                />
+              </>
+            ) : (
+              <>
+                <span 
+                  style={{ fontWeight: 500, color: '#ff4d4f', cursor: 'pointer', flex: 1, textAlign: 'right' }}
+                  onClick={() => handleCellEdit(record, 'amount', val)}
+                  title="Click to edit"
+                >
+                  {displayValue}
+                </span>
+                <EditOutlined 
+                  style={{ opacity: 0.3, fontSize: 12, cursor: 'pointer' }}
+                  onClick={() => handleCellEdit(record, 'amount', val)}
+                />
+              </>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: {
-        showTitle: false,
+      render: (description: string, record: any) => {
+        const isEditing = editingCell?.id === record.id && editingCell?.field === 'description';
+        
+        if (isEditing) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Input.TextArea
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                autoFocus
+                size="small"
+                rows={2}
+                style={{ flex: 1 }}
+              />
+              <Button
+                type="primary"
+                size="small"
+                icon={<SaveOutlined />}
+                onClick={() => handleCellSave(record.id, 'description')}
+              />
+              <Button
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={handleEditCancel}
+              />
+            </div>
+          );
+        }
+        
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Tooltip placement="topLeft" title={description}>
+              <span 
+                style={{ cursor: 'pointer', flex: 1 }}
+                onClick={() => handleCellEdit(record, 'description', description)}
+              >
+                {description}
+              </span>
+            </Tooltip>
+            <EditOutlined 
+              style={{ opacity: 0.3, fontSize: 12, cursor: 'pointer' }}
+              onClick={() => handleCellEdit(record, 'description', description)}
+            />
+          </div>
+        );
       },
-      render: (description: string) => (
-        <Tooltip placement="topLeft" title={description}>
-          {description}
-        </Tooltip>
-      ),
     },
   ];
 
@@ -179,7 +263,7 @@ export default function CheckRegisterPage() {
   };
 
   const handleCellSave = async (transactionId: string, field: string) => {
-    if (!editValue.trim() && field !== 'notes') {
+    if (!editValue.trim() && field !== 'notes' && field !== 'description') {
       message.error(`${field} cannot be empty`);
       return;
     }
@@ -195,6 +279,14 @@ export default function CheckRegisterPage() {
           return;
         }
         updateData.amount = numValue;
+      } else if (field === 'date') {
+        // Validate and convert date
+        const dateValue = dayjs(editValue);
+        if (!dateValue.isValid()) {
+          message.error('Invalid date format. Use YYYY-MM-DD or MM/DD/YYYY');
+          return;
+        }
+        updateData.txnDate = dateValue.toISOString();
       } else {
         updateData[field] = editValue.trim();
       }

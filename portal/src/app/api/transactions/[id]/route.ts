@@ -29,11 +29,21 @@ export async function PATCH(
       'notes',
       'taxDeductible',
       'isReconciled',
+      'amount',
+      'description',
+      'txnDate',
     ];
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        updates[field] = body[field];
+        // Handle date field conversion
+        if (field === 'txnDate' || field === 'date') {
+          updates.txnDate = new Date(body[field]);
+        } else if (field === 'amount') {
+          updates.amount = parseFloat(body.amount);
+        } else {
+          updates[field] = body[field];
+        }
       }
     }
 
