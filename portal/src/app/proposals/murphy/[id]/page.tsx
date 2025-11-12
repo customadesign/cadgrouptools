@@ -26,6 +26,11 @@ interface ProposalDetail {
   murphyRate?: number;
   htmlDraft?: string;
   googleSlidesUrl?: string;
+  files?: {
+    slides?: string;
+    pdf?: string;
+    additionalFiles?: Array<{ name: string; url: string; type?: string }>;
+  };
   researchJson: any;
   createdAt: string;
   completedAt?: string;
@@ -235,6 +240,47 @@ export default function MurphyProposalDetailPage() {
             showIcon
             style={{ marginBottom: 24, borderRadius: '12px' }}
           />
+        )}
+
+        {/* Proposal Files */}
+        {isCompleted && (proposal.files?.slides || proposal.files?.pdf || proposal.files?.additionalFiles?.length) && (
+          <Card title="Proposal Files" className="gradient-card mb-6">
+            <Row gutter={[16, 16]}>
+              {proposal.files.slides && (
+                <Col xs={24} sm={12} md={8}>
+                  <FileCard
+                    type="slides"
+                    name="Google Slides Presentation"
+                    url={proposal.files.slides}
+                    icon={<FileTextOutlined />}
+                    color="#3B82F6"
+                  />
+                </Col>
+              )}
+              {proposal.files.pdf && (
+                <Col xs={24} sm={12} md={8}>
+                  <FileCard
+                    type="pdf"
+                    name="PDF Document"
+                    url={proposal.files.pdf}
+                    icon={<FilePdfOutlined />}
+                    color="#EF4444"
+                  />
+                </Col>
+              )}
+              {proposal.files.additionalFiles?.map((file, index) => (
+                <Col xs={24} sm={12} md={8} key={index}>
+                  <FileCard
+                    type={file.type || 'document'}
+                    name={file.name}
+                    url={file.url}
+                    icon={<FileOutlined />}
+                    color="#10B981"
+                  />
+                </Col>
+              ))}
+            </Row>
+          </Card>
         )}
 
         {/* Client Information */}
