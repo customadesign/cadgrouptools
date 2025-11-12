@@ -21,3 +21,5 @@
 README.md
 docs/*.md
 **/*.md
+# Exception: Always track persona templates
+!portal/public/personas/*.md
