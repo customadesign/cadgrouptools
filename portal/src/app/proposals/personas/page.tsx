@@ -17,6 +17,7 @@ import {
   Col,
   Tag,
   Popconfirm,
+  Checkbox,
 } from 'antd';
 import {
   PlusOutlined,
@@ -464,15 +465,14 @@ When analyzing websites:
           <Form.Item
             name="isActive"
             valuePropName="checked"
-            extra="Only one persona can be active per form. Activating this will deactivate others for the same form."
           >
-            <Space>
-              <input type="checkbox" id="isActive" />
-              <label htmlFor="isActive" style={{ cursor: 'pointer', color: 'var(--text-primary)' }}>
-                Set as active persona for this form
-              </label>
-            </Space>
+            <Checkbox style={{ color: 'var(--text-primary)' }}>
+              Set as active persona for this form
+            </Checkbox>
           </Form.Item>
+          <div className="text-sm mb-4" style={{ color: 'var(--text-secondary)', marginTop: -16 }}>
+            Only one persona can be active per form. Activating this will deactivate others for the same form.
+          </div>
 
           <Form.Item>
             <Space>
