@@ -14,10 +14,11 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import CompanySelector from '@/components/reports/CompanySelector';
 import { Alert } from 'antd';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 const { Title, Paragraph } = Typography;
 
@@ -118,11 +119,46 @@ const reportCategories = [
 
 export default function ReportsPage() {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin?callbackUrl=/reports');
+    }
+  }, [status, router]);
+
+  if (status === 'loading') {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
 
   return (
-    <DashboardLayout>
-      <div style={{ padding: '24px' }}>
-        <Title level={2}>Financial Reports</Title>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
+      {/* Simple Header */}
+      <div style={{ 
+        background: '#fff', 
+        padding: '16px 24px', 
+        marginBottom: 24,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Title level={3} style={{ margin: 0 }}>Financial Reports</Title>
+          <Link href="/dashboard" style={{ textDecoration: 'none' }}>
+            ← Back to Dashboard
+          </Link>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 24px' }}>
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           Comprehensive financial reporting for single and multi-company analysis
         </Paragraph>
@@ -149,6 +185,7 @@ export default function ReportsPage() {
           )}
         </Card>
 
+        {/* Report Cards */}
         {reportCategories.map((category, index) => (
           <div key={index} style={{ marginBottom: 48 }}>
             <Title level={3} style={{ marginBottom: 16 }}>
@@ -193,6 +230,6 @@ export default function ReportsPage() {
           </div>
         ))}
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
