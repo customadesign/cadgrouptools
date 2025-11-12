@@ -14,7 +14,10 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
-import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import CompanySelector from '@/components/reports/CompanySelector';
+import { Alert } from 'antd';
+import { useState } from 'react';
 
 const { Title, Paragraph } = Typography;
 
@@ -114,13 +117,37 @@ const reportCategories = [
 ];
 
 export default function ReportsPage() {
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+
   return (
-    <ModernDashboardLayout>
+    <DashboardLayout>
       <div style={{ padding: '24px' }}>
         <Title level={2}>Financial Reports</Title>
-        <Paragraph type="secondary" style={{ marginBottom: 32 }}>
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           Comprehensive financial reporting for single and multi-company analysis
         </Paragraph>
+
+        {/* Company Selector */}
+        <Card style={{ marginBottom: 32 }}>
+          <Title level={4} style={{ marginBottom: 16 }}>Filter by Company</Title>
+          <CompanySelector
+            value={selectedCompany}
+            onChange={(val) => setSelectedCompany(val as string)}
+            showAllOption={true}
+            placeholder="All Companies"
+            style={{ maxWidth: 400 }}
+          />
+          {selectedCompany && (
+            <Alert
+              message="Company Selected"
+              description="Reports will open with this company pre-selected for faster access"
+              type="info"
+              style={{ marginTop: 16 }}
+              closable
+              onClose={() => setSelectedCompany('')}
+            />
+          )}
+        </Card>
 
         {reportCategories.map((category, index) => (
           <div key={index} style={{ marginBottom: 48 }}>
@@ -130,7 +157,10 @@ export default function ReportsPage() {
             <Row gutter={[16, 16]}>
               {category.reports.map((report, reportIndex) => (
                 <Col key={reportIndex} xs={24} sm={12} lg={8}>
-                  <Link href={report.href} style={{ textDecoration: 'none' }}>
+                  <Link 
+                    href={selectedCompany ? `${report.href}?companyId=${selectedCompany}` : report.href} 
+                    style={{ textDecoration: 'none' }}
+                  >
                     <Card
                       hoverable
                       style={{ height: '100%' }}
@@ -163,6 +193,6 @@ export default function ReportsPage() {
           </div>
         ))}
       </div>
-    </ModernDashboardLayout>
+    </DashboardLayout>
   );
 }

@@ -18,6 +18,15 @@ export default function RevenueReportPage() {
     dayjs().endOf('month'),
   ]);
 
+  // Pre-select company from URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const companyId = params.get('companyId');
+    if (companyId) {
+      setSelectedCompany(companyId);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedCompany) {
       fetchReport();

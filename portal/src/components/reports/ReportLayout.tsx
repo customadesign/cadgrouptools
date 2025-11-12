@@ -13,7 +13,7 @@ import {
 import { ReactNode } from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
-import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 
 const { Title, Text } = Typography;
 
@@ -53,7 +53,7 @@ export default function ReportLayout({
   ];
 
   return (
-    <ModernDashboardLayout>
+    <DashboardLayout>
       <div style={{ padding: '24px' }}>
         {/* Breadcrumb */}
         <Breadcrumb style={{ marginBottom: 16 }}>
@@ -161,7 +161,7 @@ export default function ReportLayout({
           </Drawer>
         )}
       </div>
-    </ModernDashboardLayout>
+    </DashboardLayout>
   );
 }
 

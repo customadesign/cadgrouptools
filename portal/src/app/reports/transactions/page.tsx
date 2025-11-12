@@ -28,6 +28,15 @@ export default function TransactionLedgerPage() {
     fetchCategories();
   }, []);
 
+  // Pre-select company from URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const companyId = params.get('companyId');
+    if (companyId) {
+      setSelectedCompany(companyId);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedCompany) {
       fetchReport();
