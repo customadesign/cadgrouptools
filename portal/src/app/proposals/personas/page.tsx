@@ -92,6 +92,8 @@ export default function PersonasPage() {
   const handleCreateEdit = async (values: any) => {
     setSubmitting(true);
     try {
+      console.log('Submitting persona:', values);
+      
       const url = editingPersona
         ? `/api/personas/${editingPersona._id}`
         : '/api/personas';
@@ -104,17 +106,22 @@ export default function PersonasPage() {
         body: JSON.stringify(values),
       });
 
+      const data = await response.json();
+      console.log('API response:', response.status, data);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save persona');
+        throw new Error(data.error || data.message || 'Failed to save persona');
       }
 
-      message.success(editingPersona ? 'Persona updated successfully' : 'Persona created successfully');
+      message.success(editingPersona ? 'Persona updated successfully!' : 'Persona created successfully!');
       setModalVisible(false);
       setEditingPersona(null);
       form.resetFields();
-      fetchPersonas();
+      
+      // Refresh the list
+      await fetchPersonas();
     } catch (error: any) {
+      console.error('Error saving persona:', error);
       message.error(error.message || 'Failed to save persona');
     } finally {
       setSubmitting(false);
