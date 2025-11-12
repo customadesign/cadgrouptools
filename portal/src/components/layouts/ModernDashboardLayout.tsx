@@ -102,6 +102,14 @@ export default function ModernDashboardLayout({ children, breadcrumbs = [] }: Da
           onClick: () => router.push('/proposals'),
         },
         {
+          key: '/proposals/clients',
+          label: '👥 Clients',
+          onClick: () => router.push('/proposals/clients'),
+        },
+        {
+          type: 'divider',
+        },
+        {
           key: '/proposals/murphy',
           label: 'Murphy Consulting',
           onClick: () => router.push('/proposals/murphy'),
