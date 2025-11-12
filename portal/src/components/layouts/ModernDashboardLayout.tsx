@@ -102,22 +102,17 @@ export default function ModernDashboardLayout({ children, breadcrumbs = [] }: Da
           onClick: () => router.push('/proposals'),
         },
         {
-          key: '/proposals/clients',
-          label: '👥 Clients',
-          onClick: () => router.push('/proposals/clients'),
-        },
-        {
           type: 'divider',
-        },
-        {
-          key: '/proposals/murphy',
-          label: 'Murphy Consulting',
-          onClick: () => router.push('/proposals/murphy'),
         },
         {
           key: '/proposals/esystems',
           label: 'E-Systems Management',
           onClick: () => router.push('/proposals/esystems'),
+        },
+        {
+          key: '/proposals/murphy',
+          label: 'Murphy Consulting',
+          onClick: () => router.push('/proposals/murphy'),
         },
         {
           type: 'divider',
@@ -126,6 +121,11 @@ export default function ModernDashboardLayout({ children, breadcrumbs = [] }: Da
           key: '/proposals/personas',
           label: '🤖 AI Personas',
           onClick: () => router.push('/proposals/personas'),
+        },
+        {
+          key: '/proposals/clients',
+          label: '👥 Clients',
+          onClick: () => router.push('/proposals/clients'),
         },
       ],
     },

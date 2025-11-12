@@ -17,7 +17,7 @@ export default function CheckRegisterPage() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1); // 1-12
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
   const [sortBy, setSortBy] = useState<'checkNo' | 'date'>('checkNo');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
   // Pre-select company from URL query parameter
@@ -101,58 +101,14 @@ export default function CheckRegisterPage() {
       key: 'checkNo',
       width: 150,
       sorter: (a: any, b: any) => {
-        // Try numeric sort first
         const aNum = parseInt(a.checkNo);
         const bNum = parseInt(b.checkNo);
         if (!isNaN(aNum) && !isNaN(bNum)) {
           return aNum - bNum;
         }
-        // Fallback to string sort
         return a.checkNo.localeCompare(b.checkNo);
       },
-      render: (checkNo: string, record: any) => {
-        const isEditing = editingId === record.id;
-        
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isEditing ? (
-              <>
-                <Input
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onPressEnter={() => handleEditSave(record.id)}
-                  autoFocus
-                  style={{ width: 80 }}
-                  size="small"
-                />
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<SaveOutlined />}
-                  onClick={() => handleEditSave(record.id)}
-                />
-                <Button
-                  size="small"
-                  icon={<CloseOutlined />}
-                  onClick={handleEditCancel}
-                />
-              </>
-            ) : (
-              <>
-                <span style={{ fontWeight: 500 }}>{checkNo}</span>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => handleEditStart(record)}
-                  style={{ opacity: 0.6 }}
-                  title="Edit check number"
-                />
-              </>
-            )}
-          </div>
-        );
-      },
+      render: (checkNo: string, record: any) => renderEditableCell(checkNo, record, 'checkNo'),
     },
     {
       title: 'Date',
@@ -212,40 +168,101 @@ export default function CheckRegisterPage() {
     },
   ];
 
-  const handleEditStart = (record: any) => {
-    setEditingId(record.id);
-    setEditValue(record.checkNo);
+  const handleCellEdit = (record: any, field: string, currentValue: any) => {
+    setEditingCell({ id: record.id, field });
+    setEditValue(currentValue?.toString() || '');
   };
 
   const handleEditCancel = () => {
-    setEditingId(null);
+    setEditingCell(null);
     setEditValue('');
   };
 
-  const handleEditSave = async (transactionId: string) => {
-    if (!editValue.trim()) {
-      message.error('Check number cannot be empty');
+  const handleCellSave = async (transactionId: string, field: string) => {
+    if (!editValue.trim() && field !== 'notes') {
+      message.error(`${field} cannot be empty`);
       return;
     }
 
     try {
+      const updateData: any = {};
+      
+      // Handle different field types
+      if (field === 'amount') {
+        const numValue = parseFloat(editValue);
+        if (isNaN(numValue) || numValue <= 0) {
+          message.error('Amount must be a valid positive number');
+          return;
+        }
+        updateData.amount = numValue;
+      } else {
+        updateData[field] = editValue.trim();
+      }
+
       const response = await fetch(`/api/transactions/${transactionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkNo: editValue.trim() }),
+        body: JSON.stringify(updateData),
       });
 
-      if (!response.ok) throw new Error('Failed to update check number');
+      if (!response.ok) throw new Error('Failed to update');
 
-      message.success('Check number updated successfully');
-      setEditingId(null);
+      message.success('Updated successfully');
+      setEditingCell(null);
       setEditValue('');
       
       // Refresh the report to show updated data
       fetchReport();
     } catch (error: any) {
-      message.error(error.message || 'Failed to update check number');
+      message.error(error.message || 'Failed to update');
     }
+  };
+
+  const renderEditableCell = (value: any, record: any, field: string, displayValue?: string) => {
+    const isEditing = editingCell?.id === record.id && editingCell?.field === field;
+    const display = displayValue || value?.toString() || '';
+    
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, minHeight: 32 }}>
+        {isEditing ? (
+          <>
+            <Input
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onPressEnter={() => handleCellSave(record.id, field)}
+              autoFocus
+              size="small"
+              style={{ flex: 1 }}
+            />
+            <Button
+              type="primary"
+              size="small"
+              icon={<SaveOutlined />}
+              onClick={() => handleCellSave(record.id, field)}
+            />
+            <Button
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={handleEditCancel}
+            />
+          </>
+        ) : (
+          <>
+            <span 
+              style={{ flex: 1, cursor: 'pointer' }}
+              onClick={() => handleCellEdit(record, field, value)}
+              title="Click to edit"
+            >
+              {display}
+            </span>
+            <EditOutlined 
+              style={{ opacity: 0.3, fontSize: 12, cursor: 'pointer' }}
+              onClick={() => handleCellEdit(record, field, value)}
+            />
+          </>
+        )}
+      </div>
+    );
   };
 
   const monthOptions = [
