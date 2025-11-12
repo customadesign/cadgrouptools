@@ -197,11 +197,15 @@ async function handleAccountingCompleted(manusTask: any, data: any) {
   console.log('Accounting analysis completed:', manusTask.accountingUploadId);
 }
 
-// Allow only POST requests
+// GET endpoint for webhook verification by Manus AI
 export async function GET() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  );
+  return NextResponse.json({
+    status: 'ok',
+    message: 'Manus AI webhook endpoint is active and ready',
+    endpoint: '/api/webhooks/manus',
+    methods: ['POST'],
+    events: ['task.completed', 'task.failed', 'task.processing'],
+    version: '1.0.0',
+  }, { status: 200 });
 }
 
