@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
         : categoryName;
 
       return {
+        id: check._id.toString(), // Add transaction ID for editing
         checkNo: check.checkNo,
         date: check.txnDate,
         amount: check.amount,
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
         } : null,
         description: check.description,
         purpose,
+        confidence: check.confidence, // OCR confidence score
       };
     });
 

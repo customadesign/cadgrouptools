@@ -132,12 +132,25 @@ async function handleProposalCompleted(manusTask: any, data: any) {
     return;
   }
 
+  // Extract ALL files from Manus output
+  const files = {
+    slides: data.slides_url || data.presentation_url || data.google_slides_url,
+    pdf: data.pdf_url || data.document_url,
+    additionalFiles: data.documents || data.files || [],
+  };
+
   // Extract proposal data from Manus output
   const proposalData = {
     status: 'finalized',
     htmlDraft: data.proposal_html || data.html || '',
-    pdfKey: data.pdf_url || data.document_url || '',
+    
+    // Store structured files data
+    files,
+    
+    // Keep legacy fields for backward compatibility
+    pdfKey: data.pdf_url || data.slides_url,
     googleSlidesUrl: data.slides_url || data.presentation_url || '',
+    
     researchJson: data.research || data.analysis || {},
     completedAt: new Date(),
   };
@@ -145,7 +158,7 @@ async function handleProposalCompleted(manusTask: any, data: any) {
   // Update the proposal record
   await Proposal.findByIdAndUpdate(manusTask.proposalId, proposalData);
 
-  console.log('Proposal completed:', manusTask.proposalId);
+  console.log('Proposal completed:', manusTask.proposalId, 'Files:', files);
 }
 
 /**

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, Descriptions, Button, Space, message, Spin, Alert, Modal, Input, Steps } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined, MailOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Button, Space, message, Spin, Alert, Modal, Input, Steps, Row, Col } from 'antd';
+import { ArrowLeftOutlined, DownloadOutlined, MailOutlined, ReloadOutlined, EyeOutlined, FileTextOutlined, FilePdfOutlined, FileOutlined } from '@ant-design/icons';
+import FileCard from '@/components/ui/FileCard';
 import { motion } from 'framer-motion';
 import ModernDashboardLayout from '@/components/layouts/ModernDashboardLayout';
 import StatusBadge from '@/components/ui/StatusBadge';

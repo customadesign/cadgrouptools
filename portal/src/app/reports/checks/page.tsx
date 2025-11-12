@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Table, Statistic, message, Space, Select, Radio, Tooltip } from 'antd';
-import { FileTextOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Table, Statistic, message, Space, Select, Radio, Tooltip, Input, Button, Tag } from 'antd';
+import { FileTextOutlined, EditOutlined, SaveOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import ReportLayout from '@/components/reports/ReportLayout';
 import CompanySelector from '@/components/reports/CompanySelector';
 import { exportReportToCSV } from '@/lib/reports/exportUtils';
@@ -17,6 +17,8 @@ export default function CheckRegisterPage() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1); // 1-12
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
   const [sortBy, setSortBy] = useState<'checkNo' | 'date'>('checkNo');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
 
   // Pre-select company from URL query parameter
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function CheckRegisterPage() {
       title: 'Check #',
       dataIndex: 'checkNo',
       key: 'checkNo',
-      width: 100,
+      width: 150,
       sorter: (a: any, b: any) => {
         // Try numeric sort first
         const aNum = parseInt(a.checkNo);
@@ -107,6 +109,49 @@ export default function CheckRegisterPage() {
         }
         // Fallback to string sort
         return a.checkNo.localeCompare(b.checkNo);
+      },
+      render: (checkNo: string, record: any) => {
+        const isEditing = editingId === record.id;
+        
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {isEditing ? (
+              <>
+                <Input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onPressEnter={() => handleEditSave(record.id)}
+                  autoFocus
+                  style={{ width: 80 }}
+                  size="small"
+                />
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<SaveOutlined />}
+                  onClick={() => handleEditSave(record.id)}
+                />
+                <Button
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={handleEditCancel}
+                />
+              </>
+            ) : (
+              <>
+                <span style={{ fontWeight: 500 }}>{checkNo}</span>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => handleEditStart(record)}
+                  style={{ opacity: 0.6 }}
+                  title="Edit check number"
+                />
+              </>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -166,6 +211,42 @@ export default function CheckRegisterPage() {
       ),
     },
   ];
+
+  const handleEditStart = (record: any) => {
+    setEditingId(record.id);
+    setEditValue(record.checkNo);
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditValue('');
+  };
+
+  const handleEditSave = async (transactionId: string) => {
+    if (!editValue.trim()) {
+      message.error('Check number cannot be empty');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/transactions/${transactionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkNo: editValue.trim() }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update check number');
+
+      message.success('Check number updated successfully');
+      setEditingId(null);
+      setEditValue('');
+      
+      // Refresh the report to show updated data
+      fetchReport();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update check number');
+    }
+  };
 
   const monthOptions = [
     'January', 'February', 'March', 'April', 'May', 'June',

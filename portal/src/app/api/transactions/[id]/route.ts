@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/lib/db';
+import { Transaction } from '@/models/Transaction';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import { connectToDatabase } from '@/lib/db';
-import { Transaction } from '@/models/Transaction';
-import { Types } from 'mongoose';
 
-// GET: Fetch a single transaction
-export async function GET(
+// PATCH /api/transactions/:id - Update transaction fields
+export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -16,106 +15,45 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectToDatabase();
-
-    const { id } = params;
-
-    // Validate MongoDB ObjectId
-    if (!Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid transaction ID format' },
-        { status: 400 }
-      );
-    }
-
-    // Fetch transaction with populated statement reference
-    const transaction = await Transaction
-      .findById(id)
-      .populate({
-        path: 'statement',
-        select: 'accountName bankName month year status',
-      })
-      .lean();
-
-    if (!transaction) {
-      return NextResponse.json(
-        { error: 'Transaction not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: transaction,
-    });
-  } catch (error: any) {
-    console.error('Error fetching transaction:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch transaction', details: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT: Update a single transaction
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await connectToDatabase();
-
-    const { id } = params;
-
-    // Validate MongoDB ObjectId
-    if (!Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid transaction ID format' },
-        { status: 400 }
-      );
-    }
+    await connectDB();
 
     const body = await request.json();
-    
-    // Allowed fields for update
-    const allowedUpdates = [
-      'txnDate',
-      'description',
-      'amount',
-      'direction',
+    const updates: any = {};
+
+    // Allow specific fields to be updated
+    const allowedFields = [
       'checkNo',
-      'balance',
+      'vendor',
       'category',
-      'confidence',
+      'subcategory',
+      'notes',
+      'taxDeductible',
+      'isReconciled',
     ];
 
-    // Filter only allowed fields
-    const updates: any = {};
-    for (const key of allowedUpdates) {
-      if (body[key] !== undefined) {
-        // Special handling for date field
-        if (key === 'txnDate') {
-          updates[key] = new Date(body[key]);
-        } else {
-          updates[key] = body[key];
-        }
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updates[field] = body[field];
       }
     }
 
-    // Update the transaction
+    // If no updates provided
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400 }
+      );
+    }
+
+    // Find and update transaction
     const transaction = await Transaction.findByIdAndUpdate(
-      id,
+      params.id,
       { $set: updates },
       { new: true, runValidators: true }
-    ).populate({
-      path: 'statement',
-      select: 'accountName bankName month year status',
-    });
+    )
+      .populate('category', 'name type')
+      .populate('subcategory', 'name')
+      .populate('company', 'name currency');
 
     if (!transaction) {
       return NextResponse.json(
@@ -124,9 +62,9 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: transaction,
+    return NextResponse.json({ 
+      message: 'Transaction updated successfully',
+      transaction 
     });
   } catch (error: any) {
     console.error('Error updating transaction:', error);
@@ -137,8 +75,8 @@ export async function PUT(
   }
 }
 
-// DELETE: Delete a single transaction
-export async function DELETE(
+// GET /api/transactions/:id - Get single transaction
+export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -148,20 +86,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectToDatabase();
+    await connectDB();
 
-    const { id } = params;
-
-    // Validate MongoDB ObjectId
-    if (!Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid transaction ID format' },
-        { status: 400 }
-      );
-    }
-
-    // Delete the transaction
-    const transaction = await Transaction.findByIdAndDelete(id);
+    const transaction = await Transaction.findById(params.id)
+      .populate('category', 'name type')
+      .populate('subcategory', 'name')
+      .populate('company', 'name currency')
+      .lean();
 
     if (!transaction) {
       return NextResponse.json(
@@ -170,15 +101,11 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Transaction deleted successfully',
-      data: transaction,
-    });
+    return NextResponse.json({ transaction });
   } catch (error: any) {
-    console.error('Error deleting transaction:', error);
+    console.error('Error fetching transaction:', error);
     return NextResponse.json(
-      { error: 'Failed to delete transaction', details: error.message },
+      { error: 'Failed to fetch transaction', details: error.message },
       { status: 500 }
     );
   }
